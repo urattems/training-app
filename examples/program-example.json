@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "1.0",
+  "type": "training_program",
+  "programId": "prog-2026-w40",
+  "name": "Programme semaine 40",
+  "locale": "fr-FR",
+  "unitSystem": "metric",
+  "createdAt": "2026-10-01T09:00:00+02:00",
+  "week": {
+    "id": "2026-w40",
+    "label": "Semaine 40",
+    "startDate": "2026-09-28",
+    "endDate": "2026-10-04"
+  },
+  "sessions": [
+    {
+      "id": "A",
+      "name": "Séance A",
+      "order": 1,
+      "estimatedDurationMin": 70,
+      "exercises": [
+        {
+          "id": "chest-press-machine",
+          "order": 1,
+          "type": "strength",
+          "name": "Chest Press",
+          "category": "Pectoraux",
+          "equipment": "Machine",
+          "restSec": 120,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 47 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 47 },
+            { "setNumber": 3, "targetReps": 10, "targetWeightKg": 49 }
+          ]
+        },
+        {
+          "id": "lat-pulldown-machine",
+          "order": 2,
+          "type": "strength",
+          "name": "Tirage vertical",
+          "category": "Dos",
+          "equipment": "Poulie",
+          "restSec": 120,
+          "notes": "Tirer vers le haut de la poitrine, contrôler la remontée.",
+          "sets": [
+            { "setNumber": 1, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 55 },
+            { "setNumber": 2, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 55 },
+            { "setNumber": 3, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 55 }
+          ]
+        },
+        {
+          "id": "lateral-raise-dumbbell",
+          "order": 3,
+          "type": "strength",
+          "name": "Élévations latérales",
+          "category": "Épaules",
+          "equipment": "Haltères",
+          "restSec": 90,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetReps": 15, "targetWeightKg": 8 },
+            { "setNumber": 2, "targetReps": 15, "targetWeightKg": 8 },
+            { "setNumber": 3, "targetReps": 12, "targetWeightKg": 8 }
+          ]
+        }
+      ],
+      "cardio": {
+        "enabled": true,
+        "label": "Cardio",
+        "targetDurationMin": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "B",
+      "name": "Séance B",
+      "order": 2,
+      "estimatedDurationMin": 65,
+      "exercises": [
+        {
+          "id": "leg-press-machine",
+          "order": 1,
+          "type": "strength",
+          "name": "Presse à cuisses",
+          "category": "Jambes",
+          "equipment": "Machine",
+          "restSec": 150,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 120 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 120 },
+            { "setNumber": 3, "targetReps": 10, "targetWeightKg": 130 }
+          ]
+        },
+        {
+          "id": "seated-row-machine",
+          "order": 2,
+          "type": "strength",
+          "name": "Rowing assis",
+          "category": "Dos",
+          "equipment": "Machine",
+          "restSec": 120,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 50 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 50 },
+            { "setNumber": 3, "targetReps": 10, "targetWeightKg": 52.5 }
+          ]
+        },
+        {
+          "id": "dumbbell-curl",
+          "order": 3,
+          "type": "strength",
+          "name": "Curl haltères",
+          "category": "Biceps",
+          "equipment": "Haltères",
+          "restSec": 90,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetRepsMin": 10, "targetRepsMax": 12, "targetWeightKg": 12 },
+            { "setNumber": 2, "targetRepsMin": 10, "targetRepsMax": 12, "targetWeightKg": 12 },
+            { "setNumber": 3, "targetRepsMin": 10, "targetRepsMax": 12, "targetWeightKg": 12 }
+          ]
+        }
+      ],
+      "cardio": {
+        "enabled": true,
+        "label": "Cardio",
+        "targetDurationMin": 20,
+        "notes": null
+      }
+    },
+    {
+      "id": "C",
+      "name": "Séance C",
+      "order": 3,
+      "estimatedDurationMin": 60,
+      "exercises": [
+        {
+          "id": "shoulder-press-machine",
+          "order": 1,
+          "type": "strength",
+          "name": "Développé épaules",
+          "category": "Épaules",
+          "equipment": "Machine",
+          "restSec": 120,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetReps": 10, "targetWeightKg": 30 },
+            { "setNumber": 2, "targetReps": 10, "targetWeightKg": 30 },
+            { "setNumber": 3, "targetReps": 8, "targetWeightKg": 32.5 }
+          ]
+        },
+        {
+          "id": "triceps-pushdown-cable",
+          "order": 2,
+          "type": "strength",
+          "name": "Extension triceps",
+          "category": "Triceps",
+          "equipment": "Poulie",
+          "restSec": 90,
+          "notes": null,
+          "sets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 25 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 25 },
+            { "setNumber": 3, "targetReps": 12, "targetWeightKg": 25 }
+          ]
+        },
+        {
+          "id": "plank-bodyweight",
+          "order": 3,
+          "type": "strength",
+          "name": "Gainage (reps = secondes)",
+          "category": "Abdominaux",
+          "equipment": "Poids du corps",
+          "restSec": 60,
+          "notes": "Pas de charge : on note les secondes tenues dans le champ répétitions.",
+          "sets": [
+            { "setNumber": 1, "targetReps": 45, "targetWeightKg": null },
+            { "setNumber": 2, "targetReps": 45, "targetWeightKg": null },
+            { "setNumber": 3, "targetReps": 45, "targetWeightKg": null }
+          ]
+        }
+      ],
+      "cardio": {
+        "enabled": true,
+        "label": "Cardio",
+        "targetDurationMin": null,
+        "notes": "Libre : tapis, vélo ou rameur."
+      }
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+# DECISIONS.md — Carnet d'entraînement
+
+Journal des décisions techniques. Ordre de priorité en cas de conflit : `SPEC.md` > `CLAUDE.md` > ce fichier.
+Chaque entrée indique le jalon où elle a été prise.
+
+---
+
+## J0 — Environnement constaté
+
+- Windows 11, PowerShell. Node v22.23.1, npm 10.9.8, git 2.55.0.
+- Dépôt git initialisé (branche `master`, aucun commit avant le J0).
+- Contenu initial : `CLAUDE.md`, `SPEC.md`, `START_PROMPT.md`, `examples/` (2 fixtures contractuelles), `.claude/settings.json`.
+
+---
+
+## J0 — Stack
+
+| Domaine | Choix | Raison |
+|---|---|---|
+| UI | React 19 + TypeScript strict (`strict`, `noUncheckedIndexedAccess`) | Stack recommandée (SPEC §3) |
+| Build | Vite | Rapide, PWA via plugin officiel |
+| PWA | `vite-plugin-pwa` (Workbox `generateSW`, precache) | Hors ligne complet (SPEC §9) |
+| Persistance | Dexie 4 + `dexie-react-hooks` (`useLiveQuery`) | IndexedDB typé, transactions, versions, UI réactive |
+| Validation | Zod 4 | Validation de tout JSON entrant (SPEC §10) |
+| Routage | React Router 7 en **HashRouter** | Voir « Hébergement » |
+| Graphiques | Recharts | Recommandé ; carte de détail contrôlée (pas de tooltip natif) |
+| Icônes | Lucide | Recommandé |
+| Styles | CSS Modules + variables CSS centralisées (`src/styles/tokens.css`) | Natif Vite, pas de framework CSS, thème sombre = second jeu de tokens (J8) |
+| Tests | Vitest + jsdom + Testing Library + `fake-indexeddb` | Services testés sur une vraie base Dexie en mémoire |
+| Lint | ESLint 9 (flat config), `typescript-eslint` strict, `react-hooks` | |
+
+Scripts npm : `dev`, `build`, `preview`, `test`, `typecheck`, `lint`, tous compatibles Windows.
+State : état local React + hooks/services sur Dexie. Pas de Redux.
+
+**À vérifier au J1** : compatibilité Recharts / React 19 et API exacte de Zod 4 (`error` / `errorMap`, unions discriminées). Tout écart sera documenté ici.
+
+---
+
+## J0 — Architecture
+
+```
+src/
+  app/        App, routes, providers (DB, settings), Shell + TabBar, ErrorBoundary
+  components/ composants UI réutilisables (Button, Card, NumberField, SensationPicker, Dialog, EmptyState…)
+  features/   home/ program/ workout/ exercise/ history/ progress/ settings/ import/
+  domain/     types + règles pures (snapshot, prochaine séance, « Comme prévu », volume,
+              records, séries de graphiques, texte de progression, validation de valeurs)
+  schemas/    schémas Zod, invariants §10.5, chaîne de migrations schemaVersion, messages d'erreur FR
+  db/         Dexie, DB_VERSION, migrations DB
+  services/   program, workout, history, export, import, statistics, settings
+  hooks/  utils/  styles/  i18n/ (strings.ts)
+```
+
+- Le JSX n'appelle que des hooks et des services. Toute la logique métier est en fonctions pures testées.
+- Pipeline unique : JSON externe → Zod → modèle domaine → IndexedDB → modèle domaine → export.
+- Le modèle domaine est aligné sur le contrat JSON §11 : pas de format parallèle. Les seuls champs internes (`importedAt`, `archivedAt`) sont retirés à l'export.
+
+### Types : une seule source de vérité (validé par l'utilisateur)
+- Tout ce qui appartient au contrat JSON (§11) a ses types TypeScript **dérivés des schémas Zod** via `z.infer`. Il n'y a aucune interface écrite à la main en double.
+- Les champs internes (`importedAt`, `archivedAt`) **étendent** ces types dérivés (ex. `type StoredProgram = TrainingProgram & { importedAt: string; archivedAt: string | null }`).
+- `domain/types.ts` réexporte les types dérivés sous leurs noms métier (`TrainingProgram`, `WorkoutSession`, `ActualSet`…) et y ajoute les types purement internes.
+
+---
+
+## J0 — Base IndexedDB (Dexie)
+
+- **Nom de base unique : `training-app-db`.** L'origine GitHub Pages (`<user>.github.io`) est partagée entre tous les dépôts de l'utilisateur, donc un nom générique risquerait une collision.
+- `DB_VERSION = 1`. Les évolutions futures passent par `db.version(n).stores(...).upgrade(...)`.
+- Stores :
+  - `programs: '&programId'` : programme complet validé + `importedAt` + `archivedAt|null`. **Aucun index sur `archivedAt`**, parce que `null` n'est pas indexable dans IndexedDB.
+  - `workouts: '&id, status, date, programId'` : un document par séance (exercices + cardio), dans la forme du contrat d'export.
+  - `settings: '&key'` : `activeProgramId`, `preferences`, `lastExportAt`.
+  - `metadata: '&key'` : métadonnées techniques, dont `preRestoreBackup`.
+- **Programme actif = `settings.activeProgramId`** : c'est la seule source de vérité. `archivedAt` n'est qu'informatif.
+- Invariants tenus en transaction `rw` :
+  - une seule séance `in_progress`, vérifiée dans la transaction de démarrage ;
+  - import de programme : archivage de l'ancien + insertion + activation du nouveau, en une transaction ;
+  - restauration : voir « Restauration ».
+- Autosave : chaque modification met à jour le document workout (debounce d'environ 300 ms), avec un flush au `blur`, sur `visibilitychange` (hidden) et sur `pagehide`.
+- `navigator.storage.persist()` est appelé au démarrage (J5), en silence s'il est refusé.
+
+---
+
+## J0 — Validation, import, export, restauration
+
+- Les schémas Zod reproduisent exactement SPEC §11 :
+  - exclusivité `targetReps` / `targetRepsMin + targetRepsMax` ;
+  - `setNumber` unique par exercice ;
+  - champs nullables obligatoires (`.nullable()`, pas `.optional()`) ;
+  - seul `preferences` est optionnel, avec des valeurs par défaut.
+- Pipeline d'entrée :
+  1. lecture du fichier ;
+  2. `JSON.parse` ;
+  3. lecture de `schemaVersion` et de `type` ;
+  4. migration, ou refus d'une version future ou inconnue ;
+  5. `safeParse` ;
+  6. invariants §10.5 ;
+  7. prévisualisation ;
+  8. écriture.
+
+  Tout échec refuse le fichier **en bloc**, et rien n'est écrit.
+- Messages d'erreur humains en français, à partir du chemin Zod (« la séance A contient un exercice sans identifiant »). Le détail technique est derrière « Afficher les détails ».
+- **Migrations de schéma** : registre `{ from, to, migrate }` + runner générique. En V1, le registre est vide (seule la `1.0` existe). Le runner est testé avec une migration factice définie dans les tests, sans code mort dans `src`.
+- **Import d'un `programId` déjà présent** (actif ou archivé) : **refusé**, avec le message « Un programme avec l'identifiant "…" existe déjà. Demande au coach un nouvel identifiant. » (décision utilisateur, J0).
+- **Export** : `training-backup-YYYY-MM-DD.json`. On tente `navigator.canShare({ files })` puis `navigator.share`, avec un repli par téléchargement (`<a download>`). `lastExportAt` est mémorisé.
+
+### Restauration : écart assumé vs SPEC §10.3 (validé par l'utilisateur)
+- SPEC §10.3 demande un « export automatique des données actuelles avant remplacement ». Sur iOS, la feuille de partage (`navigator.share`) exige un **geste utilisateur direct**. Un partage déclenché automatiquement après des opérations asynchrones (lecture du fichier, validation) n'est pas fiable, et peut être refusé.
+- Le mécanisme retenu remplace l'export automatique et protège au moins autant :
+  1. **Bouton obligatoire « Exporter mes données actuelles »** dans l'écran de confirmation. Le bouton « Restaurer » reste inactif tant que cet export n'a pas été déclenché.
+  2. **`preRestoreBackup`** : une copie interne complète des données actuelles (au format `training_history_export`) est écrite dans `metadata`.
+- Tout se fait dans **une seule transaction `rw`** sur toutes les tables, dans cet ordre :
+  1. lecture des données actuelles ;
+  2. `clear` ;
+  3. écriture de `preRestoreBackup` **après** le clear, pour qu'elle y survive ;
+  4. `bulkPut` des données restaurées.
+
+  Un échec annule tout.
+
+---
+
+## J0 — Hébergement : GitHub Pages (décision utilisateur)
+
+- Le service worker exige HTTPS. GitHub Pages ne sert que les fichiers statiques : les données restent sur l'iPhone.
+- Vite `base: '/training-app/'`, surchargeable par `VITE_BASE` (dev local à `/`).
+- **HashRouter** : sur GitHub Pages, une route profonde rechargée renvoie une 404. Les routes de la SPEC deviennent `/#/workout/:id`, etc., ce qui reste fiable hors ligne et en standalone, sans hack `404.html`.
+- `start_url` et `scope` du manifest sont réglés sur la base.
+- Le déploiement est préparé au J6. Le push est fait par l'utilisateur (`git push` interdit à Claude par les réglages).
+- **iOS : le stockage de la PWA installée (écran d'accueil) est séparé de celui de Safari.** Il faut donc installer l'app d'abord, puis importer le programme depuis l'app installée. Des données saisies dans Safari ne sont pas visibles dans la PWA. Cette consigne sera mise dans le README.
+
+---
+
+## J0 — Interprétations métier
+
+1. **Clé de progression = `programExerciseId`**, agrégée sur tous les programmes (le même `chest-press-machine` existe en semaines 37 et 40). Si le coach change d'id, l'historique de l'exercice se scinde : c'est un risque assumé, à documenter dans `JSON_SCHEMA.md`.
+2. `exerciseId` et `programExerciseId` sont tous deux stockés. Pour un exercice issu du programme, `exerciseId = programExerciseId` (comme dans les fixtures).
+3. **Exercice sans aucune charge réelle** (ex. gainage) : le graphique de Progression bascule sur `getExerciseRepHistory` (meilleure série en reps par séance), avec le libellé « Répétitions max » (décision utilisateur). Dès qu'une charge réelle existe, c'est le graphique de charge.
+4. **Statistiques** :
+   - les charges, le volume, les records et les points de graphique utilisent **toutes les données réelles**, séances `abandoned` incluses ;
+   - le « nombre de séances » ne compte que les séances `completed` ;
+   - les séances `in_progress` sont exclues partout ;
+   - les séries extra comptent ;
+   - les séries dont les reps ou la charge sont `null` sont ignorées.
+5. **Cardio** :
+   - `cardioRecords[]` accepte plusieurs entrées ;
+   - la durée est saisie en minutes et stockée en secondes ;
+   - l'objectif cardio du programme est affiché mais **pas snapshotté**, car le contrat §11.2 n'a pas de champ pour cela et `SPEC.md` n'est pas modifié.
+6. **Dates** :
+   - `date` = date **locale** `YYYY-MM-DD` du démarrage ;
+   - les horodatages sont en ISO 8601 avec l'offset local, via un utilitaire dédié (`toISOString()` produit du `Z`) ;
+   - `durationSec = completedAt − startedAt`.
+7. **Statut d'exercice** : `pending` passe à `completed` à la validation. Une modification ultérieure le laisse `completed` (rien n'est verrouillé).
+8. **Prochaine séance** : rotation après la dernière séance `completed` du programme actif. Les séances abandonnées ne font pas avancer la rotation.
+9. **Séries** : une série prescrite non faite est stockée avec `null`. `actualSets` peut être vide pour un exercice `pending` (fixture `w-0003`).
+10. **Mise à jour de l'app (service worker)** : `registerType: 'prompt'`. La bannière « Nouvelle version » n'est **jamais affichée pendant une séance `in_progress`** : aucun rechargement ne doit interrompre une saisie (à vérifier au J6).
+
+---
+
+## J0 — Risques suivis
+
+- Saisie décimale iOS (virgule selon la locale) : le parseur accepte `,` et `.`. À vérifier sur un appareil réel.
+- Autofocus / passage au champ suivant : non fiable en PWA iOS, donc non implémenté par défaut (SPEC §7.5).
+- Recharts au toucher : la carte de détail est pilotée par l'état React, sans animation, avec des séries mémoïsées. La fluidité sur plusieurs années de données sera vérifiée au J4.
+- Purge d'IndexedDB par Safari : atténuée par `persist()` et le rappel d'export, sans garantie absolue.
+- Web Share de fichiers en standalone : le repli par téléchargement est obligatoire et testé.

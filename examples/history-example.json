@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "1.0",
+  "type": "training_history_export",
+  "exportedAt": "2026-10-01T18:45:00+02:00",
+  "locale": "fr-FR",
+  "unitSystem": "metric",
+  "activeProgramId": "prog-demo-w37",
+  "preferences": { "unit": "kg", "theme": "light" },
+  "programs": [
+    {
+      "schemaVersion": "1.0",
+      "type": "training_program",
+      "programId": "prog-demo-w37",
+      "name": "Programme démo semaine 37",
+      "locale": "fr-FR",
+      "unitSystem": "metric",
+      "createdAt": "2026-09-07T09:00:00+02:00",
+      "week": { "id": "2026-w37", "label": "Semaine 37", "startDate": "2026-09-07", "endDate": "2026-09-13" },
+      "sessions": [
+        {
+          "id": "A",
+          "name": "Séance A",
+          "order": 1,
+          "estimatedDurationMin": 70,
+          "exercises": [
+            {
+              "id": "chest-press-machine",
+              "order": 1,
+              "type": "strength",
+              "name": "Chest Press",
+              "category": "Pectoraux",
+              "equipment": "Machine",
+              "restSec": 120,
+              "notes": null,
+              "sets": [
+                { "setNumber": 1, "targetReps": 12, "targetWeightKg": 45 },
+                { "setNumber": 2, "targetReps": 12, "targetWeightKg": 45 },
+                { "setNumber": 3, "targetReps": 10, "targetWeightKg": 47 }
+              ]
+            },
+            {
+              "id": "lat-pulldown-machine",
+              "order": 2,
+              "type": "strength",
+              "name": "Tirage vertical",
+              "category": "Dos",
+              "equipment": "Poulie",
+              "restSec": 120,
+              "notes": null,
+              "sets": [
+                { "setNumber": 1, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+                { "setNumber": 2, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+                { "setNumber": 3, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 }
+              ]
+            }
+          ],
+          "cardio": { "enabled": true, "label": "Cardio", "targetDurationMin": null, "notes": null }
+        }
+      ]
+    }
+  ],
+  "sessions": [
+    {
+      "id": "w-0001",
+      "programId": "prog-demo-w37",
+      "programSessionId": "A",
+      "sessionName": "Séance A",
+      "date": "2026-09-08",
+      "startedAt": "2026-09-08T18:00:00+02:00",
+      "completedAt": "2026-09-08T19:08:00+02:00",
+      "durationSec": 4080,
+      "status": "completed",
+      "executionOrder": ["chest-press-machine", "lat-pulldown-machine"],
+      "exerciseRecords": [
+        {
+          "exerciseId": "chest-press-machine",
+          "exerciseName": "Chest Press",
+          "programExerciseId": "chest-press-machine",
+          "status": "completed",
+          "restSec": 120,
+          "targetSets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 45 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 45 },
+            { "setNumber": 3, "targetReps": 10, "targetWeightKg": 47 }
+          ],
+          "actualSets": [
+            { "setNumber": 1, "actualReps": 12, "actualWeightKg": 45, "isExtra": false },
+            { "setNumber": 2, "actualReps": 11, "actualWeightKg": 45, "isExtra": false },
+            { "setNumber": 3, "actualReps": 9, "actualWeightKg": 45, "isExtra": false }
+          ],
+          "sensation": "hard",
+          "comment": "Dernière série difficile, j'ai baissé la charge."
+        },
+        {
+          "exerciseId": "lat-pulldown-machine",
+          "exerciseName": "Tirage vertical",
+          "programExerciseId": "lat-pulldown-machine",
+          "status": "completed",
+          "restSec": 120,
+          "targetSets": [
+            { "setNumber": 1, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+            { "setNumber": 2, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+            { "setNumber": 3, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 }
+          ],
+          "actualSets": [
+            { "setNumber": 1, "actualReps": 12, "actualWeightKg": 50, "isExtra": false },
+            { "setNumber": 2, "actualReps": 10, "actualWeightKg": 50, "isExtra": false },
+            { "setNumber": 3, "actualReps": 9, "actualWeightKg": 50, "isExtra": false }
+          ],
+          "sensation": "good",
+          "comment": null
+        }
+      ],
+      "cardioRecords": [
+        { "type": "treadmill", "name": "Tapis incliné", "durationSec": 1200, "speedKmh": 4.5, "inclinePct": 8, "notes": null }
+      ],
+      "notes": null
+    },
+    {
+      "id": "w-0002",
+      "programId": "prog-demo-w37",
+      "programSessionId": "A",
+      "sessionName": "Séance A",
+      "date": "2026-09-15",
+      "startedAt": "2026-09-15T18:10:00+02:00",
+      "completedAt": "2026-09-15T19:15:00+02:00",
+      "durationSec": 3900,
+      "status": "completed",
+      "executionOrder": ["lat-pulldown-machine", "chest-press-machine"],
+      "exerciseRecords": [
+        {
+          "exerciseId": "chest-press-machine",
+          "exerciseName": "Chest Press",
+          "programExerciseId": "chest-press-machine",
+          "status": "completed",
+          "restSec": 120,
+          "targetSets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 45 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 45 },
+            { "setNumber": 3, "targetReps": 10, "targetWeightKg": 47 }
+          ],
+          "actualSets": [
+            { "setNumber": 1, "actualReps": 12, "actualWeightKg": 45, "isExtra": false },
+            { "setNumber": 2, "actualReps": 12, "actualWeightKg": 45, "isExtra": false },
+            { "setNumber": 3, "actualReps": 10, "actualWeightKg": 47, "isExtra": false }
+          ],
+          "sensation": "good",
+          "comment": "Machine occupée au début, fait en deuxième."
+        },
+        {
+          "exerciseId": "lat-pulldown-machine",
+          "exerciseName": "Tirage vertical",
+          "programExerciseId": "lat-pulldown-machine",
+          "status": "completed",
+          "restSec": 120,
+          "targetSets": [
+            { "setNumber": 1, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+            { "setNumber": 2, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+            { "setNumber": 3, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 }
+          ],
+          "actualSets": [
+            { "setNumber": 1, "actualReps": 12, "actualWeightKg": 50, "isExtra": false },
+            { "setNumber": 2, "actualReps": 11, "actualWeightKg": 50, "isExtra": false },
+            { "setNumber": 3, "actualReps": 10, "actualWeightKg": 50, "isExtra": false },
+            { "setNumber": 4, "actualReps": 8, "actualWeightKg": 45, "isExtra": true }
+          ],
+          "sensation": "easy",
+          "comment": "Série bonus en dégressif."
+        }
+      ],
+      "cardioRecords": [],
+      "notes": null
+    },
+    {
+      "id": "w-0003",
+      "programId": "prog-demo-w37",
+      "programSessionId": "A",
+      "sessionName": "Séance A",
+      "date": "2026-09-22",
+      "startedAt": "2026-09-22T17:55:00+02:00",
+      "completedAt": null,
+      "durationSec": null,
+      "status": "abandoned",
+      "executionOrder": ["chest-press-machine"],
+      "exerciseRecords": [
+        {
+          "exerciseId": "chest-press-machine",
+          "exerciseName": "Chest Press",
+          "programExerciseId": "chest-press-machine",
+          "status": "completed",
+          "restSec": 120,
+          "targetSets": [
+            { "setNumber": 1, "targetReps": 12, "targetWeightKg": 45 },
+            { "setNumber": 2, "targetReps": 12, "targetWeightKg": 45 },
+            { "setNumber": 3, "targetReps": 10, "targetWeightKg": 47 }
+          ],
+          "actualSets": [
+            { "setNumber": 1, "actualReps": 12, "actualWeightKg": 47.5, "isExtra": false },
+            { "setNumber": 2, "actualReps": 12, "actualWeightKg": 47.5, "isExtra": false },
+            { "setNumber": 3, "actualReps": null, "actualWeightKg": null, "isExtra": false }
+          ],
+          "sensation": "very_hard",
+          "comment": "Douleur à l'épaule, arrêt de la séance."
+        },
+        {
+          "exerciseId": "lat-pulldown-machine",
+          "exerciseName": "Tirage vertical",
+          "programExerciseId": "lat-pulldown-machine",
+          "status": "pending",
+          "restSec": 120,
+          "targetSets": [
+            { "setNumber": 1, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+            { "setNumber": 2, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 },
+            { "setNumber": 3, "targetRepsMin": 8, "targetRepsMax": 12, "targetWeightKg": 50 }
+          ],
+          "actualSets": [],
+          "sensation": null,
+          "comment": null
+        }
+      ],
+      "cardioRecords": [],
+      "notes": "Séance interrompue."
+    }
+  ]
+}
