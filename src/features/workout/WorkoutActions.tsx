@@ -4,21 +4,26 @@ import { useNavigate } from 'react-router';
 import { Button, type ButtonVariant } from '../../components/Button';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { Sheet } from '../../components/Sheet';
-import { DomainError } from '../../domain/errors';
+import { ErrorDetails } from '../../components/ErrorDetails';
 import type { WorkoutSession } from '../../domain/types';
 import { strings } from '../../i18n/strings';
 import { abandonWorkout, getInProgressWorkout, startWorkout } from '../../services/workoutService';
+import { toDisplayError, type DisplayError } from '../../utils/errors';
 
 const t = strings.workoutScreen;
 
-const errorMessage = (error: unknown): string => (error instanceof DomainError ? error.message : strings.errors.unexpected);
+export const toError = (error: unknown): DisplayError => {
+  console.error(error);
+  return toDisplayError(error, strings.errors.unexpected);
+};
 
 export const workoutPath = (workoutId: string): string => `/workout/${encodeURIComponent(workoutId)}`;
 
 export const exercisePath = (workoutId: string, programExerciseId: string): string =>
   `${workoutPath(workoutId)}/exercise/${encodeURIComponent(programExerciseId)}`;
 
-function ErrorSheet({ title, message, onClose }: { title: string; message: string; onClose: () => void }) {
+/** Feuille d'erreur : message lisible + « Afficher les détails » (nom et message techniques). */
+export function ErrorSheet({ title, error, onClose }: { title: string; error: DisplayError; onClose: () => void }) {
   return (
     <Sheet
       title={title}
@@ -31,7 +36,8 @@ function ErrorSheet({ title, message, onClose }: { title: string; message: strin
         </Button>
       }
     >
-      <p role="alert">{message}</p>
+      <p role="alert">{error.message}</p>
+      <ErrorDetails details={error.details} />
     </Sheet>
   );
 }
@@ -52,7 +58,7 @@ export function StartWorkoutButton({ programSessionId, label = strings.home.star
   const navigate = useNavigate();
   const [starting, setStarting] = useState(false);
   const [blockingWorkout, setBlockingWorkout] = useState<WorkoutSession | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DisplayError | null>(null);
 
   const start = async () => {
     setStarting(true);
@@ -66,7 +72,7 @@ export function StartWorkoutButton({ programSessionId, label = strings.home.star
       const workout = await startWorkout(programSessionId);
       void navigate(workoutPath(workout.id));
     } catch (e) {
-      setError(errorMessage(e));
+      setError(toError(e));
     } finally {
       setStarting(false);
     }
@@ -104,7 +110,7 @@ export function StartWorkoutButton({ programSessionId, label = strings.home.star
       {error !== null && (
         <ErrorSheet
           title={t.startError}
-          message={error}
+          error={error}
           onClose={() => {
             setError(null);
           }}
@@ -124,7 +130,7 @@ interface AbandonWorkoutButtonProps {
 export function AbandonWorkoutButton({ workout, onAbandoned, fullWidth = true }: AbandonWorkoutButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DisplayError | null>(null);
 
   const confirm = async () => {
     setBusy(true);
@@ -134,7 +140,7 @@ export function AbandonWorkoutButton({ workout, onAbandoned, fullWidth = true }:
       onAbandoned?.();
     } catch (e) {
       setConfirming(false);
-      setError(errorMessage(e));
+      setError(toError(e));
     } finally {
       setBusy(false);
     }
@@ -169,7 +175,7 @@ export function AbandonWorkoutButton({ workout, onAbandoned, fullWidth = true }:
       {error !== null && (
         <ErrorSheet
           title={t.actionError}
-          message={error}
+          error={error}
           onClose={() => {
             setError(null);
           }}

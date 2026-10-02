@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge';
 import { Button, ButtonLink } from '../../components/Button';
 import { Eyebrow } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
+import { ErrorDetails } from '../../components/ErrorDetails';
 import { LoadingState } from '../../components/LoadingState';
 import { ProgressBar } from '../../components/ProgressBar';
 import { TextField } from '../../components/TextField';
@@ -126,11 +127,14 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
 
       {autosave.error !== null && (
         <div className={styles.saveError} role="alert">
-          <TriangleAlert aria-hidden />
-          <span>{autosave.error}</span>
-          <button type="button" onClick={autosave.clearError}>
-            {strings.common.close}
-          </button>
+          <div className={styles.saveErrorRow}>
+            <TriangleAlert aria-hidden />
+            <span>{autosave.error.message}</span>
+            <button type="button" onClick={autosave.clearError}>
+              {strings.common.close}
+            </button>
+          </div>
+          <ErrorDetails details={autosave.error.details} />
         </div>
       )}
 

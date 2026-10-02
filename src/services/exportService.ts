@@ -78,12 +78,25 @@ function browserDownload(file: File): void {
 const defaultEnv = (): DeliveryEnv => ({ navigator, download: browserDownload });
 
 /**
+ * Web Share de fichiers disponible ? Absent hors contexte sécurisé (HTTP sur IP locale)
+ * et sur certains navigateurs ; `canShare` peut aussi lever une exception : repli silencieux.
+ */
+function canShareFile(nav: DeliveryEnv['navigator'], file: File): boolean {
+  if (typeof nav.canShare !== 'function' || typeof nav.share !== 'function') return false;
+  try {
+    return nav.canShare.call(nav, { files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Remet le fichier à l'utilisateur : Web Share en priorité (feuille de partage iOS),
  * téléchargement en secours (SPEC §10.2). Doit être appelé depuis un geste utilisateur.
  */
 export async function deliverFile(file: File, env: DeliveryEnv = defaultEnv()): Promise<DeliveryOutcome> {
-  const { canShare, share } = env.navigator;
-  if (typeof canShare === 'function' && typeof share === 'function' && canShare.call(env.navigator, { files: [file] })) {
+  if (canShareFile(env.navigator, file)) {
+    const share = env.navigator.share as NonNullable<Navigator['share']>;
     try {
       await share.call(env.navigator, { files: [file], title: file.name });
       return 'shared';

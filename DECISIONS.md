@@ -368,3 +368,23 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
   - pendant la frappe de « 47, », la valeur valide précédente (47) est persistée, conformément à la règle « persistance dès qu'une valeur est valide » ;
   - pour « 4,7,5 », l'assertion stricte d'origine (rien d'écrit) a été rétablie après correction du code (annulation de l'écriture intermédiaire).
 - Les shims jsdom `scrollIntoView` et `matchMedia` sont dans le setup de test.
+
+---
+
+## fix-3b — Contexte non sécurisé (HTTP sur IP locale)
+
+- **Bug constaté sur iPhone** (Safari, `http://192.168.1.169:4173`) : « Commencer la séance » → erreur inattendue.
+  - Cause confirmée : `crypto.randomUUID` n'existe qu'en contexte sécurisé (HTTPS ou `localhost`). Sur une IP locale en HTTP, l'appel lève une `TypeError`.
+  - Les tests (Node) et `localhost` exposent `randomUUID` : le cas n'était pas couvert.
+- **Règle** : l'app DOIT fonctionner en HTTP local, pour les tests sur iPhone. Les API réservées aux contextes sécurisés ne s'utilisent qu'avec une détection de fonctionnalité et un repli silencieux.
+- **Inventaire au fix-3b** :
+  - `crypto.randomUUID` (identifiants de séance) → `createId()` (`src/utils/ids.ts`) : `randomUUID` s'il existe, sinon UUID v4 via `crypto.getRandomValues` (disponible partout), sinon `Math.random` en dernier recours ;
+  - `navigator.share` / `canShare` (export) → détection, `canShare` protégé contre les exceptions, repli par téléchargement ;
+  - `navigator.storage.persist` (J5), `navigator.serviceWorker` (J6) : pas encore utilisés, ils suivront la même règle ;
+  - `navigator.clipboard` : non utilisé.
+- **Débogage sur iPhone** : chaque feuille ou bandeau d'erreur propose « Afficher les détails » avec le nom et le message techniques de l'erreur (et sa cause). Concerne le démarrage, l'abandon, la fin de séance (qui n'avait pas de `catch`) et l'enregistrement automatique. L'erreur est aussi écrite dans la console.
+- **Tests** :
+  - absence de `randomUUID` simulée (`vi.stubGlobal`) : création d'identifiants, démarrage par le service et par l'interface ;
+  - Web Share absent, et `canShare` qui lève une exception ;
+  - détails techniques dans la feuille d'erreur ;
+  - les tests de démarrage échouent sur l'ancien code (vérifié), donc ils couvrent bien la régression.

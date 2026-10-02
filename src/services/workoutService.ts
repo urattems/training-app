@@ -5,6 +5,7 @@ import type { ProgramSession, WorkoutSession } from '../domain/types';
 import { abandonWorkout as abandon, createWorkout, finishWorkout as finish } from '../domain/workout';
 import { strings } from '../i18n/strings';
 import { workoutSessionSchema } from '../schemas/history.schema';
+import { createId } from '../utils/ids';
 import { getActiveProgramId } from './settingsService';
 
 const t = strings.workout;
@@ -23,7 +24,7 @@ export async function startWorkout(
     if (!program) throw new DomainError(t.noActiveProgram);
 
     const workout = createWorkout(program, programSessionId, {
-      id: options.id ?? crypto.randomUUID(),
+      id: options.id ?? createId(),
       now: options.now ?? new Date(),
     });
     await db.workouts.add(workout);

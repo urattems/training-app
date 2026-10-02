@@ -17,7 +17,8 @@ import { strings } from '../../i18n/strings';
 import { finishWorkout } from '../../services/workoutService';
 import { formatTime } from '../../utils/format';
 import { CardioSection } from './CardioSection';
-import { AbandonWorkoutButton, exercisePath } from './WorkoutActions';
+import { AbandonWorkoutButton, ErrorSheet, exercisePath, toError } from './WorkoutActions';
+import type { DisplayError } from '../../utils/errors';
 import styles from './WorkoutPage.module.css';
 
 const t = strings.workoutScreen;
@@ -56,6 +57,7 @@ function InProgressWorkout({ workout }: { workout: WorkoutSession }) {
   const program = useProgram(workout.programId);
   const [confirmPending, setConfirmPending] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [error, setError] = useState<DisplayError | null>(null);
 
   const done = countValidatedExercises(workout);
   const total = workout.exerciseRecords.length;
@@ -67,6 +69,8 @@ function InProgressWorkout({ workout }: { workout: WorkoutSession }) {
     try {
       await finishWorkout(workout.id);
       void navigate('/', { replace: true });
+    } catch (e) {
+      setError(toError(e));
     } finally {
       setFinishing(false);
       setConfirmPending(false);
@@ -112,6 +116,16 @@ function InProgressWorkout({ workout }: { workout: WorkoutSession }) {
           }}
         />
       </div>
+
+      {error !== null && (
+        <ErrorSheet
+          title={t.actionError}
+          error={error}
+          onClose={() => {
+            setError(null);
+          }}
+        />
+      )}
 
       {confirmPending && (
         <ConfirmSheet

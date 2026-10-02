@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
+import { ErrorDetails } from '../../components/ErrorDetails';
 import { NumberField } from '../../components/NumberField';
 import { TextField } from '../../components/TextField';
 import type { CardioEntry, CardioType, ProgramCardio, WorkoutSession } from '../../domain/types';
@@ -35,9 +36,10 @@ export function CardioSection({ workout, programCardio }: { workout: WorkoutSess
       {programCardio?.targetDurationMin != null && <p className={styles.target}>{strings.workoutScreen.cardioTarget(programCardio.targetDurationMin)}</p>}
       {programCardio?.notes && <p className={styles.notes}>{programCardio.notes}</p>}
       {autosave.error !== null && (
-        <p role="alert" className={styles.error}>
-          {autosave.error}
-        </p>
+        <div role="alert" className={styles.error}>
+          <p>{autosave.error.message}</p>
+          <ErrorDetails details={autosave.error.details} />
+        </div>
       )}
 
       {workout.cardioRecords.length === 0 && !choosingType && <p className={styles.empty}>{strings.workoutScreen.noCardio}</p>}

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { DomainError } from '../domain/errors';
 import type { WorkoutSession } from '../domain/types';
 import { strings } from '../i18n/strings';
 import { updateWorkout } from '../services/workoutService';
+import { toDisplayError, type DisplayError } from '../utils/errors';
 
 export type WorkoutUpdate = (workout: WorkoutSession) => WorkoutSession;
 
@@ -29,7 +29,7 @@ export interface WorkoutAutosave {
   save: <T>(key: string, current: T, next: T, immediate: boolean, update: WorkoutUpdate) => void;
   /** Écrit immédiatement une action explicite (bouton). */
   commit: (update: WorkoutUpdate) => Promise<void>;
-  error: string | null;
+  error: DisplayError | null;
   clearError: () => void;
 }
 
@@ -42,14 +42,15 @@ export interface WorkoutAutosave {
  */
 export function useWorkoutAutosave(workoutId: string): WorkoutAutosave {
   const pending = useRef(new Map<string, Pending>());
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DisplayError | null>(null);
 
   const run = useCallback(
     async (update: WorkoutUpdate) => {
       try {
         await updateWorkout(workoutId, update);
       } catch (e) {
-        setError(e instanceof DomainError ? e.message : strings.exercise.saveError);
+        console.error(e);
+        setError(toDisplayError(e, strings.exercise.saveError));
       }
     },
     [workoutId],
