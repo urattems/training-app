@@ -4,7 +4,7 @@
  * aucune fonction de ce module n'y écrit (SPEC §5.3).
  */
 import { strings } from '../i18n/strings';
-import { secondsBetween, toLocalDateString, toLocalIsoString } from '../utils/dates';
+import { daysBetween, secondsBetween, shiftIsoByDays, toLocalDateString, toLocalIsoString } from '../utils/dates';
 import { DomainError } from './errors';
 import type {
   ActualSet,
@@ -240,7 +240,16 @@ export function abandonWorkout(workout: WorkoutSession): WorkoutSession {
 /** Édition rétroactive de la date d'une séance. */
 export function setWorkoutDate(workout: WorkoutSession, date: string): WorkoutSession {
   if (!isValidLocalDate(date)) throw new DomainError(t.invalidValue(strings.values.date));
-  return { ...workout, date };
+  // startedAt / completedAt suivent la date : même décalage en jours, heures conservées,
+  // offset local du nouveau jour. La durée mesurée (durationSec) n'est pas modifiée.
+  const days = daysBetween(workout.date, date);
+  if (days === 0) return { ...workout, date };
+  return {
+    ...workout,
+    date,
+    startedAt: shiftIsoByDays(workout.startedAt, days),
+    completedAt: workout.completedAt === null ? null : shiftIsoByDays(workout.completedAt, days),
+  };
 }
 
 /** Nombre d'exercices validés, pour la progression « 2 / 6 ». */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseProgramJson } from '../schemas/parse';
 import { readFixture } from '../test/fixtures';
+import { toLocalIsoString } from '../utils/dates';
 import { DomainError } from './errors';
 import type { TrainingProgram, WorkoutSession } from './types';
 import {
@@ -202,6 +203,35 @@ describe('Fin, abandon, édition rétroactive', () => {
     expect(w.completedAt).toBeNull();
     expect(findRecord(w, 'chest-press-machine').actualSets).toHaveLength(1);
     expect(() => abandonWorkout(w)).toThrow(DomainError);
+  });
+
+  it('changer la date garde startedAt / completedAt cohérents : même jour, heures conservées, offset local', () => {
+    const base: WorkoutSession = {
+      ...finishWorkout(start(), new Date(2026, 9, 1, 19, 0, 0)),
+      date: '2026-09-15',
+      startedAt: '2026-09-15T18:10:00+02:00',
+      completedAt: '2026-09-15T19:15:00+02:00',
+      durationSec: 3900,
+    };
+    const moved = setWorkoutDate(base, '2026-12-03');
+    const offsetFor = (d: Date) => toLocalIsoString(d).slice(-6);
+    expect(moved.date).toBe('2026-12-03');
+    expect(moved.startedAt).toBe(`2026-12-03T18:10:00${offsetFor(new Date(2026, 11, 3, 18, 10))}`);
+    expect(moved.completedAt).toBe(`2026-12-03T19:15:00${offsetFor(new Date(2026, 11, 3, 19, 15))}`);
+    expect(moved.durationSec).toBe(3900);
+
+    // Séance à cheval sur minuit : la fin reste le lendemain du début.
+    const night = setWorkoutDate(
+      { ...base, startedAt: '2026-09-15T23:30:00+02:00', completedAt: '2026-09-16T00:40:00+02:00', durationSec: 4200 },
+      '2026-09-20',
+    );
+    expect(night.startedAt.slice(0, 19)).toBe('2026-09-20T23:30:00');
+    expect(night.completedAt?.slice(0, 19)).toBe('2026-09-21T00:40:00');
+
+    // Abandonnée : pas de completedAt, il reste null.
+    const abandoned = setWorkoutDate({ ...base, status: 'abandoned', completedAt: null, durationSec: null }, '2026-09-01');
+    expect(abandoned.startedAt.slice(0, 19)).toBe('2026-09-01T18:10:00');
+    expect(abandoned.completedAt).toBeNull();
   });
 
   it('édition rétroactive possible après la fin, date validée', () => {

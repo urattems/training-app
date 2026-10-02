@@ -415,3 +415,12 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
 - **Statistiques** : recalculées à la lecture (`useLiveQuery`), donc immédiatement à jour après édition ou suppression (testé).
 - **Progression récente de l'accueil** : variations factuelles de charge (« Chest Press +0,5 kg »), mise en place au J3a, vérifiée ici sur `history-example.json`.
 - **Accessibilité** : `ActualSets` et `SensationPicker` utilisent des identifiants uniques (`useId`), car ils sont affichés plusieurs fois sur une même page de détail.
+
+## fix-4a — Changement de date et horodatages
+
+- **Écart trouvé** : `setWorkoutDate` ne modifiait que `date`. `startedAt` et `completedAt` restaient sur l'ancien jour, d'où une séance incohérente (et un tri de l'historique faussé, qui utilise l'heure de début en second critère).
+- **Règle** : changer la date décale `startedAt` et `completedAt` du même nombre de jours calendaires. L'heure murale reste telle qu'écrite (18:10 reste 18:10), avec l'offset local du nouveau jour (heure d'été / d'hiver).
+  - Une séance à cheval sur minuit garde sa fin le lendemain de son début.
+  - `completedAt: null` reste `null` (séance abandonnée).
+  - `durationSec`, durée réellement mesurée, n'est pas modifiée.
+- Tests : domaine (offset du nouveau jour, passage de minuit, séance abandonnée) et écran historique (de bout en bout).

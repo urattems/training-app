@@ -192,6 +192,20 @@ describe('Historique — détail', () => {
     });
   });
 
+  it('édition de la date : startedAt et completedAt suivent (même jour, heures conservées)', async () => {
+    const user = renderAt('#/history/w-0002');
+    await screen.findByRole('heading', { name: 'Séance A', level: 1 });
+    await user.click(screen.getByRole('button', { name: 'Modifier' }));
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-09-17' } });
+    await waitFor(async () => {
+      const saved = await getWorkout('w-0002');
+      expect(saved?.date).toBe('2026-09-17');
+      expect(saved?.startedAt.slice(0, 19)).toBe('2026-09-17T18:10:00');
+      expect(saved?.completedAt?.slice(0, 19)).toBe('2026-09-17T19:15:00');
+      expect(saved?.durationSec).toBe(3900);
+    });
+  });
+
   it('suppression : confirmation explicite, puis stats recalculées', async () => {
     const user = renderAt('#/history/w-0003');
     await screen.findByRole('heading', { name: 'Séance A', level: 1 });
