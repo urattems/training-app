@@ -4,6 +4,7 @@ import type { ProgramSession, StoredProgram, WorkoutSession } from '../domain/ty
 import { listWorkouts } from '../services/historyService';
 import { getActiveProgram, getProgram } from '../services/programService';
 import { getRecentProgress, getTrackedExercises } from '../services/statisticsService';
+import { getLastExportAt } from '../services/settingsService';
 import { getInProgressWorkout, getNextSessionForActiveProgram, getWorkout } from '../services/workoutService';
 
 /**
@@ -27,3 +28,5 @@ export const useProgram = (programId: string | undefined): StoredProgram | null 
   useLiveQuery(() => (programId === undefined ? Promise.resolve(null) : getProgram(programId)), [programId]);
 
 export const useRecentProgress = (): RecentProgression[] | undefined => useLiveQuery(() => getRecentProgress(3), []);
+
+export const useLastExportAt = (): string | null | undefined => useLiveQuery(getLastExportAt, []);

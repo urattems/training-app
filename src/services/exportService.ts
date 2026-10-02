@@ -2,6 +2,9 @@ import { db } from '../db/database';
 import type { HistoryExport, StoredProgram, UserPreferences, WorkoutSession } from '../domain/types';
 import { SCHEMA_VERSION } from '../schemas/common';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
+import { strings } from '../i18n/strings';
+import { parseHistoryJson } from '../schemas/parse';
+import { canonicalJson } from '../utils/canonicalJson';
 import { toTrainingProgram } from './programService';
 import { getActiveProgramId, getPreferences, setLastExportAt } from './settingsService';
 
@@ -109,11 +112,66 @@ export async function deliverFile(file: File, env: DeliveryEnv = defaultEnv()): 
   return 'downloaded';
 }
 
-/** « Exporter mes données » : construit, remet le fichier et mémorise la date d'export. */
-export async function exportData(now: Date = new Date(), env?: DeliveryEnv): Promise<DeliveryOutcome> {
+/** Export prêt à être remis : préparé avant le geste de l'utilisateur. */
+export interface PreparedExport {
+  data: HistoryExport;
+  json: string;
+  file: File;
+  programCount: number;
+  sessionCount: number;
+}
+
+/** Le fichier généré ne repasse pas la validation : il n'est jamais remis à l'utilisateur. */
+export class ExportIntegrityError extends Error {
+  constructor(readonly details: string[]) {
+    super(strings.export.integrityFailed);
+    this.name = 'ExportIntegrityError';
+  }
+}
+
+/**
+ * Autotest d'intégrité : le JSON exporté est relu avec les mêmes schémas et invariants
+ * que la restauration, puis comparé (contenu, sans tenir compte de l'ordre des clés)
+ * aux données d'origine. Garantit qu'un export pourra être re-restauré à l'identique.
+ */
+export function verifyExportIntegrity(json: string, data: HistoryExport): void {
+  const parsed = parseHistoryJson(json);
+  if (!parsed.ok) throw new ExportIntegrityError([parsed.error.message, ...parsed.error.details]);
+  if (canonicalJson(parsed.value) !== canonicalJson(data)) {
+    throw new ExportIntegrityError(['Le fichier relu diffère des données exportées.']);
+  }
+}
+
+/**
+ * Prépare l'export (lecture, sérialisation, autotest, `File`) AVANT le geste de l'utilisateur :
+ * au toucher, `navigator.share` est alors appelé immédiatement (exigence de Safari iOS).
+ */
+export async function prepareExport(now: Date = new Date()): Promise<PreparedExport> {
   const data = await buildHistoryExport(now);
-  const file = new File([serializeExport(data)], exportFileName(now), { type: 'application/json' });
-  const outcome = await deliverFile(file, env);
-  if (outcome !== 'cancelled') await setLastExportAt(data.exportedAt);
+  const json = serializeExport(data);
+  verifyExportIntegrity(json, data);
+  return {
+    data,
+    json,
+    file: new File([json], exportFileName(now), { type: 'application/json' }),
+    programCount: data.programs.length,
+    sessionCount: data.sessions.length,
+  };
+}
+
+/**
+ * Remet un export préparé et mémorise `lastExportAt` UNIQUEMENT si le partage ou le
+ * téléchargement a réellement été déclenché sans erreur (pas en cas d'annulation ni d'échec).
+ * Le partage démarre de façon synchrone dans le geste (aucune attente avant `share`).
+ */
+export async function deliverPreparedExport(prepared: PreparedExport, env?: DeliveryEnv): Promise<DeliveryOutcome> {
+  const outcome = await deliverFile(prepared.file, env);
+  // Heure de l'instantané exporté : une séance terminée après lui n'est pas dans le fichier.
+  if (outcome !== 'cancelled') await setLastExportAt(prepared.data.exportedAt);
   return outcome;
+}
+
+/** « Exporter mes données » en une étape (préparation + remise). */
+export async function exportData(now: Date = new Date(), env?: DeliveryEnv): Promise<DeliveryOutcome> {
+  return deliverPreparedExport(await prepareExport(now), env);
 }

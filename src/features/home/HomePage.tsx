@@ -8,10 +8,11 @@ import { LoadingState } from '../../components/LoadingState';
 import { IconLink, Page } from '../../components/Page';
 import { ProgressBar } from '../../components/ProgressBar';
 import { workoutStatusLabel } from '../../domain/display';
+import { getExportReminder } from '../../domain/exportReminder';
 import { formatSignedKg } from '../../domain/stats';
 import type { WorkoutSession } from '../../domain/types';
 import { countValidatedExercises } from '../../domain/workout';
-import { useActiveProgram, useInProgressWorkout, useNextSession, useRecentProgress, useWorkouts } from '../../hooks/useData';
+import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession, useRecentProgress, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { historyDetailPath } from '../history/paths';
@@ -74,6 +75,8 @@ export function HomePage() {
         </Card>
       )}
 
+      {!loading && <ExportReminderBanner workouts={workouts} />}
+
       {!loading && lastWorkout && <LastWorkoutCard workout={lastWorkout} />}
 
       {!loading && <RecentProgress />}
@@ -124,6 +127,25 @@ function LastWorkoutCard({ workout }: { workout: WorkoutSession }) {
         {strings.history.seeAll}
       </Link>
     </Card>
+  );
+}
+
+/**
+ * Rappel d'export (SPEC §7.10) : bandeau discret, ton neutre, jamais pendant une séance
+ * en cours. Protection principale contre une purge éventuelle des données par Safari.
+ */
+function ExportReminderBanner({ workouts }: { workouts: WorkoutSession[] }) {
+  const lastExportAt = useLastExportAt();
+  if (lastExportAt === undefined) return null;
+  const reminder = getExportReminder(workouts, lastExportAt, new Date());
+  if (!reminder) return null;
+  return (
+    <div className={styles.reminder} role="note">
+      <p>{reminder.daysSinceExport === null ? strings.reminder.never : strings.reminder.days(reminder.daysSinceExport)}</p>
+      <Link to="/settings" className={styles.reminderLink}>
+        {strings.reminder.action}
+      </Link>
+    </div>
   );
 }
 

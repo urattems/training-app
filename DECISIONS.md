@@ -491,3 +491,51 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
   - chargeur de démo.
 - Seul `Date` est simulé (`vi.useFakeTimers({ toFake: ['Date'] })`, « aujourd'hui » = 20/10/2026) pour des périodes déterministes.
 - Le module différé est préchauffé une fois (`beforeAll`) : sous jsdom, la première compilation de Recharts prend plusieurs secondes et faisait expirer la première attente du fichier. Aucune assertion n'a été modifiée.
+
+---
+
+## J5 — Paramètres (SPEC §7.10)
+
+- **Données** : Exporter mes données · Restaurer une sauvegarde · Importer un programme.
+- **Préférences** : unité « Kilogrammes (kg) » et thème « Clair », en lecture seule. Pas de sélecteur avant le J8.
+- **Informations** : application, version, « Stockage persistant : oui / non / indisponible ».
+
+## J5 — Export (SPEC §10.2)
+
+- **Préparé à l'avance** :
+  - le JSON `training_history_export` et le `File` sont construits dès l'ouverture des Paramètres (`usePreparedExport`) et reconstruits automatiquement si les données changent (lecture réactive) ;
+  - au toucher, `deliverPreparedExport` appelle `navigator.share` **de façon synchrone dans le geste** (aucune attente avant), comme l'exige Safari iOS. Vérifié par un test (`share` déjà appelé avant toute attente).
+- **Autotest d'intégrité** (`verifyExportIntegrity`) : le JSON généré est relu avec les **mêmes** schémas et invariants que la restauration, puis comparé aux données d'origine (sérialisation canonique, clés triées). En cas d'échec, l'export est bloqué avec un message et des détails : jamais de fichier non restaurable.
+- **Remise** : Web Share si `canShare({ files })` (protégé contre les exceptions), sinon téléchargement par `<a download>` avec une URL blob révoquée après 10 s. Une annulation du partage n'écrit rien ; un autre refus du partage bascule sur le téléchargement.
+- **`lastExportAt`** : écrit **uniquement** si le partage ou le téléchargement a été déclenché sans erreur. Valeur = `exportedAt` du fichier, l'instant de l'instantané des données : une séance terminée après lui n'est pas dans le fichier, ce qui est la référence juste pour le rappel. Rien n'est écrit en cas d'annulation, d'échec du téléchargement ou d'échec de l'autotest (testé).
+- **Nom du fichier** : `training-backup-AAAA-MM-JJ.json`. `exportedAt` = moment de la préparation.
+- **Contexte non sécurisé** (HTTP sur IP locale, tests iPhone) : `navigator.share` y est **absent**, donc le **téléchargement est le chemin réellement utilisé et testé**.
+  - Tests unitaires : partage absent, `canShare` qui plante, échec du téléchargement.
+  - Navigateur réel servi sur l'IP locale (`isSecureContext: false`, ni `share` ni `storage` ni `randomUUID`) : fichier téléchargé, valide et restaurable.
+  - Le vrai Web Share ne sera testable qu'en HTTPS (GitHub Pages, J6).
+
+## J5 — Restauration (SPEC §10.3, §10.5)
+
+- **Flux** : choix du fichier → lecture → validation Zod + invariants §10.5 → résumé (date d'export, version du schéma, nombre de programmes, nombre de séances) → avertissement « Toutes les données actuelles… seront remplacées ».
+  - **Étape 1 — « Exporter mes données actuelles »**, obligatoire : « Restaurer » reste désactivé, avec la raison affichée, tant que cet export n'a pas été déclenché sans erreur (une annulation ne compte pas).
+  - **Étape 2 — « Restaurer »** : une seule transaction (vidage, puis `preRestoreBackup` écrit après le vidage, puis données restaurées) ; tout échec annule l'ensemble.
+- **Écart assumé (J0, validé)** : bouton d'export obligatoire au lieu d'un « export automatique », car la feuille de partage iOS exige un geste.
+- **Précision** : si la base actuelle est **vide** (aucun programme, aucune séance, ex. nouvel iPhone), il n'y a rien à perdre. Le message « Aucune donnée actuelle : rien à sauvegarder » s'affiche et « Restaurer » est actif directement. La copie interne est faite dans tous les cas.
+- **Refus en bloc**, messages français, rien n'est écrit : JSON illisible, programme à la place d'une sauvegarde, version de schéma non prise en charge, plusieurs séances en cours, `activeProgramId` inconnu, identifiants de séance ou de programme en double. Les détails techniques sont disponibles (« Afficher les détails »).
+- **Échec pendant la restauration** : feuille « Restauration impossible — Aucune donnée n'a été modifiée » + détails techniques.
+
+## J5 — Rappel d'export (SPEC §7.10)
+
+- **Règle pure** `getExportReminder(workouts, lastExportAt, now)` :
+  - au moins une séance `completed` terminée après le dernier export (ou jamais exporté) ;
+  - ET dernier export il y a plus de 14 jours (15 jours et plus) ;
+  - jamais si une séance est `in_progress`.
+- **Bandeau discret** sur l'accueil, ton neutre (« Tes séances ne sont enregistrées que sur cet appareil… », « Dernier export il y a N jours… »), lien « Exporter » vers les Paramètres. Aucun message alarmiste.
+
+## J5 — Stockage persistant (SPEC §9)
+
+- `navigator.storage.persist()` est demandé **une fois au démarrage** (`ensurePersistentStorage`, promesse partagée) :
+  - détection de fonctionnalité ; API absente (contexte non sécurisé) → « indisponible » ;
+  - déjà persistant → pas de nouvelle demande ;
+  - toute erreur est absorbée (→ « indisponible »).
+- Aucun message à l'utilisateur, aucune promesse de garantie. Le statut est affiché discrètement dans Informations, après la fin de la demande.
