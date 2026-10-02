@@ -7,7 +7,7 @@ import type { PreparedExportState } from '../../hooks/usePreparedExport';
 import { strings } from '../../i18n/strings';
 import { deliverPreparedExport, type DeliveryOutcome, type PreparedExport } from '../../services/exportService';
 import { toDisplayError, type DisplayError } from '../../utils/errors';
-import { formatDayLong, formatTime } from '../../utils/format';
+import { formatDateTime } from '../../utils/format';
 import styles from './SettingsPage.module.css';
 
 const t = strings.export;
@@ -52,7 +52,7 @@ export function ExportSection({ state }: { state: PreparedExportState | undefine
       </Button>
       {lastExportAt !== undefined && (
         <p className={styles.meta}>
-          {lastExportAt === null ? t.neverExported : t.lastExport(`${formatDayLong(lastExportAt.slice(0, 10))} à ${formatTime(lastExportAt)}`)}
+          {lastExportAt === null ? t.neverExported : t.lastExport(formatDateTime(lastExportAt))}
         </p>
       )}
       {status !== null && (

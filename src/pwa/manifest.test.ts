@@ -93,4 +93,10 @@ describe('Déploiement GitHub Pages', () => {
     expect(workflow).toContain('actions/deploy-pages');
     expect(workflow).not.toContain('VITE_BASE');
   });
+
+  it('runner épinglé sur ubuntu-24.04 (ubuntu-latest migre vers Ubuntu 26 le 19/10/2026)', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    expect(workflow).not.toContain('ubuntu-latest');
+    expect([...workflow.matchAll(/runs-on: (\S+)/g)].map((m) => m[1])).toEqual(['ubuntu-24.04', 'ubuntu-24.04']);
+  });
 });

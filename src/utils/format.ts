@@ -1,4 +1,5 @@
 /** Affichage français des dates, heures et durées. */
+import { toLocalDateString } from './dates';
 
 const dayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 const dayWithYearFormatter = new Intl.DateTimeFormat('fr-FR', {
@@ -27,6 +28,14 @@ export const formatDayShort = (localDate: string): string => shortDayFormatter.f
 
 /** Heure locale « 18:02 » d'un horodatage ISO. */
 export const formatTime = (isoDateTime: string): string => timeFormatter.format(new Date(isoDateTime));
+
+/**
+ * Instant ISO affiché dans le fuseau de l'appareil : « jeudi 1 octobre à 18:45 ».
+ * Le jour et l'heure viennent du même instant local (jamais le jour écrit dans le fichier
+ * avec l'heure de l'appareil, qui pourraient diverger près de minuit).
+ */
+export const formatDateTime = (isoDateTime: string): string =>
+  `${formatDayLong(toLocalDateString(new Date(isoDateTime)))} à ${formatTime(isoDateTime)}`;
 
 /** Durée lisible : « 45 min », « 1 h 08 », « < 1 min ». */
 export function formatDuration(seconds: number): string {

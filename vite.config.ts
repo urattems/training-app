@@ -49,6 +49,8 @@ export default defineConfig(({ command, isPreview }) => {
       // Module virtuel de vite-plugin-pwa : remplacé par un stub pilotable sous Vitest.
       alias: { 'virtual:pwa-register/react': new URL('./src/test/pwaRegisterStub.ts', import.meta.url).pathname.replace(/^\/(\w:)/, '$1') },
       environment: 'node',
+      // Fuseau fixe (Europe/Paris) posé avant le démarrage des workers : local = CI.
+      globalSetup: ['./src/test/globalSetup.ts'],
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     },

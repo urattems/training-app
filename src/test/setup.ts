@@ -31,3 +31,8 @@ if (typeof window !== 'undefined' && typeof (window as { matchMedia?: unknown })
 if (typeof window !== 'undefined') {
   await import('../features/progress/ProgressPage');
 }
+
+// Garde-fou : le fuseau des tests est fixé par globalSetup (Europe/Paris), jamais celui de la machine.
+if (Intl.DateTimeFormat().resolvedOptions().timeZone !== 'Europe/Paris') {
+  throw new Error(`Fuseau des tests inattendu : ${Intl.DateTimeFormat().resolvedOptions().timeZone} (attendu Europe/Paris, voir src/test/globalSetup.ts)`);
+}

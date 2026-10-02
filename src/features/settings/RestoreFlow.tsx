@@ -8,7 +8,7 @@ import type { PreparedExportState } from '../../hooks/usePreparedExport';
 import { strings } from '../../i18n/strings';
 import { previewRestore, readFileText, restoreBackup, type RestorePreview } from '../../services/importService';
 import { toDisplayError, type DisplayError } from '../../utils/errors';
-import { formatDayLong, formatTime } from '../../utils/format';
+import { formatDateTime } from '../../utils/format';
 import { deliverExport } from './ExportSection';
 import styles from './SettingsPage.module.css';
 
@@ -145,7 +145,7 @@ export function RestoreFlow({ currentExport }: { currentExport: PreparedExportSt
           <dl className={styles.summary}>
             <div>
               <dt>{t.exportedAt}</dt>
-              <dd>{`${formatDayLong(state.preview.exportedAt.slice(0, 10))} à ${formatTime(state.preview.exportedAt)}`}</dd>
+              <dd>{formatDateTime(state.preview.exportedAt)}</dd>
             </div>
             <div>
               <dt>{t.schemaVersion}</dt>

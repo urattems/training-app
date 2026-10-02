@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toLocalDateString, toLocalIsoString, secondsBetween } from './dates';
-import { formatDayLong, formatDayShort, formatDuration, formatTime } from './format';
+import { formatDateTime, formatDayLong, formatDayShort, formatDuration, formatTime } from './format';
 import { formatDecimal, formatKg, parseDecimalInput, parseIntegerInput } from './numbers';
 
 describe('parseDecimalInput', () => {
@@ -63,3 +63,12 @@ describe('Dates et durées', () => {
     expect(formatDuration(20)).toBe('< 1 min');
   });
 });
+
+describe('Date et heure d’un instant (fuseau de l’appareil ; tests en Europe/Paris)', () => {
+  it('jour et heure cohérents, convertis depuis l’offset du fichier', () => {
+    expect(formatDateTime('2026-10-01T18:45:00+02:00')).toBe('jeudi 1 octobre à 18:45');
+    // Instant écrit en UTC la veille au soir : c'est déjà le 2 octobre à Paris.
+    expect(formatDateTime('2026-10-01T23:30:00Z')).toBe('vendredi 2 octobre à 01:30');
+  });
+});
+

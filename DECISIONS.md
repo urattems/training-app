@@ -614,3 +614,21 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
 - Bannière : règle (5 cas) + comportement (affichée, « Plus tard », jamais pendant une séance, mise à jour seulement au toucher).
 - Filet d'erreur : erreur inattendue avec détails, base indisponible (y compris emballée), lecture IndexedDB en échec dans l'app.
 - **Stabilité** : la page Progression (différée) est préchauffée une fois par fichier de tests jsdom dans le setup commun. Sa compilation à froid faisait expirer, de façon intermittente, les deux anciens tests qui ouvrent l'onglet. Aucune assertion n'a été modifiée.
+
+---
+
+## fix-6 — Fuseau horaire des tests, CI épinglée
+
+- **Échec en CI** : `Settings.test.tsx` attendait « jeudi 1 octobre à 18:45 », le runner (UTC) affichait « 16:45 ». L'app est correcte : elle affiche l'heure locale de l'appareil. C'est le test qui supposait Europe/Paris.
+- **Reproduction et inventaire**, en lançant Vitest depuis Node avec chaque fuseau. Sous Git Bash, une valeur `TZ=America/Los_Angeles` est convertie comme un chemin et ignorée : seul `UTC` y était réellement testé.
+  - UTC et America/Los_Angeles : 1 échec (heure d'export dans le résumé de restauration) ;
+  - Pacific/Kiritimati (UTC+14) : 2 échecs (+ rappel « il y a 40 jours », qui bascule d'un jour).
+- **Correctif** : `src/test/globalSetup.ts` (Vitest `globalSetup`) pose `TZ=Europe/Paris` dans le processus principal **avant** la création des workers, qui en héritent. Un garde-fou dans `setup.ts` fait échouer la suite si le fuseau effectif n'est pas Europe/Paris.
+  - Vérifié : 250/250 sans `TZ`, avec `TZ=UTC` forcé (Bash et PowerShell `$env:TZ="UTC"`), avec `TZ=America/Los_Angeles` et avec `TZ=Pacific/Kiritimati` forcés.
+  - **Aucune assertion ni valeur attendue modifiée.**
+- **Code de production** : aucun fuseau codé en dur.
+  - Les dates métier `YYYY-MM-DD` sont traitées en calendrier pur (`Date.UTC`, formateurs `timeZone: 'UTC'` sur des dates construites en UTC), donc correctes dans tout fuseau.
+  - Les heures sont affichées dans le fuseau de l'appareil, et les horodatages écrits avec son offset local.
+- **Incohérence trouvée par la revue et corrigée** : pour la date d'un export (Paramètres, résumé de restauration), le **jour** était lu tel qu'écrit dans le fichier et l'**heure** convertie au fuseau de l'appareil. Près de minuit, avec un appareil dans un autre fuseau que l'export, le jour affiché pouvait être faux (« 1 octobre à 01:30 » au lieu de « 2 octobre à 01:30 »). `formatDateTime(iso)` tire désormais jour et heure du même instant local (testé).
+- **Fichiers en CRLF dans la copie de travail locale** : après la réécriture de l'historique par rebase (2026-10-02 17:02), les 7 fichiers du commit jalon-0 (dont les fixtures) avaient été extraits en CRLF (`core.autocrlf=true`, commits antérieurs au `.gitattributes`). Les tests d'empreinte SHA-256 échouaient en local, pas en CI (clone Linux neuf en LF). Ils ont été ré-extraits depuis l'index : contenu versionné inchangé, LF conforme à `.gitattributes`, empreintes d'origine retrouvées. Aucune modification versionnée.
+- **CI** : `runs-on: ubuntu-24.04` au lieu de `ubuntu-latest` (qui migre vers Ubuntu 26 le 19/10/2026 ; vérifié par test). Versions d'actions revérifiées le 2026-10-02 et toujours à jour : `checkout@v7`, `setup-node@v7`, `configure-pages@v6`, `upload-pages-artifact@v5`, `deploy-pages@v5`.
