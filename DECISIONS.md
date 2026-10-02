@@ -424,3 +424,70 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
   - `completedAt: null` reste `null` (séance abandonnée).
   - `durationSec`, durée réellement mesurée, n'est pas modifiée.
 - Tests : domaine (offset du nouveau jour, passage de minuit, séance abandonnée) et écran historique (de bout en bout).
+
+---
+
+## J4b — Progression (SPEC §7.8)
+
+- **Écran** : sélecteur d'exercice (`<select>` natif, roue iOS, 17 px), puis sélecteur de période, graphique, carte de détail, stats, historique récent.
+  - Routes `/progress` (exercice le plus récemment travaillé) et `/progress/:exerciseId`.
+  - La période est dans l'URL (`?periode=1M|3M|6M|1A|all`, défaut 3M) : elle se conserve en changeant d'exercice.
+- **Graphique** (Recharts) :
+  - points + ligne, minimaliste, sans animation (`isAnimationActive={false}`), sans tooltip Recharts ;
+  - **axe X en vraie échelle temporelle** : `type="number"`, `scale="time"`, une date = un timestamp. Domaine = [début de période, aujourd'hui] pour 1M à 1A, [premier, dernier point] pour « Tout » (± 7 jours autour d'un point unique). 4 graduations régulières ;
+  - marge de 14 px de chaque côté, et pas d'`allowDataOverflow` (il masquait à moitié les points en bord de domaine) ;
+  - axe Y à pas « rond » (1, 2, 2,5, 5 × 10ⁿ), domaine aligné sur le pas, graduations régulières, jamais négatif ;
+  - couleurs par classes CSS et tokens (pas d'attribut de couleur codé en dur) ;
+  - largeur mesurée par `ResizeObserver` (`useElementWidth`), plutôt que `ResponsiveContainer` qui ne rend rien tant que la taille est inconnue (et jamais sous jsdom).
+- **Point tactile → carte de détail** :
+  - chaque point est un bouton SVG (`role="button"`, zone tactile de 44 px, focus clavier, `aria-label` « mardi 22 septembre : 47,5 kg ») ;
+  - le toucher sélectionne la séance ; la **carte** (date, exercice, charge max, chaque série, lien « Voir la séance ») est rendue hors du graphique, pilotée par l'état React ;
+  - retoucher le point ou « Fermer » la masque ;
+  - vérifié dans un vrai navigateur avec un toucher (`tap`), pas seulement un clic.
+- **Exercice sans charge réelle** : graphique des répétitions max, titre « Répétitions max par séance » et mention « Aucune charge enregistrée… le graphique suit les répétitions ». Stats adaptées (dernières reps max, record de reps, pas de volume).
+- **États vides** :
+  - aucune séance → message, pas de graphique ;
+  - période sans séance → « Aucune séance réalisée sur cette période. », pas de graphique vide ;
+  - un seul point → graphique affiché normalement.
+- **Stats hiérarchisées** :
+  - dernière charge (+ variation factuelle « +0,5 kg vs séance précédente ») ;
+  - record (meilleure charge, avec sa date) ;
+  - volume de la dernière séance (+ max) ;
+  - nombre de séances terminées ;
+  - meilleure série.
+  - Les stats portent sur **tout l'historique réel** ; la période ne change que le graphique.
+- **Règles de calcul** (rappel J0, inchangées) : charge, volume et records sur toutes les données réelles, séances abandonnées incluses ; « nombre de séances » = `completed` uniquement ; `in_progress` exclues partout.
+- **Historique récent** : les 5 dernières séances où l'exercice a des séries réalisées (date, performance, badge « Abandonnée »), vers le détail historique.
+- **Performance** :
+  - séries mémoïsées (`useMemo` sur séances et exercice, puis sur la période), composant graphique mémoïsé ;
+  - testé avec 3 ans de données générées (468 séances) : calcul des séries < 250 ms, onglet affiché avec tous les points sur « Tout ».
+
+## J4b — Recharts et React 19
+
+- Recharts 3.10.1 déclare `react`, `react-dom` et `react-is` (`^16.8 … ^19`) en peer dependencies : React 19 est supporté officiellement.
+- **Piège trouvé** : npm avait résolu `react-is` en 17.0.2 (version tirée par Testing Library). `react-is` 17 ne reconnaît pas les éléments React 19. **`react-is@^19.3.0` est installé explicitement** ; Recharts utilise bien la 19.3.0 (`npm ls react-is`).
+- **Code splitting** : `ProgressPage` est chargée par `React.lazy` (+ `Suspense`). Recharts n'est que dans ce chunk : `ProgressPage-*.js` ≈ 318 kB (95 kB gzip), le bundle initial n'en contient rien. Vérifié dans le navigateur : le chunk n'est téléchargé qu'à l'ouverture de l'onglet Progression.
+
+## J4b — Données de démo (mode dev uniquement)
+
+- Section « Développement » dans Paramètres, présente seulement si `import.meta.env.DEV` : bouton « Charger les données de démo », avec confirmation.
+- Elle charge `examples/history-example.json` (lecture seule, import `?raw`) via le **vrai pipeline de restauration** : validation, invariants, `preRestoreBackup`.
+- **Absente du build de production** : l'import dynamique est conditionné à `import.meta.env.DEV` (remplacé par `false` au build, donc supprimé). Ses libellés vivent dans le module dev lui-même. Vérifié : aucune occurrence du module, des libellés ni des données dans `dist/`.
+- **Commande pour tester sur iPhone** : `npm run dev -- --host`, puis ouvrir `http://<IP-du-PC>:5173/` dans Safari → roue crantée → Développement → « Charger les données de démo ». Port différent de la preview (4173) : autre origine, donc **autre base IndexedDB**, et les données de preview ne sont pas touchées.
+
+## J4b — Tests
+
+- Domaine : série temporelle (positions réelles), périodes, point unique, série vide, métrique reps, graduations X, axe Y à pas rond.
+- UI :
+  - états vides (aucune séance, période vide) ;
+  - exercice par défaut ;
+  - périodes (points recalculés, période dans l'URL) ;
+  - point tactile → carte (contenu, sélection, autre point, fermeture) ;
+  - stats (séances terminées seulement) ;
+  - changement d'exercice ;
+  - édition puis suppression → graphique et stats recalculés ;
+  - exercice sans charge ;
+  - 3 ans de données ;
+  - chargeur de démo.
+- Seul `Date` est simulé (`vi.useFakeTimers({ toFake: ['Date'] })`, « aujourd'hui » = 20/10/2026) pour des périodes déterministes.
+- Le module différé est préchauffé une fois (`beforeAll`) : sous jsdom, la première compilation de Recharts prend plusieurs secondes et faisait expirer la première attente du fichier. Aucune assertion n'a été modifiée.

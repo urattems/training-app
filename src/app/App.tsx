@@ -1,4 +1,6 @@
+import { lazy, Suspense } from 'react';
 import { HashRouter, Route, Routes } from 'react-router';
+import { LoadingState } from '../components/LoadingState';
 import { ExercisePage } from '../features/exercise/ExercisePage';
 import { HistoryDetailPage } from '../features/history/HistoryDetailPage';
 import { HistoryPage } from '../features/history/HistoryPage';
@@ -7,11 +9,19 @@ import { ImportProgramProvider } from '../features/import/ImportProgramFlow';
 import { ProgramPage } from '../features/program/ProgramPage';
 import { ProgramSessionPage } from '../features/program/ProgramSessionPage';
 import { WorkoutPage } from '../features/workout/WorkoutPage';
-import { ProgressPage } from '../features/progress/ProgressPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotFoundPage } from './NotFoundPage';
 import { Shell } from './Shell';
+
+// Progression (et Recharts) chargée à la demande : hors du bundle initial.
+const ProgressPage = lazy(() => import('../features/progress/ProgressPage'));
+
+const progress = (
+  <Suspense fallback={<LoadingState />}>
+    <ProgressPage />
+  </Suspense>
+);
 
 /** Routes de l'app (SPEC §7.1). Les écrans séance, historique et détail arrivent aux jalons suivants. */
 export function AppRoutes() {
@@ -24,7 +34,8 @@ export function AppRoutes() {
           <Route path="program/:sessionId" element={<ProgramSessionPage />} />
           <Route path="workout/:workoutId" element={<WorkoutPage />} />
           <Route path="workout/:workoutId/exercise/:exerciseId" element={<ExercisePage />} />
-          <Route path="progress" element={<ProgressPage />} />
+          <Route path="progress" element={progress} />
+          <Route path="progress/:exerciseId" element={progress} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="history/:workoutId" element={<HistoryDetailPage />} />
           <Route path="settings" element={<SettingsPage />} />

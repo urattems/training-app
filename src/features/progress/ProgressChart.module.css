@@ -1,0 +1,53 @@
+/* Couleurs du graphique via tokens (classes CSS, jamais d'attributs codés en dur). */
+.chart {
+  width: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.chart :global(.recharts-surface) {
+  overflow: visible;
+}
+
+.grid :global(line) {
+  stroke: var(--color-border);
+}
+
+.axis :global(text) {
+  fill: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart :global(.recharts-line-curve) {
+  stroke: var(--color-accent);
+  stroke-width: 2px;
+  fill: none;
+}
+
+.dot {
+  fill: var(--color-surface);
+  stroke: var(--color-accent-strong);
+  stroke-width: 2px;
+}
+
+.dotSelected {
+  fill: var(--color-accent-strong);
+  stroke: var(--color-surface);
+  stroke-width: 2px;
+}
+
+.hitArea {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hitArea:focus-visible {
+  stroke: var(--color-accent);
+  stroke-width: 2px;
+  fill: var(--color-accent-soft);
+  fill-opacity: 0.5;
+}
