@@ -1,0 +1,4 @@
+/* Réserve la place de la barre basse flottante sous le contenu. */
+.withTabBar {
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + var(--space-6));
+}

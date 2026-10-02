@@ -1,0 +1,5 @@
+.screen {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + var(--space-8)) var(--page-gutter);
+}

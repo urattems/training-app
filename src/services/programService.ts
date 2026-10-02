@@ -2,6 +2,7 @@ import { db } from '../db/database';
 import type { StoredProgram, TrainingProgram } from '../domain/types';
 import { strings } from '../i18n/strings';
 import { importFailure, type ImportFailure } from '../schemas/errors';
+import { findIgnoredFields } from '../schemas/ignoredFields';
 import { parseProgramJson } from '../schemas/parse';
 import { toLocalIsoString } from '../utils/dates';
 import { err, ok, type Result } from '../utils/result';
@@ -13,6 +14,8 @@ export interface ProgramPreview {
   weekLabel: string;
   sessionCount: number;
   exerciseCount: number;
+  /** Chemins des champs inconnus du contrat, ignorés à l'import. */
+  ignoredFields: string[];
 }
 
 /** Valide un fichier programme et prépare la prévisualisation (SPEC §10.1). Rien n'est écrit. */
@@ -26,6 +29,8 @@ export function previewProgram(text: string): Result<ProgramPreview, ImportFailu
     weekLabel: program.week.label,
     sessionCount: program.sessions.length,
     exerciseCount: program.sessions.reduce((n, s) => n + s.exercises.length, 0),
+    // Le texte a déjà été validé : le JSON.parse ne peut pas échouer ici.
+    ignoredFields: findIgnoredFields(JSON.parse(text), program),
   });
 }
 

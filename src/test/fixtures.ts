@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { db } from '../db/database';
 
 export type FixtureName = 'program-example.json' | 'history-example.json';
@@ -10,9 +11,11 @@ export const FIXTURE_SHA256: Record<FixtureName, string> = {
   'history-example.json': '1fbe08ac5e13a690bfb8f20cce6cf92bb2f567156e9cb9fb5e8098f3111d48d3',
 };
 
-/** Contenu brut d'une fixture de `examples/`, telle quelle. */
-export const readFixture = (name: FixtureName): string =>
-  readFileSync(new URL(`../../examples/${name}`, import.meta.url), 'utf8');
+/**
+ * Contenu brut d'une fixture de `examples/`, telle quelle. Chemin résolu depuis la racine
+ * du projet (Vitest s'y exécute) : `import.meta.url` n'est pas un chemin disque sous jsdom.
+ */
+export const readFixture = (name: FixtureName): string => readFileSync(resolve(process.cwd(), 'examples', name), 'utf8');
 
 export const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 
