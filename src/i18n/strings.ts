@@ -164,6 +164,11 @@ export const strings = {
     extra: 'en plus',
     notDone: 'non faite',
   },
+  update: {
+    available: 'Nouvelle version disponible.',
+    later: 'Plus tard',
+    action: 'Mettre à jour',
+  },
   sensations: {
     very_easy: 'Très facile',
     easy: 'Facile',
@@ -269,6 +274,7 @@ export const strings = {
     info: 'Informations',
     appName: 'Application',
     version: 'Version',
+    build: 'Build',
     storage: 'Stockage persistant',
     storageStatus: { granted: 'oui', denied: 'non', unavailable: 'indisponible' },
   },
@@ -339,6 +345,7 @@ export const strings = {
   errors: {
     title: 'Un problème est survenu',
     unexpected: 'L’application a rencontré une erreur inattendue. Tes données enregistrées ne sont pas perdues.',
+    dbTitle: 'Base de données locale indisponible',
     dbUnavailable:
       'La base de données locale est indisponible. Vérifie que le stockage n’est pas désactivé (navigation privée), puis recharge l’app.',
     reload: 'Recharger l’app',

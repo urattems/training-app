@@ -539,3 +539,78 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
   - déjà persistant → pas de nouvelle demande ;
   - toute erreur est absorbée (→ « indisponible »).
 - Aucun message à l'utilisateur, aucune promesse de garantie. Le statut est affiché discrètement dans Informations, après la fin de la demande.
+
+---
+
+## J6 — PWA (SPEC §9)
+
+- **vite-plugin-pwa 1.3.0** (Workbox 7.4.1), mode `generateSW`.
+- **Manifest** (`src/pwa/manifest.ts`, partagé par `vite.config.ts` et les tests) :
+  - nom « Carnet d'entraînement », nom court « Carnet », `display: standalone`, `orientation: portrait`, `lang: fr` ;
+  - `id`, `start_url` et `scope` = la base `/training-app/` ;
+  - `background_color` et `theme_color` **lus dans `tokens.css`** (`--color-bg`), jamais recopiés ;
+  - `<meta name="theme-color">` d'`index.html` : valeur littérale obligatoire, dont l'égalité avec le token est vérifiée par test.
+- **Icônes** : `npm run icons` (`scripts/generate-icons.mjs`) les génère **localement, sans service ni dépendance externe** : rasterisation JS avec suréchantillonnage 4×4 et encodeur PNG maison (`zlib`), couleurs lues dans les tokens. Haltère stylisé charbon sur crème.
+  - Produits : `icon-192`, `icon-512`, `maskable-512` (contenu dans la zone de sécurité), `apple-touch-icon` 180 (sans transparence), `favicon.svg`, `favicon-32.png`.
+  - Fichiers versionnés dans `public/`. Plus aucune erreur 404 de favicon.
+- **Balises iOS** (`index.html`) : `apple-touch-icon`, `apple-mobile-web-app-capable`, `mobile-web-app-capable`, `apple-mobile-web-app-title`, `apple-mobile-web-app-status-bar-style: default`, `viewport-fit=cover`. Les liens passent par `%BASE_URL%` (réécrits en `/training-app/…` au build).
+- **Service worker** :
+  - `registerType: 'prompt'`, enregistré par l'app (`useRegisterSW`, `injectRegister: false`) ;
+  - precache de **tous** les assets du build (`globPatterns` js, css, html, svg, png, webmanifest), **chunk Progression/Recharts compris** : 20 entrées, environ 915 Kio ;
+  - `navigateFallback: index.html` (HashRouter : seule `index.html` est demandée en navigation) ;
+  - `cleanupOutdatedCaches`.
+- **Le service worker ne touche jamais à IndexedDB** : aucun `runtimeCaching`, donc pas de plugin d'expiration (le seul composant Workbox qui utilise IndexedDB). Il n'utilise que Cache Storage. Vérifié : aucune occurrence d'`indexedDB` dans `sw.js` ni dans `workbox-*.js`.
+- **Contexte non sécurisé** (HTTP sur IP locale) : pas de service worker, donc ni hors ligne ni mise à jour proposée. L'enregistrement est simplement ignoré (`useRegisterSW` teste la présence de `serviceWorker`).
+- **Plugin PWA désactivé sous Vitest** : inutile en test, et coûteux en transformations. Le module virtuel `virtual:pwa-register/react` est remplacé par un **stub pilotable** (`src/test/pwaRegisterStub.ts`).
+
+## J6 — Mise à jour (bannière)
+
+- Règle pure `shouldShowUpdateBanner` : version en attente ET aucune séance `in_progress` (état chargé) ET pas « Plus tard ». Pendant une séance, la bannière **attend la fin de la séance**.
+- **Jamais de rechargement automatique** : seul « Mettre à jour » appelle `updateServiceWorker(true)` (activation puis rechargement). « Plus tard » masque la bannière jusqu'au prochain lancement.
+- **Vérification périodique** (toutes les heures, si en ligne) pour une PWA iOS qui reste ouverte longtemps.
+- **Build affiché** dans Informations (`__APP_BUILD__`, date du build, surchargeable par `APP_BUILD_ID`) : permet de savoir quelle version est en cache sur l'iPhone. Chaque build produit un nouveau service worker.
+
+## J6 — Vérification réelle (Edge headless, build de production sur localhost = contexte sécurisé)
+
+- Service worker actif, scope `/training-app/`, precache rempli (chunk Progression compris), 0 erreur console.
+- **Réseau coupé** (`setOfflineMode`), puis rechargement :
+  - l'app s'affiche (page contrôlée par le service worker) et les **données sont toujours là** ;
+  - rechargement hors ligne sur une **route profonde** `#/history/<id>` : détail affiché ;
+  - onglet Progression (chunk différé) : graphique affiché ;
+  - **séance démarrée, saisie et terminée hors ligne** ;
+  - **export** hors ligne : fichier téléchargé ;
+  - nouveau rechargement hors ligne : les données sont toujours là.
+- **Mise à jour** : build B publié pendant une séance en cours → service worker B en attente, **bannière masquée** ; séance terminée → bannière affichée ; « Mettre à jour » → le build B est bien en service.
+
+## J6 — États d'erreur (SPEC §7.9)
+
+- **Base locale indisponible** : `isDatabaseError` reconnaît les erreurs Dexie et IndexedDB, y compris emballées (`inner`, `cause`) : `OpenFailedError`, `MissingAPIError`, `QuotaExceededError`, etc. Écran dédié « Base de données locale indisponible » (mention de la navigation privée) + rechargement + détails.
+- **Erreur inattendue** : filet de sécurité global, message rassurant (« Tes données enregistrées ne sont pas perdues »), « Recharger l'app », et désormais **« Afficher les détails »** (nom et message techniques).
+- **Déjà couverts aux jalons précédents** : JSON invalide, fichier illisible, schéma incompatible (import et restauration), export impossible (J5), états de chargement visibles.
+
+## J6 — Déploiement
+
+- `.github/workflows/deploy.yml` : à chaque push sur `main` (ou manuellement), `npm ci`, typecheck, lint, tests, build (base par défaut `/training-app/`), puis publication via les actions officielles.
+  - Versions majeures vérifiées le 2026-10-02 : `checkout@v7`, `setup-node@v7`, `configure-pages@v6`, `upload-pages-artifact@v5`, `deploy-pages@v5`.
+  - **Aucun push effectué** : la procédure pas à pas est dans le README (renommer `master` en `main`, remote, push, Pages en source « GitHub Actions », installation sur l'iPhone puis import).
+- **Dépôt public** recommandé : GitHub Pages gratuit, et le dépôt ne contient que le code, pas les données.
+
+## J6 — Taille du bundle (build de production)
+
+| Fichier | Brut | gzip |
+|---|---|---|
+| `index-*.js` (app : React, React Router, Dexie, Zod, écrans) | 556,7 kB | 172,5 kB |
+| `ProgressPage-*.js` (différé : Progression + Recharts) | 317,8 kB | 94,7 kB |
+| `workbox-window` | 5,7 kB | 2,2 kB |
+| CSS app + Progression | 36,8 + 5,4 kB | 6,2 + 1,4 kB |
+| **Precache total du service worker** | **≈ 915 Kio (20 entrées)** | — |
+
+- Le chargement initial (environ 179 kB gzip) n'inclut pas Recharts.
+- Vite signale que `index` dépasse 500 kB brut. Acceptable pour une PWA mise en cache après la première visite ; à revoir au J7 (découpage par route) si utile.
+
+## J6 — Tests
+
+- Manifest (champs, base, couleurs des tokens, icônes présentes aux bonnes dimensions), balises iOS et liens d'`index.html`, workflow de déploiement.
+- Bannière : règle (5 cas) + comportement (affichée, « Plus tard », jamais pendant une séance, mise à jour seulement au toucher).
+- Filet d'erreur : erreur inattendue avec détails, base indisponible (y compris emballée), lecture IndexedDB en échec dans l'app.
+- **Stabilité** : la page Progression (différée) est préchauffée une fois par fichier de tests jsdom dans le setup commun. Sa compilation à froid faisait expirer, de façon intermittente, les deux anciens tests qui ouvrent l'onglet. Aucune assertion n'a été modifiée.

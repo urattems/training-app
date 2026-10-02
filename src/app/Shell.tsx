@@ -1,4 +1,5 @@
 import { matchPath, Outlet, useLocation } from 'react-router';
+import { UpdateBanner } from '../pwa/UpdateBanner';
 import { TabBar } from './TabBar';
 import styles from './Shell.module.css';
 
@@ -11,6 +12,7 @@ export function Shell() {
   const showTabBar = !isExerciseScreen(pathname);
   return (
     <div className={showTabBar ? styles.withTabBar : undefined}>
+      <UpdateBanner />
       <main>
         <Outlet />
       </main>

@@ -11,9 +11,10 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "src/pwa/manifest.ts"]
 }

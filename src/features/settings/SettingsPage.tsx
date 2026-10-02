@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Card, Eyebrow } from '../../components/Card';
 import { Page } from '../../components/Page';
-import { APP_NAME, APP_VERSION } from '../../config';
+import { APP_BUILD, APP_NAME, APP_VERSION } from '../../config';
 import { usePersistenceStatus } from '../../hooks/usePersistenceStatus';
 import { usePreparedExport } from '../../hooks/usePreparedExport';
 import { strings } from '../../i18n/strings';
@@ -65,6 +65,10 @@ export function SettingsPage() {
             <div className={styles.row}>
               <dt>{t.version}</dt>
               <dd>{APP_VERSION}</dd>
+            </div>
+            <div className={styles.row}>
+              <dt>{t.build}</dt>
+              <dd>{APP_BUILD}</dd>
             </div>
             <div className={styles.row}>
               <dt>{t.storage}</dt>

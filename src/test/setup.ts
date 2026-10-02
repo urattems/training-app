@@ -24,3 +24,10 @@ if (typeof window !== 'undefined' && typeof (window as { matchMedia?: unknown })
     writable: true,
   });
 }
+
+// Tests UI (jsdom) : la page Progression est chargée en différé et sa première compilation
+// (Recharts) prend plusieurs secondes à froid. Préchauffée ici une fois par fichier de tests,
+// pour que les attentes mesurent l'app et non la compilation (aucune assertion modifiée).
+if (typeof window !== 'undefined') {
+  await import('../features/progress/ProgressPage');
+}
