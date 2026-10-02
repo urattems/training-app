@@ -2,7 +2,7 @@
 .tabBar {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + var(--space-2));
+  bottom: calc(var(--safe-bottom) + var(--tabbar-offset));
   z-index: var(--z-tabbar);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

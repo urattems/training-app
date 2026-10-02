@@ -73,10 +73,13 @@ describe('Import d\'un programme valide', () => {
 
     await user.click(within(success).getByRole('button', { name: 'Continuer' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'Programme semaine 40' })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('link', { name: 'Voir le programme' }));
+    // J3a : l'accueil présente la prochaine séance du programme importé (SPEC §7.2).
     expect(await screen.findByRole('heading', { name: 'Séance A' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Commencer la séance' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Programme' }));
+    expect(await screen.findByText('Programme semaine 40')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Séance A' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Séance C' })).toBeInTheDocument();
     expect(screen.getByText('Élévations latérales')).toBeInTheDocument();
   });

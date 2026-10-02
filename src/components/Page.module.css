@@ -1,9 +1,13 @@
+/*
+ * Le dégagement bas (--page-bottom-clearance) est fourni par le Shell : hauteur de la
+ * barre flottante + son décalage + safe area, pour que le dernier élément reste visible.
+ */
 .page {
   width: 100%;
   max-width: var(--page-max-width);
   margin: 0 auto;
-  padding: calc(var(--safe-top) + var(--space-2)) calc(var(--page-gutter) + var(--safe-right)) var(--space-8)
-    calc(var(--page-gutter) + var(--safe-left));
+  padding: calc(var(--safe-top) + var(--space-5)) calc(var(--page-gutter) + var(--safe-right))
+    calc(var(--page-bottom-clearance, var(--safe-bottom)) + var(--space-6)) calc(var(--page-gutter) + var(--safe-left));
 }
 
 .header {
@@ -13,20 +17,52 @@
   margin-bottom: var(--space-5);
 }
 
-.topBar {
+.backRow {
+  /* Le lien déborde dans la marge pour aligner le chevron sur le texte. */
+  margin: calc(var(--space-3) * -1) 0 0 calc(var(--space-2) * -1);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap-min);
+  padding-right: var(--space-3);
+  color: var(--color-accent-strong);
+  font-weight: var(--font-weight-medium);
+}
+
+.backLink svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.titleRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   min-height: var(--tap-min);
-  /* Les boutons icônes débordent dans la marge pour aligner le pictogramme sur le texte. */
-  margin: 0 calc(var(--space-3) * -1);
 }
 
 .title {
+  min-width: 0;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-title);
+}
+
+.trailing {
+  flex: none;
+  display: flex;
+  align-items: center;
+  /* Aligne le pictogramme sur la marge droite. */
+  margin-right: calc(var(--space-3) * -1);
+}
+
+.subtitle {
+  color: var(--color-text-secondary);
 }
 
 .content {

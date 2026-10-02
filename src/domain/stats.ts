@@ -218,11 +218,15 @@ export function lastLoadDelta(points: readonly LoadPoint[]): number | null {
   return last && previous ? Math.round((last.maxLoadKg - previous.maxLoadKg) * 100) / 100 : null;
 }
 
+/** Écart signé : « +2,5 kg », « −2,5 kg », « 0 kg ». */
+export function formatSignedKg(deltaKg: number): string {
+  const sign = deltaKg > 0 ? '+' : deltaKg < 0 ? '−' : '';
+  return `${sign}${formatDecimal(Math.abs(deltaKg))} kg`;
+}
+
 /** Texte factuel, jamais de conseil : « +2,5 kg vs séance précédente ». */
 export function formatLoadDelta(deltaKg: number): string {
-  if (deltaKg === 0) return strings.progress.sameLoad;
-  const sign = deltaKg > 0 ? '+' : '−';
-  return strings.progress.loadDelta(`${sign}${formatDecimal(Math.abs(deltaKg))} kg`);
+  return deltaKg === 0 ? strings.progress.sameLoad : strings.progress.loadDelta(formatSignedKg(deltaKg));
 }
 
 export interface ExerciseSummary {

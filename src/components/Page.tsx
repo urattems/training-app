@@ -6,29 +6,34 @@ import styles from './Page.module.css';
 
 interface PageProps {
   title: string;
+  /** Ligne secondaire sous le titre (ex. « Commencée à 18:02 »). */
+  subtitle?: ReactNode;
   /** Lien de retour (ex. Paramètres → Accueil). */
   backTo?: string;
-  /** Action en haut à droite (ex. roue crantée). */
+  backLabel?: string;
+  /** Action à droite du titre, sur la même ligne (ex. roue crantée). */
   trailing?: ReactNode;
   children: ReactNode;
 }
 
 /** Gabarit d'écran : grand titre iOS, contenu centré, marges et safe areas. */
-export function Page({ title, backTo, trailing, children }: PageProps) {
+export function Page({ title, subtitle, backTo, backLabel = strings.nav.back, trailing, children }: PageProps) {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div className={styles.topBar}>
-          {backTo ? (
-            <Link to={backTo} className={styles.iconButton} aria-label={strings.nav.back}>
+        {backTo && (
+          <div className={styles.backRow}>
+            <Link to={backTo} className={styles.backLink}>
               <ChevronLeft aria-hidden />
+              <span>{backLabel}</span>
             </Link>
-          ) : (
-            <span />
-          )}
-          {trailing}
+          </div>
+        )}
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>{title}</h1>
+          {trailing && <div className={styles.trailing}>{trailing}</div>}
         </div>
-        <h1 className={styles.title}>{title}</h1>
+        {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
       </header>
       <div className={styles.content}>{children}</div>
     </div>

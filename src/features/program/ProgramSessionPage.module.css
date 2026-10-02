@@ -1,0 +1,38 @@
+.exerciseName {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-title);
+}
+
+.blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.lastTime {
+  margin-top: var(--space-1);
+  font-weight: var(--font-weight-medium);
+}
+
+.meta {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
+.notes {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+
+.exerciseCard {
+  /* Le titre reste visible sous la zone de statut iOS après un scrollIntoView. */
+  scroll-margin-top: calc(var(--safe-top) + var(--space-4));
+}
+
+.highlighted {
+  border-color: var(--color-accent);
+}

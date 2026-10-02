@@ -1,4 +1,4 @@
-/* Réserve la place de la barre basse flottante sous le contenu. */
+/* Dégagement bas des pages : barre flottante (hauteur + décalage) + safe area. */
 .withTabBar {
-  padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + var(--space-6));
+  --page-bottom-clearance: var(--tabbar-clearance);
 }

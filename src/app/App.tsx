@@ -2,6 +2,8 @@ import { HashRouter, Route, Routes } from 'react-router';
 import { HomePage } from '../features/home/HomePage';
 import { ImportProgramProvider } from '../features/import/ImportProgramFlow';
 import { ProgramPage } from '../features/program/ProgramPage';
+import { ProgramSessionPage } from '../features/program/ProgramSessionPage';
+import { WorkoutPage } from '../features/workout/WorkoutPage';
 import { ProgressPage } from '../features/progress/ProgressPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -16,6 +18,8 @@ export function AppRoutes() {
         <Route element={<Shell />}>
           <Route index element={<HomePage />} />
           <Route path="program" element={<ProgramPage />} />
+          <Route path="program/:sessionId" element={<ProgramSessionPage />} />
+          <Route path="workout/:workoutId" element={<WorkoutPage />} />
           <Route path="progress" element={<ProgressPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />

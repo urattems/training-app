@@ -1,13 +1,29 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { StoredProgram } from '../domain/types';
-import type { ExerciseSummary } from '../domain/stats';
-import { getActiveProgram } from '../services/programService';
-import { getTrackedExercises } from '../services/statisticsService';
+import type { ExerciseSummary, RecentProgression } from '../domain/stats';
+import type { ProgramSession, StoredProgram, WorkoutSession } from '../domain/types';
+import { listWorkouts } from '../services/historyService';
+import { getActiveProgram, getProgram } from '../services/programService';
+import { getRecentProgress, getTrackedExercises } from '../services/statisticsService';
+import { getInProgressWorkout, getNextSessionForActiveProgram, getWorkout } from '../services/workoutService';
 
 /**
  * Lectures réactives de la base : se mettent à jour à chaque écriture.
- * `undefined` = chargement en cours.
+ * `undefined` = chargement en cours ; `null` = absent.
  */
 export const useActiveProgram = (): StoredProgram | null | undefined => useLiveQuery(getActiveProgram, []);
 
 export const useTrackedExercises = (): ExerciseSummary[] | undefined => useLiveQuery(getTrackedExercises, []);
+
+export const useInProgressWorkout = (): WorkoutSession | null | undefined => useLiveQuery(getInProgressWorkout, []);
+
+export const useWorkout = (id: string): WorkoutSession | null | undefined => useLiveQuery(() => getWorkout(id), [id]);
+
+/** Toutes les séances, de la plus récente à la plus ancienne. */
+export const useWorkouts = (): WorkoutSession[] | undefined => useLiveQuery(listWorkouts, []);
+
+export const useNextSession = (): ProgramSession | null | undefined => useLiveQuery(getNextSessionForActiveProgram, []);
+
+export const useProgram = (programId: string | undefined): StoredProgram | null | undefined =>
+  useLiveQuery(() => (programId === undefined ? Promise.resolve(null) : getProgram(programId)), [programId]);
+
+export const useRecentProgress = (): RecentProgression[] | undefined => useLiveQuery(() => getRecentProgress(3), []);

@@ -1,18 +1,34 @@
-import { ChevronRight, Dumbbell, Settings } from 'lucide-react';
+import { Dumbbell, Settings } from 'lucide-react';
 import { Link } from 'react-router';
+import { Badge } from '../../components/Badge';
+import { ButtonLink } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingState } from '../../components/LoadingState';
 import { IconLink, Page } from '../../components/Page';
-import { useActiveProgram } from '../../hooks/useData';
+import { ProgressBar } from '../../components/ProgressBar';
+import { workoutStatusLabel } from '../../domain/display';
+import { formatSignedKg } from '../../domain/stats';
+import type { WorkoutSession } from '../../domain/types';
+import { countValidatedExercises } from '../../domain/workout';
+import { useActiveProgram, useInProgressWorkout, useNextSession, useRecentProgress, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
+import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { ImportProgramButton } from '../import/ImportProgramFlow';
+import { AbandonWorkoutButton, StartWorkoutButton, workoutPath } from '../workout/WorkoutActions';
 import styles from './HomePage.module.css';
 
 const t = strings.home;
 
+/** Accueil : « Qu'est-ce que je dois faire aujourd'hui ? » (SPEC §7.2). */
 export function HomePage() {
   const program = useActiveProgram();
+  const inProgress = useInProgressWorkout();
+  const nextSession = useNextSession();
+  const workouts = useWorkouts();
+
+  const loading = program === undefined || inProgress === undefined || nextSession === undefined || workouts === undefined;
+  const lastWorkout = workouts?.find((w) => w.status !== 'in_progress') ?? null;
 
   return (
     <Page
@@ -23,30 +39,101 @@ export function HomePage() {
         </IconLink>
       }
     >
-      {program === undefined && <LoadingState />}
+      {loading && <LoadingState />}
 
-      {program === null && (
+      {!loading && program === null && !inProgress && (
         <EmptyState icon={<Dumbbell />} title={t.welcomeTitle} text={t.welcomeText}>
           <ImportProgramButton size="lg" />
           <p className={styles.hint}>{t.installHint}</p>
         </EmptyState>
       )}
 
-      {program && (
-        <Card aria-labelledby="active-program-title">
-          <Eyebrow>{t.activeProgram}</Eyebrow>
-          <h2 id="active-program-title" className={styles.programName}>
-            {program.name}
+      {!loading && inProgress && <InProgressCard workout={inProgress} />}
+
+      {!loading && !inProgress && program && nextSession && (
+        <Card aria-labelledby="next-session-title">
+          <Eyebrow>{t.nextSession}</Eyebrow>
+          <h2 id="next-session-title" className={styles.sessionName}>
+            {nextSession.name}
           </h2>
           <p className={styles.meta}>
-            {[program.week.label, strings.common.sessions(program.sessions.length)].filter(Boolean).join(' · ')}
+            {[
+              strings.common.exercises(nextSession.exercises.length),
+              nextSession.estimatedDurationMin !== null ? `~${strings.common.minutes(nextSession.estimatedDurationMin)}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
-          <Link to="/program" className={styles.rowLink}>
-            <span>{t.seeProgram}</span>
-            <ChevronRight aria-hidden />
-          </Link>
+          <div className={styles.actions}>
+            <StartWorkoutButton programSessionId={nextSession.id} />
+            <Link to="/program" className={styles.secondaryLink}>
+              {t.chooseAnother}
+            </Link>
+          </div>
         </Card>
       )}
+
+      {!loading && lastWorkout && <LastWorkoutCard workout={lastWorkout} />}
+
+      {!loading && <RecentProgress />}
     </Page>
+  );
+}
+
+function InProgressCard({ workout }: { workout: WorkoutSession }) {
+  const done = countValidatedExercises(workout);
+  const total = workout.exerciseRecords.length;
+  return (
+    <Card aria-labelledby="in-progress-title" className={styles.inProgress}>
+      <Eyebrow>{t.startedAt(formatTime(workout.startedAt))}</Eyebrow>
+      <h2 id="in-progress-title" className={styles.sessionName}>
+        {t.inProgress(workout.sessionName)}
+      </h2>
+      <div className={styles.progressRow}>
+        <ProgressBar value={done} max={total} label={strings.workoutScreen.progressLabel(done, total)} />
+        <span className={styles.progressText}>{strings.workoutScreen.progress(done, total)}</span>
+      </div>
+      <div className={styles.actions}>
+        <ButtonLink to={workoutPath(workout.id)} size="lg" fullWidth>
+          {t.resume}
+        </ButtonLink>
+        <AbandonWorkoutButton workout={workout} />
+      </div>
+    </Card>
+  );
+}
+
+function LastWorkoutCard({ workout }: { workout: WorkoutSession }) {
+  return (
+    <Card aria-labelledby="last-session-title">
+      <div className={styles.rowBetween}>
+        <Eyebrow>{t.lastSession}</Eyebrow>
+        <Badge tone={workout.status === 'completed' ? 'success' : 'warning'}>{workoutStatusLabel(workout.status)}</Badge>
+      </div>
+      <h2 id="last-session-title" className={styles.lastName}>
+        {workout.sessionName}
+      </h2>
+      <p className={styles.meta}>
+        {[formatDayLong(workout.date), workout.durationSec !== null ? formatDuration(workout.durationSec) : null].filter(Boolean).join(' · ')}
+      </p>
+    </Card>
+  );
+}
+
+function RecentProgress() {
+  const progress = useRecentProgress();
+  if (!progress || progress.length === 0) return null;
+  return (
+    <Card aria-labelledby="recent-progress-title">
+      <Eyebrow id="recent-progress-title">{t.recentProgress}</Eyebrow>
+      <ul className={styles.progressList}>
+        {progress.map((p) => (
+          <li key={p.programExerciseId}>
+            <span>{p.exerciseName}</span>
+            <span className={p.deltaKg > 0 ? styles.deltaUp : styles.deltaDown}>{formatSignedKg(p.deltaKg)}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

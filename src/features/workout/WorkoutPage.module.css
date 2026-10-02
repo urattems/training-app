@@ -1,0 +1,102 @@
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.progressText {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.listCard {
+  padding-bottom: var(--space-2);
+}
+
+.list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto 1rem;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.75rem;
+  border-top: 1px solid var(--color-border);
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+
+.row:active {
+  background: var(--color-surface-pressed);
+}
+
+.index,
+.indexDone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.index {
+  background: var(--color-surface-pressed);
+  color: var(--color-text-secondary);
+}
+
+.indexDone {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.indexDone svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--font-weight-medium);
+}
+
+.rowMeta {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.chevron {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-text-tertiary);
+}
+
+/* « Terminer la séance » toujours visible, juste au-dessus de la barre flottante. */
+.footer {
+  position: sticky;
+  bottom: calc(var(--page-bottom-clearance, var(--safe-bottom)) + var(--space-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+}
