@@ -30,6 +30,8 @@ export interface WorkoutAutosave {
   /** Écrit immédiatement une action explicite (bouton). */
   commit: (update: WorkoutUpdate) => Promise<void>;
   error: DisplayError | null;
+  /** Heure (ISO) du dernier enregistrement réussi, pour le retour visuel. */
+  savedAt: string | null;
   clearError: () => void;
 }
 
@@ -43,11 +45,13 @@ export interface WorkoutAutosave {
 export function useWorkoutAutosave(workoutId: string): WorkoutAutosave {
   const pending = useRef(new Map<string, Pending>());
   const [error, setError] = useState<DisplayError | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const run = useCallback(
     async (update: WorkoutUpdate) => {
       try {
         await updateWorkout(workoutId, update);
+        setSavedAt(new Date().toISOString());
       } catch (e) {
         console.error(e);
         setError(toDisplayError(e, strings.exercise.saveError));
@@ -130,5 +134,5 @@ export function useWorkoutAutosave(workoutId: string): WorkoutAutosave {
     setError(null);
   }, []);
 
-  return { schedule, flush, cancel, save, commit, error, clearError };
+  return { schedule, flush, cancel, save, commit, error, savedAt, clearError };
 }

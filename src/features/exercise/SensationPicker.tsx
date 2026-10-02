@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Sensation } from '../../domain/types';
 import { SENSATIONS } from '../../schemas/history.schema';
 import { strings } from '../../i18n/strings';
@@ -8,9 +9,10 @@ import styles from './SensationPicker.module.css';
  * Boutons à bascule (`aria-pressed`) : un radiogroup ne permettrait pas de tout désélectionner.
  */
 export function SensationPicker({ value, onChange }: { value: Sensation | null; onChange: (value: Sensation | null) => void }) {
+  const titleId = useId();
   return (
-    <div className={styles.group} role="group" aria-labelledby="sensation-title">
-      <h2 id="sensation-title" className={styles.title}>
+    <div className={styles.group} role="group" aria-labelledby={titleId}>
+      <h2 id={titleId} className={styles.title}>
         {strings.exercise.sensation}
       </h2>
       <div className={styles.options}>

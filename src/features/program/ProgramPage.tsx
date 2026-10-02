@@ -1,9 +1,9 @@
-import { ChevronRight, ClipboardList } from 'lucide-react';
+import { ChevronRight, ClipboardList, History } from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, Eyebrow } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingState } from '../../components/LoadingState';
-import { Page } from '../../components/Page';
+import { IconLink, Page } from '../../components/Page';
 import { useActiveProgram } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { ImportProgramButton } from '../import/ImportProgramFlow';
@@ -18,7 +18,14 @@ export function ProgramPage() {
   const program = useActiveProgram();
 
   return (
-    <Page title={t.title}>
+    <Page
+      title={t.title}
+      trailing={
+        <IconLink to="/history" label={strings.history.link}>
+          <History aria-hidden />
+        </IconLink>
+      }
+    >
       {program === undefined && <LoadingState />}
 
       {program === null && (

@@ -388,3 +388,30 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
   - Web Share absent, et `canShare` qui lève une exception ;
   - détails techniques dans la feuille d'erreur ;
   - les tests de démarrage échouent sur l'ancien code (vérifié), donc ils couvrent bien la régression.
+
+---
+
+## J4a — Historique (SPEC §7.7)
+
+- **`/history`** : toutes les séances en ordre chronologique inverse (date, puis heure de début) — nom, date, durée, statut (badge).
+  - Une séance en cours y figure (« En cours ») et mène à l'écran séance pour la reprendre.
+  - État vide explicite.
+- **Accès sans 4e onglet** :
+  - carte « Dernière séance » de l'accueil, désormais cliquable (vers son détail), avec un lien « Voir l'historique » ;
+  - icône Historique à droite du titre des onglets Programme et Progression (même place que la roue crantée de l'accueil).
+- **`/history/:workoutId`** :
+  - date, heure de début, durée, statut, ordre d'exécution réel ;
+  - puis, pour chaque exercice (ordre du programme) : OBJECTIF (snapshot, bloc pointillé grisé), RÉALISÉ (bloc à liseré d'accent ; séries extra marquées « en plus », séries vides « non faite »), sensation, commentaire ;
+  - puis cardio et notes de séance.
+- **Édition rétroactive** :
+  - **lecture seule par défaut**, mode « Modifier » explicite : pas de modification accidentelle en consultant l'historique ;
+  - en mode édition, mêmes éditeurs que l'écran exercice (`ActualSets`, `SensationPicker`, `TextField`), donc mêmes règles (brouillon par champ, « 47, » jamais perdu, persistance dès qu'une valeur est valide, flush au blur / arrière-plan / démontage) ;
+  - date éditable par le sélecteur natif ; date invalide refusée avec message ;
+  - les objectifs snapshot restent en lecture seule (aucune fonction du domaine n'y écrit) ;
+  - retour clair : « Mode édition : chaque modification est enregistrée automatiquement », puis « Enregistré à HH:MM » après chaque écriture réussie (`savedAt` du hook d'enregistrement) ;
+  - le cardio d'une séance passée reste en lecture seule (hors du périmètre d'édition de la SPEC : date, séries, sensation, commentaire) ;
+  - une séance en cours ne s'édite pas depuis l'historique : bouton « Reprendre la séance ».
+- **Suppression** : bouton « Supprimer la séance » en bas du détail, puis confirmation explicite (« … sera définitivement supprimée … Les statistiques seront recalculées »). Les saisies en attente sont écrites avant la suppression. Retour à l'historique.
+- **Statistiques** : recalculées à la lecture (`useLiveQuery`), donc immédiatement à jour après édition ou suppression (testé).
+- **Progression récente de l'accueil** : variations factuelles de charge (« Chest Press +0,5 kg »), mise en place au J3a, vérifiée ici sur `history-example.json`.
+- **Accessibilité** : `ActualSets` et `SensationPicker` utilisent des identifiants uniques (`useId`), car ils sont affichés plusieurs fois sur une même page de détail.

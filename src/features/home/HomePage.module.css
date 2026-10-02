@@ -93,3 +93,15 @@
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-semibold);
 }
+
+.cardLink {
+  display: block;
+  margin: calc(var(--space-2) * -1);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+
+.cardLink:active {
+  background: var(--color-surface-pressed);
+}

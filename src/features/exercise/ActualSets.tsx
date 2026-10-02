@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { NumberField } from '../../components/NumberField';
@@ -23,6 +23,7 @@ const weightPlaceholder = (target: ProgramSet | undefined): string =>
  * puis « + Série » en bas de liste uniquement. Champs vides au départ.
  */
 export function ActualSets({ record, autosave }: { record: WorkoutExercise; autosave: WorkoutAutosave }) {
+  const titleId = useId();
   const setNumbers = [...new Set([...record.targetSets, ...record.actualSets].map((s) => s.setNumber))].sort((a, b) => a - b);
 
   const addSet = async () => {
@@ -31,8 +32,8 @@ export function ActualSets({ record, autosave }: { record: WorkoutExercise; auto
   };
 
   return (
-    <section className={styles.actual} aria-labelledby="actual-title">
-      <h2 id="actual-title" className={styles.title}>
+    <section className={styles.actual} aria-labelledby={titleId}>
+      <h2 id={titleId} className={styles.title}>
         {t.actual}
       </h2>
       <ol className={styles.rows}>

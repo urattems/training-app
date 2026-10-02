@@ -14,6 +14,7 @@ import { countValidatedExercises } from '../../domain/workout';
 import { useActiveProgram, useInProgressWorkout, useNextSession, useRecentProgress, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
+import { historyDetailPath } from '../history/paths';
 import { ImportProgramButton } from '../import/ImportProgramFlow';
 import { AbandonWorkoutButton, StartWorkoutButton, workoutPath } from '../workout/WorkoutActions';
 import styles from './HomePage.module.css';
@@ -103,19 +104,25 @@ function InProgressCard({ workout }: { workout: WorkoutSession }) {
   );
 }
 
+/** « Dernière séance » : toute la carte mène au détail ; lien vers l'historique complet. */
 function LastWorkoutCard({ workout }: { workout: WorkoutSession }) {
   return (
     <Card aria-labelledby="last-session-title">
-      <div className={styles.rowBetween}>
-        <Eyebrow>{t.lastSession}</Eyebrow>
-        <Badge tone={workout.status === 'completed' ? 'success' : 'warning'}>{workoutStatusLabel(workout.status)}</Badge>
-      </div>
-      <h2 id="last-session-title" className={styles.lastName}>
-        {workout.sessionName}
-      </h2>
-      <p className={styles.meta}>
-        {[formatDayLong(workout.date), workout.durationSec !== null ? formatDuration(workout.durationSec) : null].filter(Boolean).join(' · ')}
-      </p>
+      <Link to={historyDetailPath(workout.id)} className={styles.cardLink}>
+        <div className={styles.rowBetween}>
+          <Eyebrow>{t.lastSession}</Eyebrow>
+          <Badge tone={workout.status === 'completed' ? 'success' : 'warning'}>{workoutStatusLabel(workout.status)}</Badge>
+        </div>
+        <h2 id="last-session-title" className={styles.lastName}>
+          {workout.sessionName}
+        </h2>
+        <p className={styles.meta}>
+          {[formatDayLong(workout.date), workout.durationSec !== null ? formatDuration(workout.durationSec) : null].filter(Boolean).join(' · ')}
+        </p>
+      </Link>
+      <Link to="/history" className={styles.secondaryLink}>
+        {strings.history.seeAll}
+      </Link>
     </Card>
   );
 }
