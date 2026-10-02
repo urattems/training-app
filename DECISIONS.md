@@ -163,3 +163,65 @@ src/
 - Recharts au toucher : la carte de détail est pilotée par l'état React, sans animation, avec des séries mémoïsées. La fluidité sur plusieurs années de données sera vérifiée au J4.
 - Purge d'IndexedDB par Safari : atténuée par `persist()` et le rappel d'export, sans garantie absolue.
 - Web Share de fichiers en standalone : le repli par téléchargement est obligatoire et testé.
+
+---
+
+## J1 — Versions réelles des bibliothèques (écarts vs plan J0)
+
+Versions vérifiées sur npm le 2026-10-01 :
+
+| Lib | Prévu J0 | Retenu | Raison |
+|---|---|---|---|
+| TypeScript | « strict » (non versionné) | **6.0.3** (`~6.0.3`) | La dernière est la 7.0.2, mais `typescript-eslint` 8.71 exige `typescript <6.1.0`. On reste sur 6.0.x jusqu'à son support. |
+| Vite | Vite | 8.3.2 | Dernière ; `@vitejs/plugin-react` 6 exige Vite 8. |
+| Vitest | Vitest | 5.0.3 | Compatible Vite 8. |
+| ESLint | 9 (flat config) | **10.11** | Dernière ; flat config via `defineConfig` de `eslint/config`. |
+| React Router | 7 | **8.4** (installé au J2) | Dernière majeure ; exige React ≥ 19.2.7 (on a 19.3). HashRouter toujours disponible, à vérifier au J2. |
+| Zod | 4 | 4.6.5 | API utilisée : `z.iso.datetime({ offset: true })`, `z.iso.date()`, `z.int()`, `superRefine`, `.default(() => …)`. Issues lues via `z.core.$ZodIssue` (`invalid_type`, `too_small`, `invalid_value`, `invalid_format`, `custom`). |
+| Dexie | 4 | 4.4.6 | — |
+| Recharts | 3 | 3.10.1 (installé au J4) | `peerDependencies` : React `^19.0.0` OK. Vérification fonctionnelle au J4. |
+
+Dépendances installées **au jalon qui les utilise** (pas de dépendance morte) : React Router, `dexie-react-hooks`, Lucide, Testing Library et jsdom pour les tests UI (J2/J3), Recharts (J4), `vite-plugin-pwa` (J6). `jsdom` est déjà installé en dev (Vitest l'utilisera par fichier avec `// @vitest-environment jsdom`). Les tests J1 tournent en environnement `node`, avec `fake-indexeddb`.
+
+`src/main.tsx` est un point d'entrée minimal (nom de l'app seulement), nécessaire pour que `vite build` fonctionne. Le shell arrive au J2.
+
+## J1 — Contrat JSON : précisions d'implémentation
+
+- **Clés inconnues** : ignorées (comportement par défaut de Zod), donc retirées à la relecture. Le contrat reste ouvert aux ajouts du coach sans casser l'import.
+- **Forme des reps** : `targetReps` OU `targetRepsMin + targetRepsMax`. Un `null` sur la forme non utilisée est toléré et traité comme absent ; la série est normalisée à la forme du contrat. Une plage inversée (min > max) est refusée.
+- **Unicité vérifiée par le schéma** :
+  - `setNumber` dans un exercice (objectifs et séries réalisées) ;
+  - `id` d'exercice dans une séance ;
+  - `id` de séance dans un programme ;
+  - `programExerciseId` dans une séance réalisée.
+  Un même `id` d'exercice dans deux séances différentes reste autorisé (même exercice, même progression).
+- **`executionOrder`** : sans doublon, et chaque id doit correspondre à un exercice de la séance.
+- `targetDurationMin` (cardio programmé) : nombre ≥ 0 ou `null`.
+- **Messages d'erreur** :
+  - champ manquant dans un élément de liste → « la séance A contient un exercice sans identifiant » ;
+  - autres cas → « la série 1 de l'exercice « Chest Press » de la séance A : charge cible invalide (nombre attendu) » ;
+  - seule la première erreur est détaillée, avec « (et N autres erreurs) » ; les détails techniques sont dans `details`.
+- Les types TypeScript du contrat sont tous `z.infer` (`src/schemas/*.schema.ts`), réexportés par `src/domain/types.ts`. Seul `StoredProgram` étend `TrainingProgram` (`importedAt`, `archivedAt`).
+
+## J1 — Règles métier : précisions d'implémentation
+
+- **Séries réalisées** : `actualSets` démarre **vide**. Une série n'est créée qu'à la première saisie de l'utilisateur sur cette ligne (ou via « Comme prévu » / « + Série »). L'UI affiche les lignes à partir des `targetSets`.
+- **Ordre réel** : un exercice entre dans `executionOrder` à la première action de l'utilisateur sur lui (saisie, Comme prévu, + Série, sensation, commentaire, validation). Le cardio n'y figure pas (contrat : liste de `programExerciseId`).
+- **Série « réalisée »** (stats, graphiques, records) : `actualReps` renseigné et > 0. Une charge sans reps n'est pas une charge utilisée.
+- **Records** :
+  - meilleure charge = charge max réelle ;
+  - meilleure série à charge donnée = reps max pour chaque charge ;
+  - meilleure série globale = la plus lourde, puis la plus longue à égalité ;
+  - volume max par séance.
+- **« Nombre de séances » d'un exercice** : séances `completed` où il a au moins une série réalisée.
+- **Abandon** : `completedAt` et `durationSec` restent `null`.
+- **Persistance des modifications** : toute modification passe par `updateWorkout(id, fonctionPure)`, une transaction qui **revalide la séance avec le schéma du contrat** avant écriture. Aucune donnée invalide n'atteint la base, et une séance terminée ou abandonnée ne peut pas repasser `in_progress`.
+- **Restauration** :
+  - `lastExportAt` de l'appareil est conservé ;
+  - le programme actif de la sauvegarde a `archivedAt: null`, les autres reçoivent la date de restauration.
+- **Ordre des programmes à l'export** : par date d'import. Après une restauration, tous ont la même date d'import, donc l'ordre de `programs[]` n'est pas garanti (sans incidence : c'est un ensemble).
+
+## J1 — Outillage
+
+- `.gitattributes` : `* text=auto eol=lf`, pour des fins de ligne stables sous Windows.
+- Les fixtures `examples/` sont protégées par un test d'empreinte SHA-256 (`src/test/fixtures.ts`) : toute modification fait échouer la suite.
