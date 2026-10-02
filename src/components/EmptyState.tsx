@@ -4,7 +4,7 @@ import styles from './EmptyState.module.css';
 interface EmptyStateProps {
   icon: ReactNode;
   title: string;
-  text: string;
+  text?: string;
   children?: ReactNode;
 }
 
@@ -15,7 +15,7 @@ export function EmptyState({ icon, title, text, children }: EmptyStateProps) {
         {icon}
       </div>
       <h2 className={styles.title}>{title}</h2>
-      <p className={styles.text}>{text}</p>
+      {text && <p className={styles.text}>{text}</p>}
       {children && <div className={styles.actions}>{children}</div>}
     </div>
   );

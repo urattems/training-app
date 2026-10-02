@@ -301,3 +301,70 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
 - Une séance terminée ou abandonnée ouverte par son URL `/workout/:id` affiche son statut, sans action (consultation au J4 via `/history/:id`).
 - **La barre basse reste visible sur l'écran séance** : la SPEC ne la masque que sur l'écran exercice.
 - **Tests** : `scrollIntoView` est simulé dans le setup (jsdom ne l'implémente pas). Les lectures réactives (`useLiveQuery`) se mettent à jour à des moments légèrement différents : les tests UI attendent l'état final (`findBy…`, `waitFor`).
+
+---
+
+## J3b — Écran exercice (SPEC §7.4)
+
+- **Route** `/workout/:workoutId/exercise/:exerciseId`, sans barre basse (règle du Shell).
+- **Header** : ← précédent · « Exercice 2 sur 6 » · → suivant · bouton « Liste » (retour à l'écran séance), puis une barre de progression discrète (exercices validés / total).
+- **Ordre vertical** : nom, catégorie · équipement, « Dernière fois », OBJECTIF, RÉALISÉ, sensation, commentaire, repos recommandé, « Valider l'exercice ».
+  - Catégorie et équipement ne font pas partie du snapshot du contrat (§11.2) : ils sont lus dans le programme d'origine de la séance, toujours conservé (archivé).
+- **Valider l'exercice** :
+  - écrit les saisies en attente, passe l'exercice en `completed`, puis ouvre directement l'exercice suivant (ordre du programme) ;
+  - après le dernier, retour à l'écran séance (cardio, Terminer) ;
+  - rien n'est verrouillé : un exercice validé reste modifiable.
+- **Écran exercice d'une séance qui n'est plus en cours** : message et retour. L'édition rétroactive passera par l'historique (J4). Les écrans d'erreur ont leur propre titre principal (`h1`).
+
+## J3b — RÉALISÉ et fiabilité de la saisie
+
+- **Une ligne par série** (prescrites, puis extra) :
+  - en-tête « Série n » (+ badge « en plus ») et bouton « Comme prévu » ;
+  - deux champs [reps] [kg] dessous, sur toute la largeur : saisie à une main, champs de 48 px.
+- **« + Série »** : uniquement en bas de liste.
+- **Champs vides au départ**, objectif en placeholder gris (« 12 », « 8–12 », « 47 »). Charge `null` → pas de placeholder.
+- **« Comme prévu »** :
+  - remplit uniquement les cibles exactes ;
+  - masqué si rien n'est remplissable ;
+  - ligne partiellement remplissable (plage de reps) → le focus passe au champ restant, dans le geste de l'utilisateur, donc fiable sur iOS.
+- **Brouillon local par champ** (`NumberField`, `TextField`) :
+  - le texte tapé n'est jamais réécrit pendant la saisie (« 47, » et « 47. » restent affichés tels quels) ;
+  - chaque valeur valide est persistée après un court délai (350 ms), et tout de suite au blur ;
+  - au blur, « 47, » devient 47 (affiché « 47 ») ;
+  - une saisie invalide (« 4,7,5 ») n'est jamais écrite : le champ la garde avec un message, et l'écriture en attente d'une valeur intermédiaire (« 4,7 ») est annulée ;
+  - un champ en erreur ne se resynchronise jamais sur la base ;
+  - un champ suit les changements de valeur venant de la base (ex. « Comme prévu ») uniquement hors saisie, et jamais l'écart avec son propre brouillon (sinon il clignoterait vers l'ancienne valeur juste après un blur).
+- **Effacer un champ** → `null`, la série reste (une valeur `null` = série non faite).
+- **Un simple passage dans un champ vide n'écrit rien** : pas de série vide créée, et l'exercice n'entre pas dans `executionOrder`.
+- **Enregistrement** (`useWorkoutAutosave`) :
+  - chaque champ planifie une mise à jour fonctionnelle de la séance, appliquée sur l'état le plus récent en base dans une transaction : deux champs modifiés coup sur coup ne s'écrasent pas ;
+  - écriture immédiate au blur, à `visibilitychange` (hidden), à `pagehide` et au démontage. Le démontage passe par un effet de layout, synchrone, pour que l'écriture parte avant toute autre chose ;
+  - une erreur d'écriture s'affiche (bandeau), sans perdre la saisie à l'écran.
+- **Démarrer une séance** : l'état « séance en cours » est lu au moment du tap. Avant, le bouton restait désactivé pendant le chargement, et un tap précoce était ignoré sans retour.
+
+## J3b — Sensation, commentaire, cardio
+
+- **Sensation** : 5 boutons à bascule (`aria-pressed`). Retoucher le choix actif le désélectionne (`null`). Pas de `radiogroup`, qui ne permet pas de tout désélectionner.
+- **Commentaire** : zone de texte à brouillon local ; vide ou espaces → `null`.
+- **Cardio réel** (écran séance) :
+  - « Ajouter du cardio » → choix explicite du type (Tapis, Vélo, Elliptique, Rameur, Autre) : aucun type par défaut supposé ;
+  - puis nom, durée en minutes (décimales acceptées, stockée en secondes arrondies), vitesse (km/h), inclinaison (refusée au-delà de 100 %), notes. Tous optionnels sauf le type ;
+  - **suppression d'une entrée cardio** (`removeCardioEntry`), toujours confirmée : sans elle, une entrée ajoutée par erreur resterait dans l'historique. Ajout minimal, justifié par la règle « aucune donnée parasite, aucune suppression silencieuse ».
+- **Écran séance** : « n / N séries saisies » ne compte que les séries prescrites ; les séries en plus sont affichées à part (« · +1 en plus »).
+
+## J3b — Pièges iOS
+
+- **Zoom au focus** : `--font-size-input: 17px` pour tous les champs (≥ 16 px). Vérifié dans le navigateur : 17 px calculés.
+- **Clavier** : à la prise de focus, le champ est recentré (`scrollIntoView`, après 300 ms pour laisser le clavier s'ouvrir). Aucun bouton fixe sur l'écran exercice : « Valider l'exercice » est dans le flux de la page (vérifié : `position: static`) et reste atteignable en défilant, clavier ouvert.
+- **Double-tap** : `touch-action: manipulation` sur boutons, liens et champs (`base.css`).
+- **Pas d'autofocus** à l'ouverture d'un écran. Le seul focus programmatique est celui de « Comme prévu », déclenché par un tap.
+- **Claviers** : `inputmode="numeric"` (+ `pattern="[0-9]*"`) pour les reps, `inputmode="decimal"` pour charge, durée, vitesse et inclinaison. Toujours `type="text"`, car `type="number"` gère mal la virgule sur iOS.
+
+## J3b — Tests
+
+- Scénarios 2, 3 et 4 de la SPEC en tests UI, avec fermeture et réouverture de la base IndexedDB.
+- **Scénario 3** : la « fermeture de l'app » est simulée comme sur iPhone, par `pagehide`. Le test vérifie que l'écriture part tout de suite (moins de 150 ms, avant le délai de 350 ms), puis ferme et rouvre la base. La première version fermait la connexion IndexedDB par programme au milieu d'une écriture, ce qui ne peut pas arriver dans l'app : la simulation a été corrigée.
+- **Deux attentes de tests écrits pendant ce jalon ont été ajustées**, et le code a été durci pour les deux :
+  - pendant la frappe de « 47, », la valeur valide précédente (47) est persistée, conformément à la règle « persistance dès qu'une valeur est valide » ;
+  - pour « 4,7,5 », l'assertion stricte d'origine (rien d'écrit) a été rétablie après correction du code (annulation de l'écriture intermédiaire).
+- Les shims jsdom `scrollIntoView` et `matchMedia` sont dans le setup de test.

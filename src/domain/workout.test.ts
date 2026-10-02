@@ -14,6 +14,7 @@ import {
   createWorkout,
   findRecord,
   finishWorkout,
+  removeCardioEntry,
   setActualValues,
   setComment,
   setSensation,
@@ -176,6 +177,13 @@ describe('Cardio', () => {
     expect(() => updateCardioEntry(w, 0, { speedKmh: -1 })).toThrow(DomainError);
     expect(() => updateCardioEntry(w, 0, { durationSec: -60 })).toThrow(DomainError);
     expect(() => updateCardioEntry(w, 3, { name: 'x' })).toThrow(DomainError);
+  });
+
+  it('retire une entrée précise, sans toucher aux autres', () => {
+    let w = addCardioEntry(addCardioEntry(start(), 'bike'), 'rower');
+    w = removeCardioEntry(w, 0);
+    expect(w.cardioRecords.map((e) => e.type)).toEqual(['rower']);
+    expect(() => removeCardioEntry(w, 5)).toThrow(DomainError);
   });
 });
 

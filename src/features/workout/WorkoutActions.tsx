@@ -6,9 +6,8 @@ import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { Sheet } from '../../components/Sheet';
 import { DomainError } from '../../domain/errors';
 import type { WorkoutSession } from '../../domain/types';
-import { useInProgressWorkout } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
-import { abandonWorkout, startWorkout } from '../../services/workoutService';
+import { abandonWorkout, getInProgressWorkout, startWorkout } from '../../services/workoutService';
 
 const t = strings.workoutScreen;
 
@@ -51,18 +50,19 @@ interface StartWorkoutButtonProps {
  */
 export function StartWorkoutButton({ programSessionId, label = strings.home.startSession, variant = 'primary', size = 'lg', fullWidth = true }: StartWorkoutButtonProps) {
   const navigate = useNavigate();
-  const inProgress = useInProgressWorkout();
   const [starting, setStarting] = useState(false);
   const [blockingWorkout, setBlockingWorkout] = useState<WorkoutSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const start = async () => {
-    if (inProgress) {
-      setBlockingWorkout(inProgress);
-      return;
-    }
     setStarting(true);
     try {
+      // État lu au moment du tap (jamais un état de chargement) : un tap n'est jamais ignoré.
+      const inProgress = await getInProgressWorkout();
+      if (inProgress) {
+        setBlockingWorkout(inProgress);
+        return;
+      }
       const workout = await startWorkout(programSessionId);
       void navigate(workoutPath(workout.id));
     } catch (e) {
@@ -74,7 +74,7 @@ export function StartWorkoutButton({ programSessionId, label = strings.home.star
 
   return (
     <>
-      <Button variant={variant} size={size} fullWidth={fullWidth} icon={<Play aria-hidden />} loading={starting} disabled={inProgress === undefined} onClick={() => void start()}>
+      <Button variant={variant} size={size} fullWidth={fullWidth} icon={<Play aria-hidden />} loading={starting} onClick={() => void start()}>
         {label}
       </Button>
       {blockingWorkout && (

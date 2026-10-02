@@ -1,0 +1,45 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-caps);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.option {
+  min-height: 3.5rem;
+  padding: var(--space-1);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  transition:
+    background-color var(--duration-fast) var(--easing-standard),
+    border-color var(--duration-fast) var(--easing-standard);
+}
+
+.option:active {
+  background: var(--color-surface-pressed);
+}
+
+.selected,
+.selected:active {
+  border-color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}

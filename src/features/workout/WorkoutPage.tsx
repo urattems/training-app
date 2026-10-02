@@ -132,7 +132,10 @@ function InProgressWorkout({ workout }: { workout: WorkoutSession }) {
 }
 
 function ExerciseRow({ workoutId, record, index }: { workoutId: string; record: WorkoutExercise; index: number }) {
-  const entered = record.actualSets.filter((s) => s.actualReps !== null || s.actualWeightKg !== null).length;
+  // Séries prescrites saisies ; les séries en plus sont comptées à part.
+  const hasValue = (s: WorkoutExercise['actualSets'][number]) => s.actualReps !== null || s.actualWeightKg !== null;
+  const entered = record.actualSets.filter((s) => !s.isExtra && hasValue(s)).length;
+  const extras = record.actualSets.filter((s) => s.isExtra && hasValue(s)).length;
   const validated = record.status === 'completed';
   return (
     <Link to={exercisePath(workoutId, record.programExerciseId)} className={styles.row}>
@@ -141,7 +144,10 @@ function ExerciseRow({ workoutId, record, index }: { workoutId: string; record: 
       </span>
       <span className={styles.rowText}>
         <span className={styles.rowName}>{record.exerciseName}</span>
-        <span className={styles.rowMeta}>{t.setsEntered(entered, record.targetSets.length)}</span>
+        <span className={styles.rowMeta}>
+          {t.setsEntered(entered, record.targetSets.length)}
+          {extras > 0 && ` · ${t.extraSets(extras)}`}
+        </span>
       </span>
       <Badge tone={validated ? 'success' : 'neutral'}>
         {validated ? <Check aria-hidden /> : <CircleDashed aria-hidden />}

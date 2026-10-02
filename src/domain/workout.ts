@@ -212,6 +212,12 @@ export function updateCardioEntry(
   return { ...workout, cardioRecords: workout.cardioRecords.map((e, i) => (i === index ? updated : e)) };
 }
 
+/** Retire une entrée cardio ajoutée par erreur. L'UI DOIT demander une confirmation explicite. */
+export function removeCardioEntry(workout: WorkoutSession, index: number): WorkoutSession {
+  if (!workout.cardioRecords[index]) throw new DomainError(t.unknownCardio);
+  return { ...workout, cardioRecords: workout.cardioRecords.filter((_, i) => i !== index) };
+}
+
 // --- Cycle de vie -------------------------------------------------------------
 
 function assertInProgress(workout: WorkoutSession): void {

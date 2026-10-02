@@ -48,6 +48,7 @@
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
+  --font-size-input: 1.0625rem; /* 17 px : ≥ 16 px évite le zoom automatique de Safari iOS */
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.375rem;
   --font-size-2xl: 1.75rem;

@@ -1,22 +1,117 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .target {
-  margin-top: var(--space-2);
   font-weight: var(--font-weight-medium);
 }
 
 .notes {
-  margin-top: var(--space-1);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
 
 .empty {
-  margin-top: var(--space-2);
   color: var(--color-text-tertiary);
   font-size: var(--font-size-sm);
 }
 
-.list {
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  list-style: none;
+.error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.entryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.entryTitle {
+  font-weight: var(--font-weight-semibold);
+}
+
+.removeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-tertiary);
+}
+
+.removeButton:active {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.removeButton svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.typeChoice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.types {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.typeButton {
+  min-height: var(--tap-min);
+  padding: 0 var(--space-2);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.typeButton:active {
+  background: var(--color-surface-pressed);
+}
+
+.typeSelected,
+.typeSelected:active {
+  border-color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.labelled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.fieldLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
