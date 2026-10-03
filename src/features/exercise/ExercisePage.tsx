@@ -11,7 +11,7 @@ import { LoadingState } from '../../components/LoadingState';
 import { ProgressBar } from '../../components/ProgressBar';
 import { TextField } from '../../components/TextField';
 import { formatPerformance, getLastPerformance } from '../../domain/display';
-import type { WorkoutSession } from '../../domain/types';
+import type { ProgramExercise, WorkoutSession } from '../../domain/types';
 import { countValidatedExercises, findIncompleteSets, setComment, setSensation, validateExercise, type IncompleteSets } from '../../domain/workout';
 import { useProgram, useWorkout, useWorkouts } from '../../hooks/useData';
 import { useWorkoutAutosave } from '../../hooks/useWorkoutAutosave';
@@ -21,6 +21,7 @@ import { formatDayShort } from '../../utils/format';
 import { TargetSets } from '../workout/TargetSets';
 import { exercisePath, workoutPath } from '../workout/WorkoutActions';
 import { ActualSets } from './ActualSets';
+import { ExerciseTip } from './ExerciseTip';
 import { SensationPicker } from './SensationPicker';
 import styles from './ExercisePage.module.css';
 
@@ -70,6 +71,7 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
   const navigate = useNavigate();
   const autosave = useWorkoutAutosave(workout.id);
   const [incomplete, setIncomplete] = useState<IncompleteSets | null>(null);
+  const programExercise = useProgramExercise(workout, exerciseId);
 
   /** « Compléter » : ferme l'avertissement et place le curseur sur le premier champ manquant. */
   const completeMissing = (sets: IncompleteSets) => {
@@ -146,7 +148,7 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
           </Badge>
         )}
       </div>
-      <ExerciseMeta workout={workout} exerciseId={exerciseId} />
+      <ExerciseMeta exercise={programExercise} />
 
       {autosave.error !== null && (
         <div className={styles.saveError} role="alert">
@@ -173,6 +175,8 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
           )}
         </p>
       </section>
+
+      <ExerciseTip notes={programExercise?.notes} />
 
       <TargetSets sets={record.targetSets} />
 
@@ -225,12 +229,16 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
 }
 
 /**
- * Catégorie et équipement (SPEC §7.4) : non copiés dans le snapshot du contrat,
- * ils sont lus dans le programme d'origine de la séance (toujours conservé, même archivé).
+ * Exercice du programme d'origine de la séance (toujours conservé, même archivé) :
+ * catégorie, équipement et conseil (`notes`) ne sont pas copiés dans le snapshot du contrat.
  */
-function ExerciseMeta({ workout, exerciseId }: { workout: WorkoutSession; exerciseId: string }) {
+function useProgramExercise(workout: WorkoutSession, exerciseId: string): ProgramExercise | undefined {
   const program = useProgram(workout.programId);
-  const exercise = program?.sessions.find((s) => s.id === workout.programSessionId)?.exercises.find((e) => e.id === exerciseId);
+  return program?.sessions.find((s) => s.id === workout.programSessionId)?.exercises.find((e) => e.id === exerciseId);
+}
+
+/** Catégorie et équipement (SPEC §7.4). */
+function ExerciseMeta({ exercise }: { exercise: ProgramExercise | undefined }) {
   const parts = [exercise?.category, exercise?.equipment].filter(Boolean);
   if (parts.length === 0) return null;
   return <p className={styles.meta}>{parts.join(' · ')}</p>;

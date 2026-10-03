@@ -1,32 +1,41 @@
-import { createContext, use, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { CircleCheck, FileUp, TriangleAlert } from 'lucide-react';
+import { createContext, use, useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { CircleCheck, ClipboardPaste, FileUp, TriangleAlert } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button, type ButtonVariant } from '../../components/Button';
+import fieldStyles from '../../components/Field.module.css';
 import { Sheet } from '../../components/Sheet';
 import { useActiveProgram } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import type { ImportFailure } from '../../schemas/errors';
 import { ignoredFieldNames } from '../../schemas/ignoredFields';
 import { readFileText } from '../../services/importService';
-import { importProgram, previewProgram, type ProgramPreview } from '../../services/programService';
+import { importProgram, previewPastedProgram, previewProgram, type ProgramPreview } from '../../services/programService';
+import { canReadClipboard, readClipboardText } from '../../utils/clipboard';
 import styles from './ImportProgramFlow.module.css';
+
+/** Origine du programme : fichier choisi, ou texte collé (gardé en mémoire seulement, jamais en base). */
+type Source = { kind: 'file' } | { kind: 'paste'; text: string };
 
 type FlowState =
   | { step: 'idle' }
   | { step: 'reading' }
-  | { step: 'preview'; preview: ProgramPreview }
-  | { step: 'importing'; preview: ProgramPreview }
-  | { step: 'error'; failure: ImportFailure }
+  | { step: 'paste'; text: string }
+  | { step: 'preview'; preview: ProgramPreview; source: Source }
+  | { step: 'importing'; preview: ProgramPreview; source: Source }
+  | { step: 'error'; failure: ImportFailure; source: Source }
   | { step: 'done'; name: string };
 
 interface ImportContextValue {
   pickFile: () => void;
+  openPaste: () => void;
   reading: boolean;
 }
 
 const ImportContext = createContext<ImportContextValue | null>(null);
 
 const t = strings.importFlow;
+
+const FILE: Source = { kind: 'file' };
 
 const unexpectedFailure = (error: unknown): ImportFailure => ({
   kind: 'invalid_schema',
@@ -35,7 +44,7 @@ const unexpectedFailure = (error: unknown): ImportFailure => ({
 });
 
 /**
- * Import de programme (SPEC §10.1) : fichier → validation → prévisualisation →
+ * Import de programme (SPEC §10.1) : fichier OU texte collé → validation → prévisualisation →
  * Annuler / Importer. Rien n'est écrit avant la confirmation explicite.
  * L'état vit au niveau de l'app : les feuilles survivent au changement d'écran
  * provoqué par l'import (l'accueil passe de « Bienvenue » au programme actif).
@@ -48,6 +57,10 @@ export function ImportProgramProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   const pickFile = () => inputRef.current?.click();
+  const openPaste = (text = '') => {
+    setShowDetails(false);
+    setState({ step: 'paste', text });
+  };
   const close = () => {
     setState({ step: 'idle' });
     setShowDetails(false);
@@ -66,25 +79,33 @@ export function ImportProgramProvider({ children }: { children: ReactNode }) {
     setState({ step: 'reading' });
     const text = await readFileText(file, 'program');
     if (!text.ok) {
-      setState({ step: 'error', failure: text.error });
+      setState({ step: 'error', failure: text.error, source: FILE });
       return;
     }
     const preview = previewProgram(text.value);
-    setState(preview.ok ? { step: 'preview', preview: preview.value } : { step: 'error', failure: preview.error });
+    setState(preview.ok ? { step: 'preview', preview: preview.value, source: FILE } : { step: 'error', failure: preview.error, source: FILE });
   };
 
-  const confirm = async (preview: ProgramPreview) => {
-    setState({ step: 'importing', preview });
+  /** Texte collé : même pipeline que le fichier (parse, migration, Zod, invariants). Rien n'est écrit. */
+  const verifyPasted = (text: string) => {
+    setShowDetails(false);
+    const source: Source = { kind: 'paste', text };
+    const preview = previewPastedProgram(text);
+    setState(preview.ok ? { step: 'preview', preview: preview.value, source } : { step: 'error', failure: preview.error, source });
+  };
+
+  const confirm = async (preview: ProgramPreview, source: Source) => {
+    setState({ step: 'importing', preview, source });
     try {
       const result = await importProgram(preview.program);
-      setState(result.ok ? { step: 'done', name: result.value.name } : { step: 'error', failure: result.error });
+      setState(result.ok ? { step: 'done', name: result.value.name } : { step: 'error', failure: result.error, source });
     } catch (error) {
-      setState({ step: 'error', failure: unexpectedFailure(error) });
+      setState({ step: 'error', failure: unexpectedFailure(error), source });
     }
   };
 
   return (
-    <ImportContext value={{ pickFile, reading: state.step === 'reading' }}>
+    <ImportContext value={{ pickFile, openPaste, reading: state.step === 'reading' }}>
       {children}
       <input
         ref={inputRef}
@@ -96,6 +117,8 @@ export function ImportProgramProvider({ children }: { children: ReactNode }) {
         onChange={(e) => void onFileChange(e)}
       />
 
+      {state.step === 'paste' && <PasteSheet initialText={state.text} onVerify={verifyPasted} onClose={close} />}
+
       {(state.step === 'preview' || state.step === 'importing') && (
         <Sheet
           title={t.previewTitle}
@@ -104,7 +127,7 @@ export function ImportProgramProvider({ children }: { children: ReactNode }) {
           dismissible={state.step === 'preview'}
           footer={
             <>
-              <Button size="lg" fullWidth loading={state.step === 'importing'} onClick={() => void confirm(state.preview)}>
+              <Button size="lg" fullWidth loading={state.step === 'importing'} onClick={() => void confirm(state.preview, state.source)}>
                 {state.step === 'importing' ? t.importing : t.confirm}
               </Button>
               <Button variant="ghost" fullWidth onClick={close} disabled={state.step === 'importing'}>
@@ -118,52 +141,23 @@ export function ImportProgramProvider({ children }: { children: ReactNode }) {
       )}
 
       {state.step === 'error' && (
-        <Sheet
-          title={t.errorTitle}
-          tone="danger"
-          icon={<TriangleAlert aria-hidden />}
+        <ErrorSheet
+          failure={state.failure}
+          source={state.source}
+          showDetails={showDetails}
+          onToggleDetails={() => {
+            setShowDetails((v) => !v);
+          }}
+          onRetry={(source) => {
+            if (source.kind === 'paste') {
+              openPaste(source.text);
+            } else {
+              close();
+              pickFile();
+            }
+          }}
           onClose={close}
-          footer={
-            <>
-              <Button
-                size="lg"
-                fullWidth
-                onClick={() => {
-                  close();
-                  pickFile();
-                }}
-              >
-                {t.chooseAnother}
-              </Button>
-              <Button variant="ghost" fullWidth onClick={close}>
-                {strings.common.close}
-              </Button>
-            </>
-          }
-        >
-          <p role="alert">{state.failure.message}</p>
-          {state.failure.details.length > 0 && (
-            <div>
-              <button
-                type="button"
-                className={styles.detailsToggle}
-                aria-expanded={showDetails}
-                onClick={() => {
-                  setShowDetails((v) => !v);
-                }}
-              >
-                {showDetails ? t.hideDetails : t.showDetails}
-              </button>
-              {showDetails && (
-                <ul className={styles.details}>
-                  {state.failure.details.map((line, i) => (
-                    <li key={i}>{line}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </Sheet>
+        />
       )}
 
       {state.step === 'done' && (
@@ -182,6 +176,135 @@ export function ImportProgramProvider({ children }: { children: ReactNode }) {
         </Sheet>
       )}
     </ImportContext>
+  );
+}
+
+interface ErrorSheetProps {
+  failure: ImportFailure;
+  source: Source;
+  showDetails: boolean;
+  onToggleDetails: () => void;
+  onRetry: (source: Source) => void;
+  onClose: () => void;
+}
+
+/** Refus en bloc : message français, détails techniques à la demande, puis nouvel essai. */
+function ErrorSheet({ failure, source, showDetails, onToggleDetails, onRetry, onClose }: ErrorSheetProps) {
+  return (
+    <Sheet
+      title={source.kind === 'paste' ? t.textRefusedTitle : t.errorTitle}
+      tone="danger"
+      icon={<TriangleAlert aria-hidden />}
+      onClose={onClose}
+      footer={
+        <>
+          <Button
+            size="lg"
+            fullWidth
+            onClick={() => {
+              onRetry(source);
+            }}
+          >
+            {source.kind === 'paste' ? t.editText : t.chooseAnother}
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onClose}>
+            {strings.common.close}
+          </Button>
+        </>
+      }
+    >
+      <p role="alert">{failure.message}</p>
+      {failure.details.length > 0 && (
+        <div>
+          <button type="button" className={styles.detailsToggle} aria-expanded={showDetails} onClick={onToggleDetails}>
+            {showDetails ? t.hideDetails : t.showDetails}
+          </button>
+          {showDetails && (
+            <ul className={styles.details}>
+              {failure.details.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+/**
+ * Zone de collage : le texte vit dans l'état React uniquement. Le bouton presse-papiers
+ * n'est proposé que si l'API existe ; un refus renvoie, sans alarme, au collage manuel.
+ */
+function PasteSheet({ initialText, onVerify, onClose }: { initialText: string; onVerify: (text: string) => void; onClose: () => void }) {
+  const [text, setText] = useState(initialText);
+  const [manualHint, setManualHint] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hintId = useId();
+  const canRead = canReadClipboard();
+  const showHint = manualHint || !canRead;
+
+  const pasteFromClipboard = async () => {
+    const pasted = await readClipboardText();
+    if (pasted === null || pasted.trim() === '') {
+      setManualHint(true);
+      textareaRef.current?.focus();
+      return;
+    }
+    setManualHint(false);
+    setText(pasted);
+  };
+
+  return (
+    <Sheet
+      title={t.pasteTitle}
+      icon={<ClipboardPaste aria-hidden />}
+      onClose={onClose}
+      footer={
+        <>
+          <Button
+            size="lg"
+            fullWidth
+            disabled={text.trim() === ''}
+            onClick={() => {
+              onVerify(text);
+            }}
+          >
+            {t.verify}
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onClose}>
+            {strings.common.cancel}
+          </Button>
+        </>
+      }
+    >
+      <p className={styles.pasteIntro}>{t.pasteIntro}</p>
+      {canRead && (
+        <Button variant="secondary" fullWidth icon={<ClipboardPaste aria-hidden />} onClick={() => void pasteFromClipboard()}>
+          {t.pasteFromClipboard}
+        </Button>
+      )}
+      <textarea
+        ref={textareaRef}
+        className={`${fieldStyles.input ?? ''} ${fieldStyles.textarea ?? ''} ${styles.pasteArea ?? ''}`}
+        aria-label={t.pasteLabel}
+        aria-describedby={showHint ? hintId : undefined}
+        value={text}
+        rows={8}
+        autoCapitalize="off"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
+        onChange={(e) => {
+          setText(e.target.value);
+        }}
+      />
+      {showHint && (
+        <p id={hintId} className={styles.pasteHint}>
+          {t.pasteManually}
+        </p>
+      )}
+    </Sheet>
   );
 }
 
@@ -204,6 +327,20 @@ export function ImportProgramButton({ label = t.pickFile, variant = 'primary', s
   return (
     <Button variant={variant} size={size} fullWidth={fullWidth} icon={<FileUp aria-hidden />} onClick={pickFile} loading={reading}>
       {reading ? t.reading : label}
+    </Button>
+  );
+}
+
+/** Bouton qui ouvre la zone de collage (programme donné par le coach dans une conversation). */
+export function ImportPasteButton({ variant = 'secondary', fullWidth = true }: { variant?: ButtonVariant; fullWidth?: boolean }) {
+  const { openPaste } = useImportProgram();
+  return (
+    <Button variant={variant} fullWidth={fullWidth} icon={<ClipboardPaste aria-hidden />}
+      onClick={() => {
+        openPaste();
+      }}
+    >
+      {t.pasteButton}
     </Button>
   );
 }

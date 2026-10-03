@@ -6,7 +6,7 @@ import { LoadingState } from '../../components/LoadingState';
 import { IconLink, Page } from '../../components/Page';
 import { useActiveProgram } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
-import { ImportProgramButton } from '../import/ImportProgramFlow';
+import { ImportPasteButton, ImportProgramButton } from '../import/ImportProgramFlow';
 import { StartWorkoutButton } from '../workout/WorkoutActions';
 import { programSessionPath } from './paths';
 import styles from './ProgramPage.module.css';
@@ -31,6 +31,7 @@ export function ProgramPage() {
       {program === null && (
         <EmptyState icon={<ClipboardList />} title={t.emptyTitle} text={t.emptyText}>
           <ImportProgramButton />
+          <ImportPasteButton />
         </EmptyState>
       )}
 

@@ -12,7 +12,8 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
 
 ## Fonctionnalités
 
-- **Programme** : import d'un JSON (validation stricte, prévisualisation, messages d'erreur en français). Le nouveau programme devient actif, l'ancien est archivé.
+- **Programme** : import d'un JSON, par fichier ou **collé** depuis la conversation avec le coach (validation stricte, prévisualisation, messages d'erreur en français). Le nouveau programme devient actif, l'ancien est archivé.
+- **Conseil d'exécution** : le champ `notes` de chaque exercice s'affiche dans un encart « Conseil » sur l'écran exercice.
 - **Séance** :
   - prochaine séance proposée par rotation (A → B → C) ;
   - exercices dans n'importe quel ordre ;
@@ -80,7 +81,7 @@ scripts/        génération des icônes
 
 | Action | Où | Effet |
 |---|---|---|
-| Importer un programme | Paramètres, ou premier lancement | Valide le JSON, prévisualise, puis le programme devient actif (l'ancien est archivé). Un `programId` déjà connu est refusé |
+| Importer un programme | Paramètres, ou premier lancement | Fichier, ou « Coller le JSON » (un bloc ` ```json … ``` ` est accepté). Valide le JSON, prévisualise, puis le programme devient actif (l'ancien est archivé). Un `programId` déjà connu est refusé |
 | Exporter mes données | Paramètres | Fichier `training_history_export` (programmes, séances, préférences), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
 | Restaurer une sauvegarde | Paramètres | Résumé, puis export obligatoire des données actuelles, puis remplacement complet en une opération (copie interne de sécurité conservée) |
 

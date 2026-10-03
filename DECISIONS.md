@@ -723,3 +723,46 @@ Build de production servi en localhost (contexte sécurisé), Edge headless, 390
 - S7 import JSON invalide → refus, base inchangée : OK
 - Hors ligne : rechargement, route profonde, graphique, saisie persistée après rechargement : OK
 - 0 erreur console.
+
+---
+
+## V1.1a — Coller un programme, encart « Conseil » (aucun changement du format JSON)
+
+### Amendement de SPEC.md (autorisé, par ajout uniquement)
+- §2 : nouvelle sous-section « Ajouts V1.1 (amendement, après validation de la V1) ».
+- §13 : deux lignes de tableau, V1.1a et V1.1b.
+- Le §7.10 et le nouveau §10.6 (export pour le coach) seront ajoutés avec la V1.1b. Aucune ligne existante n'est modifiée (`git diff` : 8 ajouts, 0 suppression).
+
+### Coller un programme
+- **Où** : bouton « Coller le JSON » à côté de « Importer un programme JSON » sur le premier lancement, dans Paramètres → Données, et sur l'écran Programme vide (même état vide que l'accueil, par cohérence).
+- **Pipeline** : `previewPastedProgram` = `unwrapPastedJson` puis **exactement** `previewProgram` (parse, migration, Zod, invariants, champs ignorés). La confirmation passe par le même `importProgram` (refus d'un `programId` déjà existant, en transaction).
+- **Tolérance stricte** (`src/schemas/pasted.ts`) :
+  - espaces, retours à la ligne et BOM autour du texte (`trim`, qui retire aussi U+FEFF) ;
+  - **une** clôture Markdown entourant tout le texte : ` ```json ` (casse indifférente) ou ` ``` ` nu, fermée par ` ``` `.
+  - Tout le reste est refusé tel quel : texte avant ou après la clôture, deux blocs, autre langage (` ```python `), clôture non fermée, virgule finale, guillemets typographiques.
+  - Choix : la clôture ` ``` ` sans langage est acceptée, car ChatGPT l'emploie aussi ; ce n'est pas une réparation du JSON.
+- **Message** : un texte non analysable donne « Import impossible : le texte collé n'est pas du JSON valide. », détails techniques (`SyntaxError`) derrière « Afficher les détails ». Les autres erreurs gardent exactement les messages du fichier.
+- **Correction** : la feuille d'erreur d'un texte collé s'intitule « Texte refusé » et propose « Modifier le texte », qui rouvre la zone **avec le texte conservé**. Valable aussi pour un refus à la confirmation (`programId` existant).
+- **Aucune écriture avant confirmation** : le texte vit seulement dans l'état React (ni IndexedDB, ni localStorage). Annuler ou fermer le perd.
+- **Presse-papiers** (`src/utils/clipboard.ts`) :
+  - le bouton « Coller depuis le presse-papiers » n'apparaît que si `navigator.clipboard.readText` existe (absent en HTTP sur IP locale) ;
+  - refus, échec ou presse-papiers vide : aucune alerte, simple ligne d'aide « Touche la zone de texte puis « Coller » … » et focus dans la zone ;
+  - sans API, la même ligne d'aide est affichée d'emblée.
+- **Zone de texte** : police 17 px (`--font-size-input`, pas de zoom iOS), monospace, lignes non recoupées ; `autocapitalize`, `autocorrect`, `autocomplete` désactivés, `spellcheck=false`. « Vérifier » est désactivé tant que la zone est vide.
+
+### Encart « Conseil »
+- L'écran exercice n'affichait pas `notes`. Ce champ n'est pas copié dans le snapshot de la séance (contrat §11.2) : il est lu dans le **programme d'origine** de la séance, toujours conservé même archivé, comme la catégorie et l'équipement (`useProgramExercise`).
+- **Position** : entre « Dernière fois » et OBJECTIF.
+- **Style** : fond chaud plein (`--color-warning-soft`), sans bordure, icône ampoule et libellé « CONSEIL ». Il se distingue ainsi d'OBJECTIF (cadre pointillé) et de RÉALISÉ (champs blancs à bordure franche). Contrastes déjà couverts par le test AA (`color-text` et `color-warning` sur `color-warning-soft`).
+- **Repli** : 3 lignes (`line-clamp`). « Voir plus / Voir moins » (`aria-expanded`, `aria-controls`) n'apparaît que si le texte dépasse réellement, mesuré par `scrollHeight` et recalculé au redimensionnement. Un texte court n'a pas de bouton.
+- `notes` à `null`, vide ou fait d'espaces : rien n'est affiché.
+
+### Vérification en navigateur réel (production, 390 × 844, tactile)
+14/14 OK, 0 erreur console :
+- collage depuis le presse-papiers d'un bloc ` ```json ` ;
+- prévisualisation, base vide jusqu'à la confirmation, puis import ;
+- JSON invalide : message, détails, texte conservé ;
+- `programId` existant refusé, base inchangée ;
+- conseil long replié sur 3 lignes : le premier champ RÉALISÉ reste visible à 653 px sur 844 ; il se déplie sur 4 lignes ;
+- conseil court sans bouton, `notes` null sans encart ;
+- aucun défilement horizontal.

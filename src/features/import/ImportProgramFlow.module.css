@@ -75,3 +75,20 @@
 .details li + li {
   margin-top: var(--space-2);
 }
+
+.pasteIntro,
+.pasteHint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Police ≥ 17 px (pas de zoom iOS) ; JSON lisible, lignes non recoupées. */
+.pasteArea {
+  min-height: 12rem;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--font-size-input);
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}

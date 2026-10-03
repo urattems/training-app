@@ -4,6 +4,7 @@ import { strings } from '../i18n/strings';
 import { importFailure, type ImportFailure } from '../schemas/errors';
 import { findIgnoredFields } from '../schemas/ignoredFields';
 import { parseProgramJson } from '../schemas/parse';
+import { unwrapPastedJson } from '../schemas/pasted';
 import { toLocalIsoString } from '../utils/dates';
 import { err, ok, type Result } from '../utils/result';
 import { getActiveProgramId } from './settingsService';
@@ -32,6 +33,18 @@ export function previewProgram(text: string): Result<ProgramPreview, ImportFailu
     // Le texte a déjà été validé : le JSON.parse ne peut pas échouer ici.
     ignoredFields: findIgnoredFields(JSON.parse(text), program),
   });
+}
+
+/**
+ * Programme collé (V1.1a) : déballage limité (espaces, BOM, clôture Markdown unique),
+ * puis EXACTEMENT le pipeline du fichier. Rien n'est écrit.
+ */
+export function previewPastedProgram(text: string): Result<ProgramPreview, ImportFailure> {
+  const preview = previewProgram(unwrapPastedJson(text));
+  if (!preview.ok && preview.error.kind === 'invalid_json') {
+    return err(importFailure('invalid_json', 'program', strings.import.invalidPastedJson, preview.error.details));
+  }
+  return preview;
 }
 
 /** Contrat JSON seul, sans les champs internes. */

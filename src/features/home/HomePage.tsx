@@ -16,7 +16,7 @@ import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { historyDetailPath } from '../history/paths';
-import { ImportProgramButton } from '../import/ImportProgramFlow';
+import { ImportPasteButton, ImportProgramButton } from '../import/ImportProgramFlow';
 import { AbandonWorkoutButton, StartWorkoutButton, workoutPath } from '../workout/WorkoutActions';
 import styles from './HomePage.module.css';
 
@@ -46,6 +46,7 @@ export function HomePage() {
       {!loading && program === null && !inProgress && (
         <EmptyState icon={<Dumbbell />} title={t.welcomeTitle} text={t.welcomeText}>
           <ImportProgramButton size="lg" />
+          <ImportPasteButton />
           <p className={styles.hint}>{t.installHint}</p>
         </EmptyState>
       )}

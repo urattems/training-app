@@ -28,6 +28,12 @@ Backend, API externe, cloud/sync, compte/login, IA intégrée, analytics/trackin
 
 > L'extensibilité se limite à : schéma versionné + migrations DB. **Pas de code mort « pour plus tard ».**
 
+### Ajouts V1.1 (amendement, après validation de la V1)
+- **V1.1a — Coller un programme** : en plus de « Choisir un fichier », l'import de programme (premier lancement et Paramètres) accepte un JSON **collé** dans une zone de texte. Même pipeline que le fichier (parse, migration, Zod, invariants, prévisualisation, confirmation), mêmes refus et messages. Seule tolérance : espaces/BOM autour du texte et **une** clôture Markdown (` ```json … ``` `) entourant le JSON ; rien d'autre n'est deviné ni réparé. Rien n'est écrit avant la confirmation.
+- **V1.1a — Conseil d'exécution** : l'écran exercice affiche le champ `notes` de l'exercice du programme (déjà au contrat) dans un encart « Conseil » discret, replié sur 3 lignes si le texte est long. `notes` à `null` : rien n'est affiché.
+- **V1.1b — Export pour le coach** : export **partiel** d'une sélection de séances, dans un nouveau type `training_coach_export` (§10.6), en fichier ou copié pour ChatGPT. Il ne remplace pas « Exporter mes données » (sauvegarde complète) et ne peut jamais être restauré.
+- Les contrats `training_program` et `training_history_export` (§11) sont **inchangés**.
+
 ---
 
 ## 3. Stack (recommandée)
@@ -299,6 +305,8 @@ Les deux fichiers `examples/` doivent passer la validation et alimenter les test
 | **J6** | PWA (manifest, SW, offline, safe areas), états vides/erreurs | Build prod testé en offline |
 | **J7** | Polish, régression complète, README, `JSON_SCHEMA.md`, `DECISIONS.md` | Definition of Done |
 | **J8** (optionnel) | Thème sombre complet (écrans, graphiques, états) | Aucun écran cassé en sombre ; le clair est inchangé |
+| **V1.1a** | Coller un programme (zone de texte, presse-papiers, même pipeline que le fichier) · encart « Conseil » (`notes` de l'exercice) | Collage valide (avec/sans clôture Markdown), JSON invalide, `programId` existant, champs ignorés, rien d'écrit avant confirmation, presse-papiers indisponible ; Conseil affiché/absent/replié ; vérifié en navigateur réel à 390 px |
+| **V1.1b** | Export pour le coach (§10.6) : sélection de séances, fichier `training_coach_export`, « Copier pour ChatGPT » · `JSON_SCHEMA.md`, exemple validé | Raccourcis de sélection, contenu exact, autotest, refus par la restauration et l'import, `lastExportAt` intact, `lastCoachExportAt` seulement en cas de succès ; régression complète (390 px, production, hors ligne) |
 
 ### Compte rendu de fin de jalon (obligatoire)
 1. Ce qui a été fait · 2. Fichiers créés/modifiés · 3. Tests exécutés · 4. Résultats (typecheck, lint, test, build) · 5. Décisions prises (aussi dans `DECISIONS.md`) · 6. Ce qui reste.

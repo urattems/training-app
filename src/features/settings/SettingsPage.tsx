@@ -5,7 +5,7 @@ import { APP_BUILD, APP_NAME, APP_VERSION } from '../../config';
 import { usePersistenceStatus } from '../../hooks/usePersistenceStatus';
 import { usePreparedExport } from '../../hooks/usePreparedExport';
 import { strings } from '../../i18n/strings';
-import { ImportProgramButton } from '../import/ImportProgramFlow';
+import { ImportPasteButton, ImportProgramButton } from '../import/ImportProgramFlow';
 import { ExportSection } from './ExportSection';
 import { RestoreFlow } from './RestoreFlow';
 import styles from './SettingsPage.module.css';
@@ -35,6 +35,7 @@ export function SettingsPage() {
         <Card className={styles.group}>
           <p className={styles.hint}>{t.importProgramHint}</p>
           <ImportProgramButton label={t.importProgram} variant="secondary" />
+          <ImportPasteButton />
         </Card>
       </section>
 
