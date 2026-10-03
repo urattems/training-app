@@ -37,6 +37,7 @@ export const strings = {
     unknownSet: (n: number) => `La série ${n} n'existe pas pour cet exercice.`,
     unknownCardio: 'Entrée cardio introuvable.',
     invalidValue: (label: string) => `Valeur invalide : ${label}.`,
+    notEmpty: 'Cette séance contient des saisies : elle ne peut pas être supprimée. Elle est conservée.',
   },
   values: {
     reps: 'répétitions (nombre entier positif ou nul)',
@@ -122,6 +123,17 @@ export const strings = {
     comment: 'Commentaire',
     commentPlaceholder: 'Facultatif',
     validate: 'Valider l’exercice',
+    incompleteTitle: (missingReps: number, missingWeight: number) => {
+      const plural = (n: number) => (n > 1 ? 's' : '');
+      const parts = [
+        missingReps > 0 ? `${missingReps} série${plural(missingReps)} sans répétitions` : null,
+        missingWeight > 0 ? `${missingWeight} série${plural(missingWeight)} sans charge` : null,
+      ].filter(Boolean);
+      return `${parts.join(' et ')}. Valider quand même ?`;
+    },
+    incompleteText: 'Rien n’est inventé : les valeurs manquantes restent vides.',
+    complete: 'Compléter',
+    validateAnyway: 'Valider quand même',
     validated: 'Exercice validé — modifiable à tout moment.',
     saveError: 'Enregistrement impossible',
     notInProgress: 'Cette séance n’est plus en cours : l’exercice n’est plus modifiable ici.',
@@ -219,6 +231,11 @@ export const strings = {
     abandonTitle: 'Abandonner la séance ?',
     abandonText: 'La séance sera marquée « abandonnée ». Tout ce que tu as saisi est conservé dans l’historique.',
     abandonConfirm: 'Abandonner la séance',
+    deleteEmpty: 'Supprimer cette séance',
+    emptyHint: 'Aucune série ni aucun cardio n’a été saisi : tu peux aussi supprimer cette séance vide.',
+    deleteEmptyTitle: 'Supprimer cette séance vide ?',
+    deleteEmptyText: 'Elle ne contient aucune saisie et disparaîtra définitivement. Elle n’apparaîtra pas dans l’historique.',
+    deleteEmptyConfirm: 'Supprimer définitivement',
     keepGoing: 'Continuer la séance',
     pendingTitle: (n: number) => `${n} exercice${n > 1 ? 's' : ''} non validé${n > 1 ? 's' : ''}`,
     pendingText: 'Terminer quand même ? La séance est enregistrée telle quelle, rien n’est supprimé.',

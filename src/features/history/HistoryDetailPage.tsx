@@ -287,7 +287,8 @@ function ExerciseDetail({ record, editing, autosave }: { record: WorkoutExercise
             placeholder={strings.exercise.commentPlaceholder}
             value={record.comment ?? ''}
             onValueChange={(text, immediate) => {
-              const normalized = text.trim() === '' ? '' : text;
+              // Comparaison sur la valeur enregistrée (trim) : un espace final ne déclenche pas d'écriture.
+          const normalized = text.trim();
               autosave.save(`${id}:comment`, record.comment ?? '', normalized, immediate, (w) => setComment(w, id, text));
             }}
           />

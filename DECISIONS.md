@@ -632,3 +632,94 @@ Dépendances installées **au jalon qui les utilise** (pas de dépendance morte)
 - **Incohérence trouvée par la revue et corrigée** : pour la date d'un export (Paramètres, résumé de restauration), le **jour** était lu tel qu'écrit dans le fichier et l'**heure** convertie au fuseau de l'appareil. Près de minuit, avec un appareil dans un autre fuseau que l'export, le jour affiché pouvait être faux (« 1 octobre à 01:30 » au lieu de « 2 octobre à 01:30 »). `formatDateTime(iso)` tire désormais jour et heure du même instant local (testé).
 - **Fichiers en CRLF dans la copie de travail locale** : après la réécriture de l'historique par rebase (2026-10-02 17:02), les 7 fichiers du commit jalon-0 (dont les fixtures) avaient été extraits en CRLF (`core.autocrlf=true`, commits antérieurs au `.gitattributes`). Les tests d'empreinte SHA-256 échouaient en local, pas en CI (clone Linux neuf en LF). Ils ont été ré-extraits depuis l'index : contenu versionné inchangé, LF conforme à `.gitattributes`, empreintes d'origine retrouvées. Aucune modification versionnée.
 - **CI** : `runs-on: ubuntu-24.04` au lieu de `ubuntu-latest` (qui migre vers Ubuntu 26 le 19/10/2026 ; vérifié par test). Versions d'actions revérifiées le 2026-10-02 et toujours à jour : `checkout@v7`, `setup-node@v7`, `configure-pages@v6`, `upload-pages-artifact@v5`, `deploy-pages@v5`.
+
+---
+
+## J7 — Finitions (aucun changement du format JSON)
+
+### Nettoyage des saisies
+- **Règle** : à **chaque enregistrement** (`updateWorkout` → `sanitizeWorkoutTexts`, puis revalidation du contrat), les espaces de début et de fin sont retirés et une chaîne vide devient `null`. Concerne les commentaires d'exercice, les notes de séance et les notes de cardio.
+- **Nom de cardio** : trimé, mais une chaîne vide reste `""`. Ce champ est `string` **non nullable** dans le contrat (§11.2) ; le passer à `null` changerait le format, ce qui est exclu.
+- Pendant la frappe, le brouillon du champ n'est pas réécrit : la valeur trimée s'affiche après le blur. Les comparaisons de l'enregistrement automatique portent sur la valeur trimée, donc un espace final ne déclenche pas d'écriture.
+- Les données **importées ou restaurées** ne sont pas retouchées : la règle s'applique à l'enregistrement par l'app.
+
+### Avertissement à « Valider l'exercice »
+- **Règle pure** `findIncompleteSets` : série **prescrite** avec une charge sans répétitions, ou des répétitions sans charge **alors qu'une charge est prévue**.
+  - Une série au poids du corps (charge prévue `null`) avec des reps seules est complète.
+  - Les séries entièrement vides (non faites) et les séries en plus ne déclenchent rien.
+- **Non bloquant** : feuille « N série(s) sans répétitions (et/ou sans charge). Valider quand même ? » avec « Compléter » et « Valider quand même ». Rien n'est jamais inventé : les valeurs manquantes restent `null`.
+- **« Compléter »** place le curseur sur le premier champ manquant, de façon synchrone dans le geste (le clavier s'ouvre sur iOS). La feuille ne reprend pas le focus si l'utilisateur l'a placé ailleurs.
+- La vérification relit la séance en base après l'écriture des saisies en attente : elle porte toujours sur l'état réellement enregistré.
+
+### Abandon d'une séance vide
+- **Séance vide** (`isWorkoutEmpty`) : aucune valeur de série, aucun cardio, ni sensation, ni commentaire, ni note. Définition volontairement stricte : toute saisie protège la séance.
+- La feuille d'abandon propose en plus « Supprimer cette séance », puis une **seconde confirmation explicite** (« Supprimer cette séance vide ? » → « Supprimer définitivement »).
+- **Garde-fou côté service** (`deleteEmptyWorkout`) : la suppression revérifie en transaction que la séance est `in_progress` et vide. Sinon, refus (`DomainError`) et séance conservée.
+- Une séance abandonnée avec des données est conservée, comme avant.
+
+### Accessibilité (SPEC §8)
+- **Feuilles modales** (`Sheet`, `ConfirmSheet`) :
+  - `role="dialog"`, `aria-modal`, libellé par le titre ;
+  - focus déplacé dans la feuille puis **piégé** (Tab / Maj+Tab) ;
+  - **pile** de feuilles ouvertes : Échap et Tab ne concernent que la feuille du dessus (avant, Échap fermait aussi la feuille en dessous) ;
+  - application d'arrière-plan rendue **`inert`** ;
+  - focus rendu au déclencheur à la fermeture, sauf si l'utilisateur l'a placé ailleurs.
+- **Noms accessibles** : test automatique (`dom-accessibility-api`, calcul normatif) sur tous les boutons, liens et champs de l'accueil, du programme, de son détail, de l'historique, de son détail, de la progression, des paramètres, de l'écran séance et de l'écran exercice. Aucun élément sans nom.
+- **Contraste** : test WCAG AA (≥ 4,5:1) sur 19 couples texte/fond réellement utilisés. **8 couples échouaient** et ont été corrigés en assombrissant les tokens, même teinte, valeur minimale suffisante :
+
+| Token | Avant | Après | Contraste le plus faible après |
+|---|---|---|---|
+| `--color-text-secondary` | `#6e6a63` | `#6b6761` | 4,65:1 (sur fond pressé) |
+| `--color-text-tertiary` | `#8f8a81` (3,05:1) | `#706c65` | 4,63:1 (sur fond crème) |
+| `--color-success` | `#4f8a62` (3,45:1) | `#427452` | 4,61:1 (badge) |
+| `--color-warning` | `#b9772f` (3,08:1) | `#925e25` | 4,60:1 (badge) |
+| `--color-danger` | `#b5534c` (3,95:1) | `#a44b45` | 4,63:1 (badge) |
+
+- **Mouvement réduit** : test sur toutes les feuilles de style. Chaque animation a son équivalent `prefers-reduced-motion`, et chaque transition utilise les durées des tokens (ramenées à 0 sous mouvement réduit, aucune durée codée en dur).
+- **Focus visible** : `:focus-visible` global (anneau d'accent) ; chaque `outline: none` a un indicateur de remplacement (testé).
+
+### Finitions UI
+- **Historique récent (Progression)** : date et badge « Abandonnée » sur la première ligne, performance dessous, flèche centrée verticalement sur la ligne entière (mesuré : 0 px d'écart).
+- **Format des séries uniformisé** :
+  - **résumé** d'une séance (Dernière fois, historique récent) : séries regroupées par charge consécutive, toujours sous la forme « charge · reps / reps », groupes séparés par « ; ». Exemples : « 45 kg · 10 / 10 / 9 », « 45 kg · 12 / 12 ; 47 kg · 10 », « 45 / 40 reps » (poids du corps) ;
+  - **détail** série par série (historique, carte du graphique, meilleure série) : « 12 × 47,5 kg », inchangé.
+  - L'ancienne forme « 12 × 45 kg · 10 × 47 kg » est remplacée ; l'unique assertion qui la vérifiait (`display.test.ts`) a été mise à jour, conformément à la demande.
+- **Carte du graphique** : au toucher d'un point, la carte défile pour être entièrement visible, lien « Voir la séance » compris, au-dessus de la barre basse (`scroll-margin-bottom` = dégagement de la barre). Mesuré en navigateur : bas du lien à 743 px, haut de la barre à 780 px.
+- **Rappel de règle (inchangée)** : les séances **abandonnées** comptent dans « Dernière charge », le record, le volume et le graphique, car leurs données sont réelles. Seul le « nombre de séances » ne compte que les séances terminées.
+
+### Découpage du bundle
+- Vite 8 (Rolldown) : `build.rolldownOptions.output.codeSplitting.groups` (`manualChunks` est déprécié) → chunks `react` (react, react-dom, scheduler), `dexie` (dexie, dexie-react-hooks), `zod`.
+- **Conservé**, car les deux conditions sont remplies :
+  - le service worker précache tout (24 entrées, environ 919 Kio, dont les nouveaux chunks et la Progression) ;
+  - le hors-ligne reste intact, revérifié en navigateur réel (rechargement, route profonde, graphique, séance, export, mise à jour).
+
+| Fichier (brut / gzip) | Avant (J6) | Après (J7) |
+|---|---|---|
+| `index` (app) | 560,8 / 173,8 kB | 158,7 / 49,6 kB |
+| `react` | — | 218,8 / 68,3 kB |
+| `dexie` | — | 96,5 / 31,8 kB |
+| `zod` | — | 85,1 / 24,2 kB |
+| `ProgressPage` (différé, Recharts) | 318,1 / 94,8 kB | 318,2 / 94,9 kB |
+| Chargement initial (gzip, hors Progression) | ≈ 182 kB | ≈ 179 kB |
+| Precache | 20 entrées, ≈ 920 Kio | 24 entrées, ≈ 919 Kio |
+
+- Le poids total est inchangé. Le gain est le **cache** : une mise à jour de l'app ne retélécharge plus React, Dexie ni Zod. L'avertissement « chunk > 500 kB » a disparu.
+
+### Tests
+- **Stabilité** :
+  - délai d'attente de Testing Library (`findBy`/`waitFor`) porté à 3 s dans le setup, pour les runners CI plus lents ;
+  - dans le test des sections des Paramètres (J5), lecture asynchrone de la date du dernier export via `findByText` au lieu de `getByText` (course de lecture) ;
+  - aucune valeur attendue modifiée.
+
+### Régression complète (J7)
+Build de production servi en localhost (contexte sécurisé), Edge headless, 390 × 844, interactions tactiles :
+
+- S1 premier lancement → import → affichage : OK
+- S2 séance A, 3 séries (« 47,5 » et « 47.5 »), sensation, commentaire, validation → fermer/rouvrir → identique (commentaire trimé, objectifs intacts) : OK
+- S3 quitter en cours de séance → rouvrir → reprendre : OK
+- S4 exercice 3 avant le 1 → `executionOrder` réel, graphique correct : OK
+- S5 export → effacement de la base IndexedDB → restauration → données identiques : OK
+- S6 période 1M → point touché → carte lisible, lien visible au-dessus de la barre : OK
+- S7 import JSON invalide → refus, base inchangée : OK
+- Hors ligne : rechargement, route profonde, graphique, saisie persistée après rechargement : OK
+- 0 erreur console.

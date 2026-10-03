@@ -175,9 +175,72 @@ export function setSensation(workout: WorkoutSession, programExerciseId: string,
   return updateRecord(workout, programExerciseId, (record) => ({ ...record, sensation }));
 }
 
+/** Texte facultatif saisi : espaces de début et de fin retirés ; vide → `null` (non renseigné). */
+export function normalizeText(text: string | null): string | null {
+  if (text === null) return null;
+  const trimmed = text.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
 export function setComment(workout: WorkoutSession, programExerciseId: string, comment: string): WorkoutSession {
-  const value = comment.trim() === '' ? null : comment;
+  const value = normalizeText(comment);
   return updateRecord(workout, programExerciseId, (record) => ({ ...record, comment: value }));
+}
+
+/**
+ * Nettoyage des textes à l'enregistrement : commentaires d'exercice, notes de séance et de
+ * cardio (vides → `null`), nom de cardio (trim ; reste une chaîne, car `name` n'est pas
+ * nullable dans le contrat JSON).
+ */
+export function sanitizeWorkoutTexts(workout: WorkoutSession): WorkoutSession {
+  return {
+    ...workout,
+    notes: normalizeText(workout.notes),
+    exerciseRecords: workout.exerciseRecords.map((r) => ({ ...r, comment: normalizeText(r.comment) })),
+    cardioRecords: workout.cardioRecords.map((c) => ({ ...c, name: c.name.trim(), notes: normalizeText(c.notes) })),
+  };
+}
+
+export interface IncompleteSets {
+  /** Séries prescrites avec une charge mais sans répétitions. */
+  missingReps: number[];
+  /** Séries prescrites avec des répétitions mais sans charge, alors qu'une charge est prévue. */
+  missingWeight: number[];
+}
+
+/**
+ * Séries prescrites partiellement remplies (avertissement non bloquant à la validation).
+ * Une série entièrement vide n'est pas signalée (série non faite, cas normal). Une série
+ * au poids du corps (charge prévue `null`) avec seulement des reps est complète.
+ */
+export function findIncompleteSets(record: WorkoutExercise): IncompleteSets {
+  const result: IncompleteSets = { missingReps: [], missingWeight: [] };
+  for (const target of record.targetSets) {
+    const actual = record.actualSets.find((s) => s.setNumber === target.setNumber);
+    if (!actual) continue;
+    const hasReps = actual.actualReps !== null;
+    const hasWeight = actual.actualWeightKg !== null;
+    if (hasWeight && !hasReps) result.missingReps.push(target.setNumber);
+    else if (hasReps && !hasWeight && target.targetWeightKg !== null) result.missingWeight.push(target.setNumber);
+  }
+  return result;
+}
+
+/**
+ * Séance vide : rien n'a été saisi (aucune valeur de série, aucun cardio, ni sensation,
+ * ni commentaire, ni note). Seule une séance vide peut être supprimée à l'abandon.
+ */
+export function isWorkoutEmpty(workout: WorkoutSession): boolean {
+  return (
+    workout.cardioRecords.length === 0 &&
+    workout.notes === null &&
+    workout.exerciseRecords.every(
+      (r) =>
+        r.sensation === null &&
+        r.comment === null &&
+        r.actualSets.every((s) => s.actualReps === null && s.actualWeightKg === null),
+    )
+  );
 }
 
 /** Valider un exercice : `completed`, sans rien verrouiller ni terminer la séance. */
@@ -208,7 +271,12 @@ export function updateCardioEntry(
   if (patch.inclinePct !== undefined && !isValidInclinePct(patch.inclinePct)) {
     throw new DomainError(t.invalidValue(strings.values.incline));
   }
-  const updated = { ...current, ...patch };
+  const updated: CardioEntry = {
+    ...current,
+    ...patch,
+    ...(patch.name !== undefined && { name: patch.name.trim() }),
+    ...(patch.notes !== undefined && { notes: normalizeText(patch.notes) }),
+  };
   return { ...workout, cardioRecords: workout.cardioRecords.map((e, i) => (i === index ? updated : e)) };
 }
 

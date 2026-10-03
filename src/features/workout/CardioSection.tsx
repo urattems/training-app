@@ -7,7 +7,7 @@ import { ErrorDetails } from '../../components/ErrorDetails';
 import { NumberField } from '../../components/NumberField';
 import { TextField } from '../../components/TextField';
 import type { CardioEntry, CardioType, ProgramCardio, WorkoutSession } from '../../domain/types';
-import { addCardioEntry, removeCardioEntry, updateCardioEntry } from '../../domain/workout';
+import { addCardioEntry, normalizeText, removeCardioEntry, updateCardioEntry } from '../../domain/workout';
 import { useWorkoutAutosave, type WorkoutAutosave } from '../../hooks/useWorkoutAutosave';
 import { strings } from '../../i18n/strings';
 import { CARDIO_TYPES } from '../../schemas/history.schema';
@@ -126,7 +126,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
         placeholder={t.namePlaceholder}
         value={entry.name}
         onValueChange={(text, immediate) => {
-          autosave.save(key('name'), entry.name, text, immediate, update({ name: text }));
+          autosave.save(key('name'), entry.name, text.trim(), immediate, update({ name: text }));
         }}
       />
 
@@ -185,7 +185,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
         multiline
         value={entry.notes ?? ''}
         onValueChange={(text, immediate) => {
-          const notes = text.trim() === '' ? null : text;
+          const notes = normalizeText(text);
           autosave.save(key('notes'), entry.notes, notes, immediate, update({ notes }));
         }}
       />

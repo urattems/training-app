@@ -13,6 +13,8 @@ interface ConfirmSheetProps {
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Action supplémentaire facultative (ex. « Supprimer cette séance »). */
+  extraAction?: { label: string; variant?: ButtonVariant; onClick: () => void };
 }
 
 /** Confirmation explicite d'une action (abandon, fin avec exercices non validés…). */
@@ -25,6 +27,7 @@ export function ConfirmSheet({
   busy = false,
   onConfirm,
   onCancel,
+  extraAction,
 }: ConfirmSheetProps) {
   return (
     <Sheet
@@ -38,6 +41,11 @@ export function ConfirmSheet({
           <Button size="lg" fullWidth variant={confirmVariant} loading={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>
+          {extraAction && (
+            <Button variant={extraAction.variant ?? 'secondary'} fullWidth disabled={busy} onClick={extraAction.onClick}>
+              {extraAction.label}
+            </Button>
+          )}
           <Button variant="ghost" fullWidth disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>

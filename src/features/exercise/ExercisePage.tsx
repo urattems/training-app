@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight, CircleCheck, HeartPulse, List, TriangleAlert } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { useState } from 'react';
 import { Badge } from '../../components/Badge';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { Button, ButtonLink } from '../../components/Button';
 import { Eyebrow } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
@@ -10,9 +12,10 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { TextField } from '../../components/TextField';
 import { formatPerformance, getLastPerformance } from '../../domain/display';
 import type { WorkoutSession } from '../../domain/types';
-import { countValidatedExercises, setComment, setSensation, validateExercise } from '../../domain/workout';
+import { countValidatedExercises, findIncompleteSets, setComment, setSensation, validateExercise, type IncompleteSets } from '../../domain/workout';
 import { useProgram, useWorkout, useWorkouts } from '../../hooks/useData';
 import { useWorkoutAutosave } from '../../hooks/useWorkoutAutosave';
+import { getWorkout } from '../../services/workoutService';
 import { strings } from '../../i18n/strings';
 import { formatDayShort } from '../../utils/format';
 import { TargetSets } from '../workout/TargetSets';
@@ -66,6 +69,16 @@ function Message({ text, to }: { text: string; to: string }) {
 function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSession; exerciseId: string; workouts: WorkoutSession[] }) {
   const navigate = useNavigate();
   const autosave = useWorkoutAutosave(workout.id);
+  const [incomplete, setIncomplete] = useState<IncompleteSets | null>(null);
+
+  /** « Compléter » : ferme l'avertissement et place le curseur sur le premier champ manquant. */
+  const completeMissing = (sets: IncompleteSets) => {
+    const firstReps = sets.missingReps[0];
+    const label = firstReps !== undefined ? t.repsLabel(firstReps) : t.weightLabel(sets.missingWeight[0] ?? 1);
+    // Focus synchrone, dans le geste : le clavier s'ouvre sur iOS.
+    document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)?.focus();
+    setIncomplete(null);
+  };
 
   const records = workout.exerciseRecords;
   const index = records.findIndex((r) => r.programExerciseId === exerciseId);
@@ -77,8 +90,18 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
   const last = getLastPerformance(workouts, exerciseId, workout.id);
   const listPath = workoutPath(workout.id);
 
-  const validate = async () => {
+  const validate = async (force = false) => {
     await autosave.flush();
+    if (!force) {
+      // Avertissement non bloquant : séries prescrites à moitié remplies (rien n'est inventé).
+      const saved = (await getWorkout(workout.id))?.exerciseRecords.find((r) => r.programExerciseId === exerciseId);
+      const incomplete = saved ? findIncompleteSets(saved) : null;
+      if (incomplete && incomplete.missingReps.length + incomplete.missingWeight.length > 0) {
+        setIncomplete(incomplete);
+        return;
+      }
+    }
+    setIncomplete(null);
     await autosave.commit((w) => validateExercise(w, exerciseId));
     // Passage direct à l'exercice suivant ; après le dernier, retour à l'écran séance (cardio, Terminer).
     void navigate(next ? exercisePath(workout.id, next.programExerciseId) : listPath, { replace: true });
@@ -169,7 +192,8 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
         placeholder={t.commentPlaceholder}
         value={record.comment ?? ''}
         onValueChange={(text, immediate) => {
-          const normalized = text.trim() === '' ? '' : text;
+          // Comparaison sur la valeur enregistrée (trim) : un espace final ne déclenche pas d'écriture.
+          const normalized = text.trim();
           autosave.save(`${exerciseId}:comment`, record.comment ?? '', normalized, immediate, (w) => setComment(w, exerciseId, text));
         }}
       />
@@ -181,6 +205,19 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
         <Button size="lg" fullWidth icon={<CircleCheck aria-hidden />} onClick={() => void validate()}>
           {t.validate}
         </Button>
+        {incomplete && (
+          <ConfirmSheet
+            title={t.incompleteTitle(incomplete.missingReps.length, incomplete.missingWeight.length)}
+            confirmLabel={t.validateAnyway}
+            cancelLabel={t.complete}
+            onConfirm={() => void validate(true)}
+            onCancel={() => {
+              completeMissing(incomplete);
+            }}
+          >
+            <p>{t.incompleteText}</p>
+          </ConfirmSheet>
+        )}
         {record.status === 'completed' && <p className={styles.validatedNote}>{t.validated}</p>}
       </div>
     </div>

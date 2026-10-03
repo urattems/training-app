@@ -15,8 +15,8 @@
 
   /* Texte (charbon) */
   --color-text: #2b2926;
-  --color-text-secondary: #6e6a63;
-  --color-text-tertiary: #8f8a81;
+  --color-text-secondary: #6b6761;
+  --color-text-tertiary: #706c65;
   --color-text-on-strong: #fffdf9;
 
   /* Séparateurs */
@@ -33,11 +33,11 @@
   --color-primary-pressed: #44403b;
 
   /* Fonctionnel */
-  --color-success: #4f8a62;
+  --color-success: #427452;
   --color-success-soft: #e3efe6;
-  --color-warning: #b9772f;
+  --color-warning: #925e25;
   --color-warning-soft: #f6eadb;
-  --color-danger: #b5534c;
+  --color-danger: #a44b45;
   --color-danger-soft: #f6e3e1;
 
   /* Focus visible */

@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChartLine, ChevronRight, History, X } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Badge } from '../../components/Badge';
@@ -222,11 +222,11 @@ function ExerciseProgress({ exercise, workouts }: { exercise: ExerciseSummary; w
           {data.recent.map((entry) => (
             <li key={entry.workoutId}>
               <Link to={historyDetailPath(entry.workoutId)} className={styles.recentRow}>
-                <span className={styles.recentText}>
+                <span className={styles.recentHead}>
                   <span className={styles.recentDate}>{formatDayShort(entry.date)}</span>
-                  <span>{formatPerformance(entry.record.actualSets)}</span>
+                  {entry.status === 'abandoned' && <Badge tone="warning">{workoutStatusLabel(entry.status)}</Badge>}
                 </span>
-                {entry.status === 'abandoned' && <Badge tone="warning">{workoutStatusLabel(entry.status)}</Badge>}
+                <span className={styles.recentPerf}>{formatPerformance(entry.record.actualSets)}</span>
                 <ChevronRight aria-hidden className={styles.chevron} />
               </Link>
             </li>
@@ -249,8 +249,15 @@ interface PointCardProps {
 
 /** Carte de détail d'un point : grande, lisible au doigt (pas un mini-tooltip). */
 function PointCard({ exerciseName, date, workoutId, valueLabel, value, sets, onClose }: PointCardProps) {
+  const cardRef = useRef<HTMLElement>(null);
+  // À chaque point touché, la carte entière (lien « Voir la séance » compris) devient visible,
+  // au-dessus de la barre basse (scroll-margin-bottom).
+  useEffect(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    cardRef.current?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [workoutId]);
   return (
-    <Card className={styles.pointCard} aria-labelledby="point-title" aria-live="polite">
+    <Card ref={cardRef} className={styles.pointCard} aria-labelledby="point-title" aria-live="polite">
       <div className={styles.pointHeader}>
         <div>
           <p id="point-title" className={styles.pointDate}>

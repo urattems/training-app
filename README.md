@@ -2,93 +2,109 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-Coach → JSON programme → **app** → séances réelles → historique → JSON d'export → coach.
+> **État : V1 terminée et déployée** → **https://urattems.github.io/training-app/**
 
-- Spécification : [`SPEC.md`](SPEC.md) · Décisions techniques : [`DECISIONS.md`](DECISIONS.md)
-- Fixtures contractuelles : [`examples/program-example.json`](examples/program-example.json), [`examples/history-example.json`](examples/history-example.json)
+```
+Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
+```
 
-## Commandes
+Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techniques dans [`DECISIONS.md`](DECISIONS.md), et les formats d'échange dans [`JSON_SCHEMA.md`](JSON_SCHEMA.md), qui contient une section et un texte prêt à coller pour le coach.
+
+## Fonctionnalités
+
+- **Programme** : import d'un JSON (validation stricte, prévisualisation, messages d'erreur en français). Le nouveau programme devient actif, l'ancien est archivé.
+- **Séance** :
+  - prochaine séance proposée par rotation (A → B → C) ;
+  - exercices dans n'importe quel ordre ;
+  - saisie réelle, avec l'objectif en gris dans le champ et le bouton « Comme prévu » ;
+  - séries en plus, sensation, commentaire, cardio ;
+  - reprise après fermeture, abandon (avec suppression proposée si la séance est vide).
+- **Historique** : détail objectif / réalisé, modification après coup, suppression avec confirmation.
+- **Progression** : graphique de charge (ou de répétitions pour les exercices sans charge) sur une vraie échelle de temps, périodes 1M · 3M · 6M · 1A · Tout, carte de détail au toucher, statistiques et records.
+- **Données** : export JSON (sauvegarde + envoi au coach), restauration, rappel d'export après 14 jours.
+- **PWA** : installable sur l'écran d'accueil, entièrement hors ligne après la première visite, mise à jour proposée (jamais pendant une séance).
+
+## Développement
 
 Prérequis : Node 22 et npm.
 
 | Commande | Rôle |
 |---|---|
 | `npm install` | Installe les dépendances |
-| `npm run dev` | Serveur de développement (http://localhost:5173/) |
+| `npm run dev` | Serveur de développement : http://localhost:5173/ |
 | `npm run build` | Build de production dans `dist/` (base `/training-app/`, service worker inclus) |
-| `npm run preview` | Sert le build de production (http://localhost:4173/training-app/) |
-| `npm test` | Tests (Vitest) |
+| `npm run preview` | Sert le build : http://localhost:4173/training-app/ |
+| `npm test` | Tests Vitest (fuseau horaire des tests fixé à Europe/Paris) |
 | `npm run typecheck` | Vérification TypeScript |
 | `npm run lint` | ESLint |
-| `npm run icons` | Régénère les icônes de `public/` depuis les tokens de couleur |
+| `npm run icons` | Régénère les icônes de `public/` à partir des couleurs des tokens |
 
-## Tester sur l'iPhone en réseau local
+### Tester sur l'iPhone en réseau local
 
 ```bash
-npm run dev -- --host        # puis http://<IP-du-PC>:5173/ dans Safari
-npm run build && npx vite preview --host   # build de prod : http://<IP-du-PC>:4173/training-app/
+npm run dev -- --host                        # http://<IP-du-PC>:5173/
+npm run build && npx vite preview --host     # http://<IP-du-PC>:4173/training-app/
 ```
 
-En **HTTP sur une IP locale**, Safari n'est pas en « contexte sécurisé ». L'app fonctionne, mais :
+En **HTTP sur une IP locale**, Safari n'est pas en contexte sécurisé : pas de mode hors ligne, pas de feuille de partage (l'export passe par un téléchargement) et pas de stockage persistant. L'app reste utilisable. Tout fonctionne sur l'URL HTTPS de GitHub Pages.
 
-- pas de **service worker**, donc pas de mode hors ligne ni d'installation complète ;
-- pas de **feuille de partage** : l'export passe par un téléchargement de fichier ;
-- pas de **stockage persistant** : Paramètres → Informations affiche « indisponible ».
+**Données de démo (mode dev uniquement)** : Paramètres → Développement → « Charger les données de démo » (`examples/history-example.json`). Le port 5173 a sa propre base de données. Cette section n'existe pas dans le build de production.
 
-Tout cela fonctionne en HTTPS, donc une fois l'app déployée sur GitHub Pages.
+## Structure
 
-**Données de démo (mode dev uniquement)** : Paramètres → Développement → « Charger les données de démo » charge `examples/history-example.json`. Le port 5173 est une autre origine que la preview (4173) : sa base de données est distincte, et tes vraies données ne sont jamais touchées. Cette section n'existe pas dans le build de production.
-
-## Déploiement sur GitHub Pages (à faire toi-même)
-
-Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) vérifie le code (typecheck, lint, tests), construit l'app et la publie sur GitHub Pages **à chaque push sur `main`**. Aucun serveur à gérer.
-
-### 1. Créer le dépôt sur GitHub
-
-1. Sur https://github.com/new, nomme le dépôt **exactement `training-app`**. L'app est construite pour l'adresse `/training-app/` ; pour un autre nom, voir l'étape 6.
-2. Visibilité : **Public**. GitHub Pages est gratuit pour les dépôts publics ; un dépôt privé exige un abonnement payant. Le dépôt ne contient que le code : tes séances restent sur ton iPhone.
-3. Ne coche rien (ni README, ni .gitignore, ni licence), puis « Create repository ».
-
-### 2. Relier le dépôt local et envoyer le code
-
-Dans PowerShell, depuis `C:\dev\training-app` :
-
-```powershell
-git branch -M main
-git remote add origin https://github.com/<ton-utilisateur>/training-app.git
-git push -u origin main
+```
+src/
+  app/          App (routes HashRouter), Shell (barre basse), filet d'erreur
+  components/   UI réutilisable (Button, Card, Sheet, NumberField, TextField…)
+  features/     écrans : home, program, workout, exercise, history, progress, settings, import
+  domain/       règles métier pures et testées (séance, rotation, stats, graphique, rappel d'export)
+  schemas/      contrat JSON (Zod), invariants, migrations de schéma, messages d'erreur
+  db/           base IndexedDB (Dexie)
+  services/     accès aux données : programme, séance, historique, export, restauration, stockage
+  hooks/        lectures réactives, enregistrement automatique, export préparé
+  pwa/          manifest, bannière de mise à jour
+  styles/       tokens de design (couleurs, tailles…), styles de base
+  i18n/         textes de l'interface
+examples/       fixtures contractuelles (ne pas modifier)
+scripts/        génération des icônes
 ```
 
-`git branch -M main` renomme la branche locale `master` en `main`, celle que surveille le workflow.
+## Stockage et sauvegardes
 
-### 3. Activer GitHub Pages
+- Les données vivent **uniquement sur l'appareil**, dans IndexedDB (base `training-app-db`). Rien n'est envoyé nulle part.
+- Sur iPhone, **les données de l'app installée sont séparées de celles de Safari** : installe l'app d'abord, puis importe ton programme depuis l'app installée.
+- L'app demande au navigateur un stockage persistant (statut dans Paramètres → Informations), sans garantie absolue : Safari peut purger les données d'un site peu utilisé.
+- **Protection principale : exporter régulièrement.** Paramètres → Exporter mes données produit `training-backup-AAAA-MM-JJ.json`, à garder dans Fichiers ou iCloud. L'accueil le rappelle discrètement après 14 jours sans export.
 
-Sur GitHub : dépôt → **Settings** → **Pages** → *Build and deployment* → *Source* : **GitHub Actions**.
+## Import, export, restauration
 
-### 4. Lancer le déploiement
+| Action | Où | Effet |
+|---|---|---|
+| Importer un programme | Paramètres, ou premier lancement | Valide le JSON, prévisualise, puis le programme devient actif (l'ancien est archivé). Un `programId` déjà connu est refusé |
+| Exporter mes données | Paramètres | Fichier `training_history_export` (programmes, séances, préférences), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
+| Restaurer une sauvegarde | Paramètres | Résumé, puis export obligatoire des données actuelles, puis remplacement complet en une opération (copie interne de sécurité conservée) |
 
-Onglet **Actions** → workflow « Déploiement GitHub Pages ». S'il a échoué parce que Pages n'était pas encore activé au moment du push, ouvre-le et clique sur **Re-run all jobs** (ou **Run workflow**). Les deux étapes (*build*, puis *deploy*) doivent finir en vert.
+Les formats sont détaillés dans [`JSON_SCHEMA.md`](JSON_SCHEMA.md).
 
-### 5. Adresse de l'app
+## Déploiement et mises à jour
 
-**https://\<ton-utilisateur\>.github.io/training-app/**
+Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runner `ubuntu-24.04`) vérifie le code (typecheck, lint, tests), construit l'app et la publie sur GitHub Pages **à chaque push sur `main`**.
 
-### 6. (Optionnel) Autre nom de dépôt
+**Publier une nouvelle version :**
 
-Remplace `DEFAULT_BASE` dans [`src/pwa/manifest.ts`](src/pwa/manifest.ts) par `'/<nom-du-depot>/'`, puis commit et push. Le manifest, les icônes et le service worker suivent automatiquement.
+1. Vérifier en local : `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
+2. `git push` sur `main`.
+3. Suivre l'onglet **Actions** du dépôt : les étapes *build* et *deploy* doivent passer au vert.
+4. Sur l'iPhone, rouvrir l'app : la bannière « Nouvelle version disponible » apparaît (jamais pendant une séance). Toucher « Mettre à jour ». Paramètres → Informations → *Build* confirme la version.
 
-### 7. Installer sur l'iPhone, puis importer le programme
+**Mise en place initiale (déjà faite)** : dépôt public `training-app`, branche `main`, Settings → Pages → Source « GitHub Actions ». Pour un autre nom de dépôt, adapter `DEFAULT_BASE` dans [`src/pwa/manifest.ts`](src/pwa/manifest.ts).
 
-1. Ouvre l'adresse de l'app dans **Safari**.
-2. Bouton **Partager** → **Sur l'écran d'accueil** → **Ajouter**.
-3. **Ouvre l'app depuis son icône** sur l'écran d'accueil, puis **importe ton programme depuis l'app installée** (Paramètres → Importer un programme, ou « Importer un programme JSON » au premier lancement).
-   > Sur iPhone, les données de l'app installée sont **séparées de celles de Safari**. Un programme importé dans Safari n'apparaît pas dans l'app de l'écran d'accueil. Installe d'abord, importe ensuite.
-4. Après la première ouverture, l'app fonctionne **sans réseau** (salle de sport en sous-sol).
+**Installer sur l'iPhone** : Safari → https://urattems.github.io/training-app/ → Partager → **Sur l'écran d'accueil**. Ouvrir l'app depuis son icône, puis importer le programme **depuis l'app installée**.
 
-### 8. Mises à jour
+## Limites connues
 
-Chaque push sur `main` redéploie l'app. Au lancement suivant, l'app propose « Nouvelle version disponible — Mettre à jour ». Cette proposition n'apparaît **jamais pendant une séance en cours**, et rien ne se recharge sans ton accord. Paramètres → Informations → *Build* indique la version en service.
-
-### 9. Sauvegardes
-
-Les données vivent uniquement sur l'iPhone. **Exporte-les régulièrement** (Paramètres → Exporter mes données) : l'accueil le rappelle discrètement après 14 jours sans export. Le fichier sert aussi à **restaurer** (Paramètres → Restaurer une sauvegarde) et à envoyer ton historique au coach.
+- **Stockage iOS** : Safari peut effacer les données d'une PWA peu utilisée. Seuls des exports réguliers protègent vraiment.
+- **HTTPS requis** pour le mode hors ligne, l'installation complète, la feuille de partage et le stockage persistant (OK sur GitHub Pages ; indisponibles en HTTP sur IP locale).
+- **Une seule unité** (kg) et **un seul thème** (clair) en V1. Le thème sombre est prévu au J8, facultatif.
+- **Un appareil** : pas de synchronisation. Pour changer d'iPhone, exporter puis restaurer.
+- **Feuille de partage** : dépend de Safari. En cas d'échec, l'export bascule automatiquement sur le téléchargement.

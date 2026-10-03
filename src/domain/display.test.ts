@@ -21,7 +21,12 @@ describe('Affichage des objectifs et performances', () => {
     const s = (reps: number | null, kg: number | null) => ({ setNumber: 1, actualReps: reps, actualWeightKg: kg, isExtra: false });
     expect(formatPerformance([s(10, 45), s(10, 45), s(9, 45)])).toBe('45 kg · 10 / 10 / 9');
     expect(formatPerformance([s(45, null), s(40, null)])).toBe('45 / 40 reps');
-    expect(formatPerformance([s(12, 45), s(10, 47)])).toBe('12 × 45 kg · 10 × 47 kg');
+    // J7 : forme uniformisée (groupes de charge consécutive).
+    expect(formatPerformance([s(12, 45), s(10, 47)])).toBe('45 kg · 12 ; 47 kg · 10');
+    expect(formatPerformance([s(12, 45), s(12, 45), s(10, 47)])).toBe('45 kg · 12 / 12 ; 47 kg · 10');
+    expect(formatPerformance([s(12, 50), s(10, 50), s(8, 45)])).toBe('50 kg · 12 / 10 ; 45 kg · 8');
+    expect(formatPerformance([s(10, 40), s(10, 45), s(8, 40)])).toBe('40 kg · 10 ; 45 kg · 10 ; 40 kg · 8');
+    expect(formatPerformance([s(45, null), s(10, 5)])).toBe('45 reps ; 5 kg · 10');
     expect(formatPerformance([s(12, 47.5), s(null, null)])).toBe('47,5 kg · 12');
     expect(formatPerformance([])).toBe('');
   });

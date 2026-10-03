@@ -38,6 +38,21 @@ export default defineConfig(({ command, isPreview }) => {
         devOptions: { enabled: false },
       }),
     ],
+    build: {
+      rolldownOptions: {
+        output: {
+          // Bibliothèques stables à part : mieux mises en cache d'une version de l'app à l'autre.
+          codeSplitting: {
+            groups: [
+              // Séparateurs `/` et `\` acceptés (chemins Windows).
+              { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+              { name: 'dexie', test: /node_modules[\\/](dexie|dexie-react-hooks)[\\/]/ },
+              { name: 'zod', test: /node_modules[\\/]zod[\\/]/ },
+            ],
+          },
+        },
+      },
+    },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
       __APP_BUILD__: JSON.stringify(BUILD_ID),

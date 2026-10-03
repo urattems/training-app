@@ -36,3 +36,10 @@ if (typeof window !== 'undefined') {
 if (Intl.DateTimeFormat().resolvedOptions().timeZone !== 'Europe/Paris') {
   throw new Error(`Fuseau des tests inattendu : ${Intl.DateTimeFormat().resolvedOptions().timeZone} (attendu Europe/Paris, voir src/test/globalSetup.ts)`);
 }
+
+// Données chargées en asynchrone (IndexedDB) : délai d'attente de findBy/waitFor porté à 3 s,
+// pour absorber une machine chargée ou un runner CI plus lent (aucune valeur attendue modifiée).
+if (typeof window !== 'undefined') {
+  const { configure } = await import('@testing-library/dom');
+  configure({ asyncUtilTimeout: 3000 });
+}

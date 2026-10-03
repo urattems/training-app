@@ -2,7 +2,7 @@ import { db } from '../db/database';
 import { DomainError } from '../domain/errors';
 import { getNextSession } from '../domain/rotation';
 import type { ProgramSession, WorkoutSession } from '../domain/types';
-import { abandonWorkout as abandon, createWorkout, finishWorkout as finish } from '../domain/workout';
+import { abandonWorkout as abandon, createWorkout, finishWorkout as finish, isWorkoutEmpty, sanitizeWorkoutTexts } from '../domain/workout';
 import { strings } from '../i18n/strings';
 import { workoutSessionSchema } from '../schemas/history.schema';
 import { createId } from '../utils/ids';
@@ -48,7 +48,8 @@ export async function updateWorkout(id: string, update: (workout: WorkoutSession
   return db.transaction('rw', db.workouts, async () => {
     const current = await db.workouts.get(id);
     if (!current) throw new DomainError(t.notFound);
-    const next = workoutSessionSchema.parse(update(current));
+    // Textes nettoyés à chaque enregistrement (trim, vide → null), puis revalidation du contrat.
+    const next = workoutSessionSchema.parse(sanitizeWorkoutTexts(update(current)));
     if (next.id !== current.id) throw new DomainError(t.notFound);
     if (next.status === 'in_progress' && current.status !== 'in_progress') throw new DomainError(t.notInProgress);
     await db.workouts.put(next);
@@ -70,4 +71,18 @@ export async function getNextSessionForActiveProgram(): Promise<ProgramSession |
   if (!program) return null;
   const workouts = await db.workouts.where('programId').equals(program.programId).toArray();
   return getNextSession(program, workouts);
+}
+
+/**
+ * Supprime une séance en cours **vide** (proposé à l'abandon, après confirmation explicite).
+ * Vérifié dans la transaction : une séance contenant la moindre saisie n'est jamais supprimée ici.
+ */
+export async function deleteEmptyWorkout(id: string): Promise<void> {
+  await db.transaction('rw', db.workouts, async () => {
+    const workout = await db.workouts.get(id);
+    if (!workout) throw new DomainError(t.notFound);
+    if (workout.status !== 'in_progress') throw new DomainError(t.notInProgress);
+    if (!isWorkoutEmpty(workout)) throw new DomainError(t.notEmpty);
+    await db.workouts.delete(id);
+  });
 }

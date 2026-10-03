@@ -69,7 +69,7 @@ describe('Paramètres — sections', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     // jsdom n'a pas navigator.storage (comme Safari en HTTP sur IP locale).
     expect(await screen.findByText('indisponible')).toBeInTheDocument();
-    expect(screen.getByText('Aucun export pour l’instant.')).toBeInTheDocument();
+    expect(await screen.findByText('Aucun export pour l’instant.')).toBeInTheDocument();
   });
 });
 

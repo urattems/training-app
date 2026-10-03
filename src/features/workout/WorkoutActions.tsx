@@ -7,7 +7,8 @@ import { Sheet } from '../../components/Sheet';
 import { ErrorDetails } from '../../components/ErrorDetails';
 import type { WorkoutSession } from '../../domain/types';
 import { strings } from '../../i18n/strings';
-import { abandonWorkout, getInProgressWorkout, startWorkout } from '../../services/workoutService';
+import { isWorkoutEmpty } from '../../domain/workout';
+import { abandonWorkout, deleteEmptyWorkout, getInProgressWorkout, startWorkout } from '../../services/workoutService';
 import { toDisplayError, type DisplayError } from '../../utils/errors';
 
 const t = strings.workoutScreen;
@@ -129,8 +130,25 @@ interface AbandonWorkoutButtonProps {
 /** « Abandonner » avec confirmation : statut `abandoned`, données conservées. */
 export function AbandonWorkoutButton({ workout, onAbandoned, fullWidth = true }: AbandonWorkoutButtonProps) {
   const [confirming, setConfirming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<DisplayError | null>(null);
+  // Séance vide (aucune saisie) : la suppression est proposée en plus de l'abandon.
+  const empty = isWorkoutEmpty(workout);
+
+  const deleteEmpty = async () => {
+    setBusy(true);
+    try {
+      await deleteEmptyWorkout(workout.id);
+      setConfirmingDelete(false);
+      onAbandoned?.();
+    } catch (e) {
+      setConfirmingDelete(false);
+      setError(toError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const confirm = async () => {
     setBusy(true);
@@ -168,8 +186,36 @@ export function AbandonWorkoutButton({ workout, onAbandoned, fullWidth = true }:
           onCancel={() => {
             setConfirming(false);
           }}
+          extraAction={
+            empty
+              ? {
+                  label: t.deleteEmpty,
+                  variant: 'secondary',
+                  onClick: () => {
+                    setConfirming(false);
+                    setConfirmingDelete(true);
+                  },
+                }
+              : undefined
+          }
         >
           <p>{t.abandonText}</p>
+          {empty && <p>{t.emptyHint}</p>}
+        </ConfirmSheet>
+      )}
+      {confirmingDelete && (
+        <ConfirmSheet
+          title={t.deleteEmptyTitle}
+          confirmLabel={t.deleteEmptyConfirm}
+          confirmVariant="danger"
+          cancelLabel={t.keepGoing}
+          busy={busy}
+          onConfirm={() => void deleteEmpty()}
+          onCancel={() => {
+            setConfirmingDelete(false);
+          }}
+        >
+          <p>{t.deleteEmptyText}</p>
         </ConfirmSheet>
       )}
       {error !== null && (

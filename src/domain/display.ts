@@ -17,20 +17,26 @@ export function formatActualSet(set: ActualSet): string {
 }
 
 /**
- * Résumé d'une performance réelle (SPEC §7.4) :
- * charge unique → « 45 kg · 10 / 10 / 9 » ; sans charge → « 45 / 45 / 40 reps » ;
- * charges différentes → « 12 × 45 kg · 10 × 47 kg ».
+ * Résumé d'une performance réelle (SPEC §7.4), forme unique quel que soit le nombre de charges :
+ * séries regroupées par charge consécutive, « charge · reps / reps », groupes séparés par « ; ».
+ * - charge unique : « 45 kg · 10 / 10 / 9 »
+ * - charges différentes : « 45 kg · 12 / 12 ; 47 kg · 10 »
+ * - sans charge (poids du corps) : « 45 / 40 reps »
+ * Le détail série par série (historique, carte du graphique) utilise `formatActualSet`.
  */
 export function formatPerformance(sets: readonly ActualSet[]): string {
-  const performed = sets.filter(isPerformedSet);
-  if (performed.length === 0) return '';
-  const reps = performed.map((s) => String(s.actualReps)).join(' / ');
-  const weights = new Set(performed.map((s) => s.actualWeightKg));
-  if (weights.size === 1) {
-    const [weight] = [...weights];
-    return weight === null || weight === undefined ? `${reps} reps` : `${formatKg(weight)} · ${reps}`;
+  const groups: { weight: number | null; reps: number[] }[] = [];
+  for (const set of sets.filter(isPerformedSet)) {
+    const last = groups.at(-1);
+    if (last && last.weight === set.actualWeightKg) last.reps.push(set.actualReps ?? 0);
+    else groups.push({ weight: set.actualWeightKg, reps: [set.actualReps ?? 0] });
   }
-  return performed.map(formatActualSet).join(' · ');
+  return groups
+    .map(({ weight, reps }) => {
+      const list = reps.join(' / ');
+      return weight === null ? `${list} reps` : `${formatKg(weight)} · ${list}`;
+    })
+    .join(' ; ');
 }
 
 export interface LastPerformance {
