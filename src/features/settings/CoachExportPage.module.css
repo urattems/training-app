@@ -1,0 +1,175 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.shortcuts > * {
+  min-width: 0;
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+}
+
+/* Raccourci appliqué : accent doux (élément + classe, prioritaire sur le style du bouton). */
+button.active,
+label.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+/* Champ « N dernières » : même gabarit qu'un bouton secondaire. */
+.nField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  height: var(--button-height);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-weight: var(--font-weight-semibold);
+}
+
+.nField input {
+  width: 3.25rem;
+  min-width: 0;
+  height: 2.25rem;
+  padding: 0 var(--space-2);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  /* ≥ 16 px : Safari iOS ne zoome pas au focus. */
+  font-size: var(--font-size-input);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.nField input::placeholder {
+  color: var(--color-text-tertiary);
+  opacity: 1;
+}
+
+.nField span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.outOf {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+}
+
+.help {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+.success {
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+}
+
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.error {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.listCard {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Ligne entière cliquable (≥ 44 px), case à gauche. */
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.75rem;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent-strong);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

@@ -63,7 +63,7 @@ export interface DeliveryEnv {
   download: (file: File) => void;
 }
 
-function browserDownload(file: File): void {
+export function browserDownload(file: File): void {
   const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;

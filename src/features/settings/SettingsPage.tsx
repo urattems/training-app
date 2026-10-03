@@ -1,4 +1,6 @@
 import { lazy, Suspense } from 'react';
+import { Send } from 'lucide-react';
+import { ButtonLink } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
 import { Page } from '../../components/Page';
 import { APP_BUILD, APP_NAME, APP_VERSION } from '../../config';
@@ -28,6 +30,12 @@ export function SettingsPage() {
         <Eyebrow id="settings-data">{t.data}</Eyebrow>
         <Card className={styles.group}>
           <ExportSection state={preparedExport} />
+        </Card>
+        <Card className={styles.group}>
+          <p className={styles.hint}>{strings.coachExport.entryHint}</p>
+          <ButtonLink to="/settings/coach" variant="secondary" fullWidth icon={<Send aria-hidden />}>
+            {strings.coachExport.entry}
+          </ButtonLink>
         </Card>
         <Card className={styles.group}>
           <RestoreFlow currentExport={preparedExport} />

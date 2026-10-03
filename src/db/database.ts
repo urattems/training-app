@@ -9,7 +9,9 @@ export const DB_VERSION = 1;
 export type SettingRecord =
   | { key: 'activeProgramId'; value: string | null }
   | { key: 'preferences'; value: UserPreferences }
-  | { key: 'lastExportAt'; value: string | null };
+  | { key: 'lastExportAt'; value: string | null }
+  /** Dernier envoi au coach (V1.1b) : distinct de `lastExportAt`, ne compte jamais comme sauvegarde. */
+  | { key: 'lastCoachExportAt'; value: string | null };
 
 export type SettingKey = SettingRecord['key'];
 

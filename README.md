@@ -22,7 +22,9 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
   - reprise après fermeture, abandon (avec suppression proposée si la séance est vide).
 - **Historique** : détail objectif / réalisé, modification après coup, suppression avec confirmation.
 - **Progression** : graphique de charge (ou de répétitions pour les exercices sans charge) sur une vraie échelle de temps, périodes 1M · 3M · 6M · 1A · Tout, carte de détail au toucher, statistiques et records.
-- **Données** : export JSON (sauvegarde + envoi au coach), restauration, rappel d'export après 14 jours.
+- **Données** :
+  - sauvegarde complète en JSON, restauration, rappel d'export après 14 jours ;
+  - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT.
 - **PWA** : installable sur l'écran d'accueil, entièrement hors ligne après la première visite, mise à jour proposée (jamais pendant une séance).
 
 ## Développement
@@ -75,14 +77,15 @@ scripts/        génération des icônes
 - Les données vivent **uniquement sur l'appareil**, dans IndexedDB (base `training-app-db`). Rien n'est envoyé nulle part.
 - Sur iPhone, **les données de l'app installée sont séparées de celles de Safari** : installe l'app d'abord, puis importe ton programme depuis l'app installée.
 - L'app demande au navigateur un stockage persistant (statut dans Paramètres → Informations), sans garantie absolue : Safari peut purger les données d'un site peu utilisé.
-- **Protection principale : exporter régulièrement.** Paramètres → Exporter mes données produit `training-backup-AAAA-MM-JJ.json`, à garder dans Fichiers ou iCloud. L'accueil le rappelle discrètement après 14 jours sans export.
+- **Protection principale : exporter régulièrement.** Paramètres → Exporter mes données produit `training-backup-AAAA-MM-JJ.json`, à garder dans Fichiers ou iCloud. L'accueil le rappelle discrètement après 14 jours sans export. Un envoi au coach ne remplace pas cette sauvegarde et ne fait pas disparaître le rappel.
 
 ## Import, export, restauration
 
 | Action | Où | Effet |
 |---|---|---|
 | Importer un programme | Paramètres, ou premier lancement | Fichier, ou « Coller le JSON » (un bloc ` ```json … ``` ` est accepté). Valide le JSON, prévisualise, puis le programme devient actif (l'ancien est archivé). Un `programId` déjà connu est refusé |
-| Exporter mes données | Paramètres | Fichier `training_history_export` (programmes, séances, préférences), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
+| Exporter mes données | Paramètres | **Sauvegarde complète** : fichier `training_history_export` (programmes, séances, préférences), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
+| Exporter pour le coach | Paramètres | **Sélection de séances** : fichier `training-coach-AAAA-MM-JJ.json` (`training_coach_export`) ou « Copier pour ChatGPT » (JSON compact). Vérifié avant remise. Ne compte pas comme sauvegarde et n'est jamais restaurable |
 | Restaurer une sauvegarde | Paramètres | Résumé, puis export obligatoire des données actuelles, puis remplacement complet en une opération (copie interne de sécurité conservée) |
 
 Les formats sont détaillés dans [`JSON_SCHEMA.md`](JSON_SCHEMA.md).

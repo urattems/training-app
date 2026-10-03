@@ -17,10 +17,15 @@ export interface ImportFailure {
   details: string[];
 }
 
-export type DocumentKind = 'program' | 'history';
+export type DocumentKind = 'program' | 'history' | 'coach';
 
-const prefixFor = (doc: DocumentKind): string =>
-  doc === 'program' ? strings.import.programPrefix : strings.import.restorePrefix;
+const PREFIXES: Record<DocumentKind, string> = {
+  program: strings.import.programPrefix,
+  history: strings.import.restorePrefix,
+  coach: strings.import.coachPrefix,
+};
+
+const prefixFor = (doc: DocumentKind): string => PREFIXES[doc];
 
 export function importFailure(kind: ImportErrorKind, doc: DocumentKind, reason: string, details: string[] = []): ImportFailure {
   return { kind, message: `${prefixFor(doc)} : ${reason}`, details };
@@ -58,6 +63,12 @@ const FIELD_LABELS: Record<string, string> = {
   targetWeightKg: 'charge cible',
   enabled: 'activation',
   targetDurationMin: 'durée cible',
+  selection: 'sélection',
+  mode: 'mode de sélection',
+  sessionCount: 'nombre de séances',
+  totalExportableSessions: 'nombre de séances exportables',
+  firstSessionDate: 'date de la première séance',
+  lastSessionDate: 'date de la dernière séance',
   exportedAt: "date d'export",
   activeProgramId: 'programme actif',
   preferences: 'préférences',
@@ -175,7 +186,9 @@ const chain = (segments: { segment: Segment }[]): string =>
     .reverse()
     .join(' de ');
 
-const rootNoun = (doc: DocumentKind): string => (doc === 'program' ? 'le programme' : 'la sauvegarde');
+const ROOT_NOUNS: Record<DocumentKind, string> = { program: 'le programme', history: 'la sauvegarde', coach: "l'export pour le coach" };
+
+const rootNoun = (doc: DocumentKind): string => ROOT_NOUNS[doc];
 
 const FORMAT_HINTS: Record<string, string> = {
   datetime: 'date-heure ISO attendue, ex. 2026-10-01T18:00:00+02:00',

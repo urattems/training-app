@@ -3,13 +3,25 @@ import { err, ok, type Result } from '../utils/result';
 import { SCHEMA_VERSION } from './common';
 import { importFailure, zodFailure, type DocumentKind, type ImportFailure } from './errors';
 import { historyExportSchema, type HistoryExport } from './history.schema';
-import { checkHistoryInvariants } from './invariants';
+import { coachExportSchema, COACH_EXPORT_TYPE, type CoachExport } from './coachExport.schema';
+import { checkCoachExportInvariants, checkHistoryInvariants } from './invariants';
 import { migrateToVersion, type JsonObject } from './migrations';
 import { trainingProgramSchema, type TrainingProgram } from './program.schema';
 
 const EXPECTED_TYPE: Record<DocumentKind, string> = {
   program: 'training_program',
   history: 'training_history_export',
+  coach: COACH_EXPORT_TYPE,
+};
+
+const wrongTypeReason = (doc: DocumentKind, type: string): string => {
+  // Un export partiel pour le coach ne peut JAMAIS remplacer les données (SPEC §10.6).
+  if (type === COACH_EXPORT_TYPE) {
+    return doc === 'program' ? strings.import.coachExportNotProgram : strings.import.coachExportNotBackup;
+  }
+  if (doc === 'program') return strings.import.expectedProgram(type);
+  if (doc === 'history') return strings.import.expectedHistory(type);
+  return strings.import.expectedCoach(type);
 };
 
 /**
@@ -30,8 +42,7 @@ function readDocument(text: string, doc: DocumentKind): Result<{ raw: JsonObject
 
   const type = raw.type;
   if (typeof type === 'string' && type !== EXPECTED_TYPE[doc]) {
-    const reason = doc === 'program' ? strings.import.expectedProgram(type) : strings.import.expectedHistory(type);
-    return err(importFailure('wrong_type', doc, reason));
+    return err(importFailure('wrong_type', doc, wrongTypeReason(doc, type)));
   }
 
   const migration = migrateToVersion(raw);
@@ -66,6 +77,22 @@ export function parseHistoryJson(text: string): Result<HistoryExport, ImportFail
   if (first !== undefined) {
     const more = violations.length > 1 ? ` ${strings.import.moreErrors(violations.length - 1)}` : '';
     return err(importFailure('invariant', 'history', first + more, violations));
+  }
+  return ok(result.data);
+}
+
+/** Relit un export pour le coach, invariants dédiés compris (autotest avant remise, SPEC §10.6). */
+export function parseCoachExportJson(text: string): Result<CoachExport, ImportFailure> {
+  const read = readDocument(text, 'coach');
+  if (!read.ok) return read;
+  const result = coachExportSchema.safeParse(read.value.raw);
+  if (!result.success) return err(zodFailure(result.error, read.value.raw, 'coach'));
+
+  const violations = checkCoachExportInvariants(result.data);
+  const first = violations[0];
+  if (first !== undefined) {
+    const more = violations.length > 1 ? ` ${strings.import.moreErrors(violations.length - 1)}` : '';
+    return err(importFailure('invariant', 'coach', first + more, violations));
   }
   return ok(result.data);
 }

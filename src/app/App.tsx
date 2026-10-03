@@ -9,6 +9,7 @@ import { ImportProgramProvider } from '../features/import/ImportProgramFlow';
 import { ProgramPage } from '../features/program/ProgramPage';
 import { ProgramSessionPage } from '../features/program/ProgramSessionPage';
 import { WorkoutPage } from '../features/workout/WorkoutPage';
+import { CoachExportPage } from '../features/settings/CoachExportPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotFoundPage } from './NotFoundPage';
@@ -39,6 +40,7 @@ export function AppRoutes() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="history/:workoutId" element={<HistoryDetailPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings/coach" element={<CoachExportPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

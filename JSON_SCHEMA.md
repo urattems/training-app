@@ -1,13 +1,14 @@
 # Formats JSON — Carnet d'entraînement (v1.0)
 
-Deux formats, tous deux en `schemaVersion: "1.0"` :
+Trois formats, tous en `schemaVersion: "1.0"` :
 
 | Format | `type` | Sens | Usage |
 |---|---|---|---|
-| **PROGRAM_JSON** | `training_program` | coach → app | Programme de la semaine, à importer |
-| **HISTORY_JSON** | `training_history_export` | app → coach, app → app | Export de l'historique **et** sauvegarde/restauration (un seul format) |
+| **PROGRAM_JSON** | `training_program` | coach → app | Programme de la semaine, à importer (fichier ou texte collé) |
+| **HISTORY_JSON** | `training_history_export` | app → app (et coach) | Sauvegarde complète et restauration |
+| **COACH_JSON** | `training_coach_export` | app → coach | Sélection de séances à envoyer au coach (V1.1). **Jamais restaurable** |
 
-Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/program.schema.ts), [`src/schemas/history.schema.ts`](src/schemas/history.schema.ts), [`src/schemas/invariants.ts`](src/schemas/invariants.ts). Exemples valides : [`examples/program-example.json`](examples/program-example.json), [`examples/history-example.json`](examples/history-example.json).
+Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/program.schema.ts), [`src/schemas/history.schema.ts`](src/schemas/history.schema.ts), [`src/schemas/coachExport.schema.ts`](src/schemas/coachExport.schema.ts), [`src/schemas/invariants.ts`](src/schemas/invariants.ts). Exemples valides : [`examples/program-example.json`](examples/program-example.json), [`examples/history-example.json`](examples/history-example.json), [`examples/coach-export-example.json`](examples/coach-export-example.json).
 
 ## Règles communes
 
@@ -67,7 +68,7 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 | `category` | texte ou `null` | oui | `"Pectoraux"` | |
 | `equipment` | texte ou `null` | oui | `"Machine"` | |
 | `restSec` | entier ≥ 0 ou `null` | oui | `120` | Affiché « Repos recommandé : 120 s » (pas de minuteur) |
-| `notes` | texte ou `null` | oui | `null` | |
+| `notes` | texte ou `null` | oui | `"Contrôle la descente."` | **Conseil d'exécution**, affiché dans l'encart « Conseil » de l'écran exercice : 1 à 2 phrases, à l'impératif, en français, **160 caractères max**. `null` = pas d'encart |
 | `sets` | liste (≥ 1) | oui | | `setNumber` uniques |
 
 ### Série prescrite (`sets[]`)
@@ -188,6 +189,76 @@ En plus des types ci-dessus, une sauvegarde est refusée si :
 
 ---
 
+## COACH_JSON v1.0 (`training_coach_export`)
+
+Export **partiel** : les séances choisies par l'utilisateur (Paramètres → Exporter pour le coach), en fichier `training-coach-AAAA-MM-JJ.json` ou copiées en JSON compact pour ChatGPT. Ce n'est **pas** une sauvegarde :
+
+- la restauration le refuse : « ce fichier est un export pour le coach, pas une sauvegarde » ;
+- l'import de programme le refuse aussi ;
+- il ne met pas à jour la date du dernier export (rappel de sauvegarde).
+
+### Racine
+
+| Champ | Type | Oblig. | Règles |
+|---|---|---|---|
+| `schemaVersion` | `"1.0"` | oui | |
+| `type` | `"training_coach_export"` | oui | |
+| `exportedAt` | horodatage ISO | oui | Instant où le contenu a été figé |
+| `locale` | texte | oui | `"fr-FR"` |
+| `unitSystem` | `"metric"` | oui | |
+| `activeProgramId` | texte ou `null` | oui | Programme actif au moment de l'export, présent dans `programs` |
+| `selection` | objet | oui | Voir ci-dessous |
+| `programs` | liste de programmes | oui | Le programme actif **et** ceux des séances jointes, objets PROGRAM_JSON complets |
+| `sessions` | liste (≥ 1) | oui | Même forme que `sessions[]` de HISTORY_JSON, **ordre chronologique croissant** |
+
+Pas de `preferences`.
+
+### `selection`
+
+| Champ | Type | Règles |
+|---|---|---|
+| `mode` | `"last_n"`, `"since_last_export"` ou `"manual"` | Façon dont la sélection a été faite : « N dernières », « depuis mon dernier envoi », cases cochées à la main |
+| `sessionCount` | entier ≥ 1 | = nombre d'éléments de `sessions` |
+| `totalExportableSessions` | entier ≥ 0 | Séances exportables dans l'app à ce moment (≥ `sessionCount`) |
+| `firstSessionDate` | `YYYY-MM-DD` | `date` de la première séance de `sessions` |
+| `lastSessionDate` | `YYYY-MM-DD` | `date` de la dernière séance de `sessions` |
+
+**Séances exportables** : `completed`, ou `abandoned`, avec au moins une donnée saisie (série, cardio, sensation, commentaire ou note). Jamais une séance vide, jamais une séance `in_progress`.
+
+### Invariants (sinon l'autotest échoue et le fichier n'est jamais livré)
+
+1. `activeProgramId` non `null` présent dans `programs` ;
+2. chaque `programId` de séance présent dans `programs` ;
+3. `id` de séance et `programId` uniques ;
+4. aucune séance `in_progress` ; une séance `completed` a un `completedAt` ;
+5. `selection.sessionCount` = nombre de séances ; dates extrêmes et ordre chronologique cohérents.
+
+### Exemple (abrégé)
+
+```json
+{
+  "schemaVersion": "1.0",
+  "type": "training_coach_export",
+  "exportedAt": "2026-10-01T18:50:00+02:00",
+  "locale": "fr-FR",
+  "unitSystem": "metric",
+  "activeProgramId": "prog-demo-w37",
+  "selection": {
+    "mode": "last_n",
+    "sessionCount": 2,
+    "totalExportableSessions": 3,
+    "firstSessionDate": "2026-09-15",
+    "lastSessionDate": "2026-09-22"
+  },
+  "programs": [{ "programId": "prog-demo-w37", "…": "programme complet" }],
+  "sessions": [{ "id": "w-0002", "…": "séance complète" }, { "id": "w-0003", "…": "séance complète" }]
+}
+```
+
+Fichier complet, validé par les tests : [`examples/coach-export-example.json`](examples/coach-export-example.json).
+
+---
+
 ## Pour le coach (ChatGPT)
 
 ### Produire un programme valide — pièges à éviter
@@ -201,7 +272,20 @@ En plus des types ci-dessus, une sauvegarde est refusée si :
 - [ ] `id` de séance uniques (`"A"`, `"B"`, `"C"`) ; `id` d'exercice uniques dans une séance.
 - [ ] Charges en **nombres** en kg (`47.5`, pas `"47,5 kg"`). Sans charge : `null`.
 - [ ] Gainage et exercices au temps : secondes dans `targetReps`, `targetWeightKg: null`.
-- [ ] Aucun conseil ni texte de style dans le JSON : seulement des données. Les remarques vont dans `notes`.
+- [ ] Aucun texte de style ni commentaire hors des champs prévus : seulement des données.
+- [ ] **`notes` de chaque exercice = conseil d'exécution court** : 1 à 2 phrases, à l'impératif, en français, **160 caractères max** (ex. « Contrôle la descente sur 2 secondes. Garde les omoplates serrées. »). `null` si rien d'utile. Pas de charges ni de répétitions dedans : elles sont dans `sets`.
+- [ ] Réponds avec le JSON seul. Un bloc ` ```json … ``` ` est accepté (l'utilisateur le colle directement dans l'app), mais aucun texte autour.
+
+### Lire un export pour le coach (partiel)
+
+- **C'est une sélection, pas tout l'historique** : `selection` indique combien de séances sont jointes (`sessionCount`), sur combien d'exportables (`totalExportableSessions`), et sur quelle période (`firstSessionDate` → `lastSessionDate`).
+- **`mode`** :
+  - `"since_last_export"` : les séances depuis le dernier envoi, c'est-à-dire la suite de la conversation précédente ;
+  - `"last_n"` : les N dernières ;
+  - `"manual"` : choisies à la main.
+- **Historique incomplet** : une séance absente du fichier n'est pas une séance manquée. Si la décision demande plus de recul (records, tendance), demande un export plus large plutôt que de conclure.
+- **`programs`** : le programme actif et ceux des séances jointes, pour retrouver les objectifs et les conseils. Le programme à faire évoluer est celui de `activeProgramId`.
+- Les séances se lisent exactement comme dans un export d'historique (ci-dessous).
 
 ### Lire un export d'historique
 
@@ -215,14 +299,17 @@ En plus des types ci-dessus, une sauvegarde est refusée si :
 
 ### Texte prêt à coller dans ChatGPT
 
-```text
-Tu es mon coach de musculation. Je te joins l'export JSON de mon carnet (type "training_history_export", schemaVersion "1.0").
+````text
+Tu es mon coach de musculation. Je te joins l'export JSON de mon carnet (type "training_coach_export", schemaVersion "1.0") : une SÉLECTION de séances, pas tout l'historique.
+"selection" indique combien de séances sont jointes, sur combien au total, et la période. "programs" contient mon programme actif ("activeProgramId") et ceux des séances jointes.
 Lecture : "targetSets" = objectifs prévus ce jour-là ; "actualSets" = réalisé réel. null = non saisi. "isExtra": true = série en plus.
 Les séances "abandoned" sont réelles mais interrompues ; "comment" et "sensation" (very_easy → very_hard) donnent le ressenti. Le gainage est noté en secondes dans les répétitions.
 Analyse ma progression puis produis le programme de la semaine suivante, en JSON uniquement, au format "training_program" schemaVersion "1.0" :
 - nouveau "programId" (jamais déjà utilisé), mêmes "id" d'exercices qu'avant pour les mêmes exercices ;
 - séances "A", "B", "C" avec "order" 1, 2, 3 ; tous les champs nullables présents (null si non pertinent) ;
 - chaque série : "setNumber" unique à partir de 1, SOIT "targetReps", SOIT "targetRepsMin" + "targetRepsMax", jamais les deux ; "targetWeightKg" en nombre (kg) ou null ;
-- "restSec" en secondes, "estimatedDurationMin" en minutes, "cardio" = { enabled, label, targetDurationMin, notes } ou null.
-Réponds avec le JSON complet et valide, sans commentaire à l'intérieur.
-```
+- "restSec" en secondes, "estimatedDurationMin" en minutes, "cardio" = { enabled, label, targetDurationMin, notes } ou null ;
+- "notes" de chaque exercice = conseil d'exécution court : 1 à 2 phrases, à l'impératif, en français, 160 caractères maximum (null si rien d'utile), sans charges ni répétitions.
+S'il te faut plus de recul que les séances jointes, dis-le avant de produire le programme.
+Réponds avec le JSON complet et valide, seul (un bloc ```json est accepté), sans commentaire à l'intérieur.
+````

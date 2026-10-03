@@ -182,6 +182,12 @@ Graphique : points + ligne, minimaliste, tactile. Toucher un point affiche une *
 **Informations** : version, nom de l'app (constante unique modifiable).
 Rappel d'export : bandeau discret si dernier export > 14 jours **et** ≥ 1 séance terminée depuis.
 
+**Complément V1.1 :**
+- **Données** : « Coller le JSON » à côté de l'import de programme par fichier (V1.1a).
+- **Données** : « Exporter pour le coach » (§10.6), à côté de « Exporter mes données », qui reste inchangé (sauvegarde complète).
+- Une ligne d'aide sous chacun distingue la sauvegarde (restaurable) de l'envoi au coach (sélection, non restaurable).
+- Un envoi au coach ne compte pas comme sauvegarde : il ne modifie pas le rappel d'export.
+
 ---
 
 ## 8. Design system
@@ -235,6 +241,56 @@ En plus de la validation Zod, le fichier est **refusé en bloc** (message clair,
 - une séance référence un `programId` absent de `programs[]` ;
 - des `id` de séance ou de programme sont en doublon ;
 - une séance `completed` n'a pas de `completedAt` (ou une `in_progress` en a un).
+
+### 10.6 Export pour le coach (amendement V1.1b)
+Export **partiel**, distinct de la sauvegarde (§10.2) : il sert uniquement à envoyer une sélection de séances au coach.
+
+**Écran de sélection** (Paramètres → Données → « Exporter pour le coach ») :
+- liste des séances exportables, de la plus récente à la plus ancienne, avec case à cocher (cible ≥ 44 px), date, nom, statut et durée ;
+- sont exportables les séances `completed` et `abandoned` **ayant au moins une donnée saisie** ; jamais une séance vide ni `in_progress` ;
+- raccourcis qui cochent la liste :
+  - « Dernière séance », « 3 dernières », « 6 dernières » ;
+  - un champ « N dernières » (clavier numérique) ;
+  - « Depuis mon dernier envoi au coach » : sans envoi précédent, tout est coché et le texte le dit.
+- tout reste ajustable à la main ;
+- résumé en direct (« 3 séances · 28 sept. au 2 oct. ») ;
+- aucune séance exportable : état vide clair, boutons désactivés.
+
+**Format** `training_coach_export`, `schemaVersion: "1.0"`. Racine :
+- `exportedAt`, `locale`, `unitSystem`, `activeProgramId` (string|null) ;
+- `selection` : `mode` (`last_n | since_last_export | manual`), `sessionCount`, `totalExportableSessions`, `firstSessionDate`, `lastSessionDate` ;
+- `programs[]` : le programme actif et ceux référencés par les séances choisies, en objets complets ;
+- `sessions[]` : même forme qu'au §11.2, en ordre chronologique croissant ;
+- pas de `preferences`.
+
+**Invariants**, en plus de Zod. Le fichier est refusé si l'un d'eux n'est pas respecté :
+- `activeProgramId`, s'il n'est pas null, est présent dans `programs[]` ;
+- le `programId` de chaque séance est présent dans `programs[]` ;
+- les identifiants sont uniques ;
+- aucune séance n'est `in_progress` ;
+- `selection.sessionCount` = `sessions.length` ;
+- les dates de `selection` correspondent à la première et à la dernière séance.
+
+**Autotest avant remise** : le texte livré est relu avec ce schéma et ces invariants ; s'il échoue, il n'est jamais livré.
+
+**Sécurité** :
+- la restauration et l'import de programme **refusent** ce type avec un message français explicite (« Ce fichier est un export pour le coach, pas une sauvegarde. Pour restaurer, utilise un fichier « Exporter mes données ». ») ;
+- un export partiel ne peut jamais remplacer les données.
+
+**Date du dernier envoi** :
+- l'export pour le coach n'écrit **jamais** `lastExportAt` ;
+- il écrit son propre réglage `lastCoachExportAt` (table `settings`, sans migration de base), uniquement si l'envoi a réellement eu lieu (partage abouti, téléchargement déclenché, copie réussie) ;
+- la valeur écrite est l'instant où le contenu a été figé.
+
+**Remise** :
+- partage natif si disponible, sinon téléchargement, sous le nom `training-coach-YYYY-MM-DD.json` ;
+- le fichier est préparé à l'avance, après un léger délai à chaque changement de sélection : le partage part directement dans le geste, et les boutons restent désactivés tant que le fichier n'est pas prêt.
+
+**« Copier pour ChatGPT »** :
+- `navigator.clipboard.writeText` est appelé dans le geste avec le texte déjà préparé ;
+- le texte est le JSON **compact** seul, sans aucun texte ajouté ;
+- presse-papiers indisponible ou refusé : repli clair vers le téléchargement du fichier ;
+- une copie réussie affiche une confirmation discrète « Copié ».
 
 ---
 

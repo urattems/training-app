@@ -20,3 +20,13 @@ export async function getLastExportAt(): Promise<string | null> {
 export async function setLastExportAt(iso: string): Promise<void> {
   await db.settings.put({ key: 'lastExportAt', value: iso });
 }
+
+/** Dernier envoi au coach (export partiel) : n'agit jamais sur le rappel de sauvegarde. */
+export async function getLastCoachExportAt(): Promise<string | null> {
+  const record = await db.settings.get('lastCoachExportAt');
+  return record?.key === 'lastCoachExportAt' ? record.value : null;
+}
+
+export async function setLastCoachExportAt(iso: string): Promise<void> {
+  await db.settings.put({ key: 'lastCoachExportAt', value: iso });
+}

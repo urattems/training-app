@@ -766,3 +766,107 @@ Build de production servi en localhost (contexte sécurisé), Edge headless, 390
 - conseil long replié sur 3 lignes : le premier champ RÉALISÉ reste visible à 653 px sur 844 ; il se déplie sur 4 lignes ;
 - conseil court sans bouton, `notes` null sans encart ;
 - aucun défilement horizontal.
+
+---
+
+## V1.1b — Export pour le coach (nouveau type `training_coach_export`)
+
+### Amendement de SPEC.md (autorisé, par ajout uniquement)
+- §7.10 : bloc « Complément V1.1 » sous le texte existant (entrées Coller le JSON et Exporter pour le coach, aides distinctes, envoi ≠ sauvegarde).
+- §10.6 : nouvelle section « Export pour le coach (amendement V1.1b) ».
+- Aucune ligne existante modifiée (`git diff` : 56 ajouts, 0 suppression). Les contrats `training_program` et `training_history_export` sont inchangés, comme les deux fixtures.
+
+### Séances exportables
+- `completed` ou `abandoned`, et **non vide** au sens de `isWorkoutEmpty` (J7) : au moins une valeur de série, un cardio, une sensation, un commentaire ou une note.
+- La règle « non vide » s'applique aussi aux séances terminées : une séance terminée sans aucune saisie n'apporte rien au coach. Jamais `in_progress`.
+- Le service filtre à nouveau au moment de construire le fichier : un identifiant de séance en cours ou vide passé par erreur est ignoré.
+
+### Sélection
+- Raccourcis :
+  - « Dernière séance », « 3 dernières », « 6 dernières », « N dernières » : `mode: "last_n"` ;
+  - « Depuis mon dernier envoi au coach » : `mode: "since_last_export"` ;
+  - toute case cochée ou décochée à la main : `mode: "manual"`.
+- Le raccourci actif est signalé par `aria-pressed` et un style accent.
+- **« Depuis mon dernier envoi »** :
+  - une séance est retenue si sa fin est postérieure à `lastCoachExportAt` ;
+  - la fin vaut `completedAt`, sinon `startedAt` pour une séance abandonnée, qui n'a pas de date de fin au contrat ;
+  - limite assumée : une séance commencée avant un envoi puis abandonnée après ne sera pas reprise par ce raccourci. Elle reste cochable à la main ;
+  - une séance modifiée après un envoi n'est pas renvoyée automatiquement.
+- **Sélection par défaut** à l'ouverture : « Depuis mon dernier envoi ». Sans envoi précédent, tout est coché et le texte l'annonce (« Aucun envoi précédent : toutes les séances sont cochées. »). S'il n'y a rien de nouveau, rien n'est coché et les boutons sont désactivés.
+- **Champ N** : `inputmode="numeric"`, chiffres seulement (3 au maximum), appliqué dès la saisie, borné au nombre de séances exportables.
+- **Résumé en direct** : « 3 séances · 8 sept. au 22 sept. », « sur 3 exportables » (`aria-live="polite"`).
+
+### Format et contrôles
+- Schéma Zod dédié (`src/schemas/coachExport.schema.ts`) :
+  - `sessions` contient au moins 1 séance ;
+  - `sessionCount` est un entier ≥ 1 ;
+  - les dates de `selection` sont au format `YYYY-MM-DD`.
+- `programs` contient le programme actif et ceux des séances choisies, en objets complets sans champs internes, triés par date d'import (comme la sauvegarde). Un programme archivé non référencé n'est jamais inclus.
+- `sessions` sont triées par `startedAt` croissant.
+- Invariants dédiés (`checkCoachExportInvariants`) :
+  - ceux demandés : programme actif présent, programmes des séances présents, identifiants uniques, aucune séance en cours, `sessionCount` = nombre de séances ;
+  - ajoutés :
+    - `totalExportableSessions` ≥ `sessionCount` ;
+    - dates de `selection` = première et dernière séance ;
+    - ordre chronologique ;
+    - séance `completed` avec un `completedAt`.
+- **Autotest** : le fichier indenté **et** le texte compact sont relus avec ce schéma et ces invariants, puis comparés aux données (`canonicalJson`). Sinon `ExportIntegrityError`, et rien n'est livré ni écrit.
+- Nouveau `DocumentKind` `coach` (préfixe « Export pour le coach invalide », libellés de champs français pour `selection`). Pas de migration : seule la version 1.0 existe.
+
+### Sécurité
+- `readDocument` reconnaît `type: "training_coach_export"` avant tout autre contrôle :
+  - **restauration** : « Restauration impossible : ce fichier est un export pour le coach, pas une sauvegarde. Pour restaurer, utilise un fichier « Exporter mes données ». » ;
+  - **import de programme**, par fichier ou collé : « Import impossible : ce fichier est un export pour le coach, pas un programme. … ».
+- Le texte demandé est repris mot pour mot après le préfixe habituel des refus (« Restauration impossible : »), avec la minuscule initiale propre à cette convention.
+- Rien n'est écrit : vérifié par les tests (`dumpDatabase` identique) et en navigateur réel.
+
+### Dates d'envoi
+- `lastCoachExportAt` est un nouveau réglage de la table `settings`. C'est seulement un nouveau type de clé dans `SettingRecord`, sans index : **aucune migration de base**, `DB_VERSION` reste à 1.
+- Il est écrit seulement après un envoi réel : partage abouti, téléchargement déclenché sans erreur, copie réussie, ou téléchargement de repli. Il n'est jamais écrit après une annulation, un refus ou une erreur.
+- Sa valeur est `exportedAt`, l'instant où le contenu a été figé, comme `lastExportAt`.
+- L'envoi au coach n'écrit **jamais** `lastExportAt` : il ne fait pas disparaître le rappel de sauvegarde.
+- **Restauration** : `lastCoachExportAt`, propre à l'appareil, est conservé, comme `lastExportAt`. Il n'est réécrit que s'il existait, pour que les sauvegardes sans envoi restent identiques à avant.
+
+### Remise
+- Le fichier est préparé à l'avance par `usePreparedCoachExport`, 250 ms après le dernier changement de sélection. Les deux boutons restent désactivés pendant la préparation, et une préparation dépassée n'est jamais utilisée.
+- **« Envoyer le fichier »** : même chemin que la sauvegarde (`deliverFile` : Web Share, sinon téléchargement), nom `training-coach-AAAA-MM-JJ.json`, JSON indenté.
+- **« Copier pour ChatGPT »** :
+  - `writeText` est appelé tout de suite, sans attente préalable, dans le geste, avec le JSON **compact** seul ;
+  - en cas de succès, un « Copié » discret s'affiche (`role="status"`) ;
+  - si le presse-papiers est absent (HTTP local) ou refuse : message « Copie impossible sur cet appareil. Télécharge plutôt le fichier… » et bouton « Télécharger le fichier », qui télécharge directement, sans feuille de partage.
+- L'aide sous « Exporter mes données » devient « … sauvegarde complète, la seule qui permet de restaurer ou de changer d'iPhone ». Elle disait avant « (sauvegarde et envoi au coach) ». Sous « Exporter pour le coach » : « Une sélection de séances à envoyer au coach (fichier ou copie pour ChatGPT). Ne remplace pas la sauvegarde. ».
+- Écran : route `#/settings/coach`, barre basse visible, retour vers Paramètres. Sur toute leur largeur, les lignes font au moins 60 px de haut et les raccourcis au moins 52 px.
+
+### Documentation
+- `JSON_SCHEMA.md` :
+  - COACH_JSON : champs, `selection`, invariants, exemple ;
+  - `notes` décrit comme le conseil d'exécution (1 à 2 phrases, impératif, français, 160 caractères max) ;
+  - section coach : lecture d'un export partiel, nouveaux points de la checklist, texte à coller mis à jour pour `training_coach_export`.
+  - Le bloc du texte à coller passe à quatre backticks, car il contient lui-même ` ```json `.
+- `examples/coach-export-example.json` (nouveau) :
+  - construit à partir de `history-example.json` (2 dernières séances, `last_n`) ;
+  - un test vérifie qu'il est valide **et** que `toCoachExport` le reconstruit à l'identique depuis la fixture.
+
+### Tests
+- 3 nouveaux fichiers :
+  - `domain/coachExport.test.ts` ;
+  - `services/coachExport.test.ts` ;
+  - `features/settings/CoachExport.test.tsx`.
+- Dans `services/coachExport.test.ts`, la mise en place fixe la date d'import du programme de démo : la restauration la date de l'instant réel. Ce test est nouveau et la correction ne touche aucune attente.
+
+### Vérification en navigateur réel (production, 390 × 844, tactile)
+- **Régression S1–S7 et hors ligne : 9/9, 0 erreur console.**
+  - Une attente manquante a été ajoutée dans le script, après le toucher sur « Liste » : c'était une course du script, pas de l'app.
+- **Export pour le coach : 12/12, 0 erreur console.**
+  - Les données sont injectées directement dans IndexedDB, hors de Dexie, puis la page est rechargée (même méthode qu'au J7).
+  - Vérifié :
+    - aides distinctes ;
+    - tout coché par défaut ;
+    - cibles d'au moins 44 px, champ N en police d'au moins 16 px, aucun défilement horizontal ;
+    - raccourcis puis ajustement manuel ;
+    - fichier téléchargé exact ;
+    - `lastCoachExportAt` écrit et `lastExportAt` intact ;
+    - copie en JSON compact seul et « Copié » ;
+    - « depuis le dernier envoi » sans nouveauté : boutons désactivés ;
+    - refus par la restauration et par l'import de programme, base inchangée ;
+    - écran rechargé hors ligne, copie fonctionnelle.
