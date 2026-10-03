@@ -1,6 +1,7 @@
 import { strings } from '../i18n/strings';
 import type { CoachExport } from './coachExport.schema';
 import type { HistoryExport } from './history.schema';
+import { toLocalDateString } from '../utils/dates';
 
 const findDuplicates = (values: readonly string[]): string[] => {
   const seen = new Set<string>();
@@ -13,12 +14,23 @@ const findDuplicates = (values: readonly string[]): string[] => {
 };
 
 /**
+ * Pesées (V1.2) : une par jour (dates uniques), jamais datée après aujourd'hui (date locale
+ * de l'appareil). Format de date, poids et `recordedAt` sont déjà vérifiés par Zod.
+ */
+export function checkWeightEntries(entries: readonly { date: string }[], today: string): string[] {
+  const t = strings.invariants;
+  const violations = findDuplicates(entries.map((e) => e.date)).map(t.duplicateWeightDate);
+  for (const entry of entries) if (entry.date > today) violations.push(t.futureWeightDate(entry.date));
+  return violations;
+}
+
+/**
  * Invariants de cohérence d'une sauvegarde (SPEC §10.5), vérifiés après Zod.
  * Retourne la liste des violations (vide = fichier cohérent).
  */
-export function checkHistoryInvariants(data: HistoryExport): string[] {
+export function checkHistoryInvariants(data: HistoryExport, today: string = toLocalDateString(new Date())): string[] {
   const t = strings.invariants;
-  const violations: string[] = [];
+  const violations = checkWeightEntries(data.weightEntries, today);
 
   const programIds = data.programs.map((p) => p.programId);
   for (const id of findDuplicates(programIds)) violations.push(t.duplicateProgramId(id));
@@ -71,6 +83,20 @@ export function checkCoachExportInvariants(data: CoachExport): string[] {
   if (!sorted) violations.push(t.coachNotChronological);
   if (selection.firstSessionDate !== sessions[0]?.date || selection.lastSessionDate !== sessions.at(-1)?.date) {
     violations.push(t.coachDatesMismatch);
+  }
+
+  // Pesées (1.1) : désactivées ⇒ aucune ; sinon dates uniques, croissantes, dans la fenêtre, compte exact.
+  const { weightEntries, weightWindow } = data;
+  if (weightWindow === null) {
+    if (weightEntries.length > 0) violations.push(t.coachWeightsWithoutWindow);
+    return violations;
+  }
+  if (weightWindow.from > weightWindow.to) violations.push(t.coachWeightWindowReversed);
+  if (weightWindow.count !== weightEntries.length) violations.push(t.coachWeightCountMismatch(weightWindow.count, weightEntries.length));
+  const increasing = weightEntries.every((e, i) => i === 0 || (weightEntries[i - 1]?.date ?? '') < e.date);
+  if (!increasing) violations.push(t.coachWeightsNotIncreasing);
+  for (const entry of weightEntries) {
+    if (entry.date < weightWindow.from || entry.date > weightWindow.to) violations.push(t.coachWeightOutsideWindow(entry.date));
   }
   return violations;
 }

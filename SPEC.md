@@ -34,6 +34,17 @@ Backend, API externe, cloud/sync, compte/login, IA intégrée, analytics/trackin
 - **V1.1b — Export pour le coach** : export **partiel** d'une sélection de séances, dans un nouveau type `training_coach_export` (§10.6), en fichier ou copié pour ChatGPT. Il ne remplace pas « Exporter mes données » (sauvegarde complète) et ne peut jamais être restauré.
 - Les contrats `training_program` et `training_history_export` (§11) sont **inchangés**.
 
+### Ajouts V1.2 — Suivi du poids (amendement, après validation de la V1.1)
+- **Pesées** : une pesée par jour (date locale, poids en kg, au plus 2 décimales, jamais dans le futur). Ajout du jour, ajout à une date passée, correction du poids, suppression avec confirmation. Remplacer une pesée existante exige une confirmation explicite.
+- **Onglet « Poids »** (V1.2b, §7.1, §7.11) : saisie, graphique, statistiques, liste. kg uniquement, **aucun objectif, aucun conseil, aucune interprétation**.
+- **Données** (V1.2a) :
+  - base IndexedDB en version 2 (nouveau store `weights`, aucun store existant modifié) ;
+  - sauvegarde `training_history_export` en **1.1** avec `weightEntries` (§11.2) ;
+  - export pour le coach `training_coach_export` en **1.1** avec les pesées d'une fenêtre de dates, désactivables (§10.6) ;
+  - les fichiers 1.0 restent acceptés via une migration de schéma ;
+  - le programme `training_program` reste en 1.0.
+- Une pesée enregistrée après le dernier export compte comme donnée non sauvegardée pour le rappel d'export (§7.10).
+
 ---
 
 ## 3. Stack (recommandée)
@@ -292,6 +303,20 @@ Export **partiel**, distinct de la sauvegarde (§10.2) : il sert uniquement à e
 - presse-papiers indisponible ou refusé : repli clair vers le téléchargement du fichier ;
 - une copie réussie affiche une confirmation discrète « Copié ».
 
+**Complément V1.2 — pesées dans l'export pour le coach** (`schemaVersion: "1.1"`) :
+- `weightEntries` : pesées compactes `{ date, weightKg }` (sans `recordedAt`), triées par date croissante ;
+- `weightWindow` : `{ mode, from, to, count }`, ou `null` quand les pesées sont désactivées (alors `weightEntries` est vide) ;
+- `mode` :
+  - `auto_30d` (par défaut) : `from` = la plus ancienne entre la date de la plus ancienne séance sélectionnée et aujourd'hui − 30 jours ; `to` = aujourd'hui ;
+  - `days_90` : les 90 derniers jours ;
+  - `all` : tout l'historique.
+- **Invariants ajoutés** :
+  - dates uniques et strictement croissantes, comprises dans `[from, to]` ;
+  - `count` = `weightEntries.length` ;
+  - `weightWindow` null ⇒ `weightEntries` vide.
+- Un fichier 1.0 est migré (`weightEntries: []`, `weightWindow: null`) ; l'autotest avant remise s'applique au format 1.1 ;
+- la restauration et l'import de programme refusent toujours ce type, en 1.0 comme en 1.1.
+
 ---
 
 ## 11. Contrats JSON (v1.0)
@@ -334,6 +359,19 @@ Racine : `schemaVersion`, `type`, `exportedAt`, `locale`, `unitSystem`, `activeP
 
 Les champs non pertinents sont `null`, jamais absents.
 
+**Complément V1.2 — `training_history_export` en `schemaVersion: "1.1"`** :
+- racine : **`weightEntries[]`** (obligatoire, peut être vide), trié par date croissante à l'export ;
+- **Pesée** :
+  - `date` (`YYYY-MM-DD`, date locale de la mesure, unique : une pesée par jour) ;
+  - `weightKg` (nombre fini > 0, au plus 2 décimales, jamais arrondi silencieusement) ;
+  - `recordedAt` (ISO avec offset local, instant de la dernière écriture : saisie ou correction).
+- **Invariants ajoutés** (refus en bloc) : dates uniques, date réelle, poids valide, `recordedAt` ISO valide, aucune date dans le futur (par rapport à la date locale de l'appareil) ;
+- **Migration de schéma 1.0 → 1.1** : ajoute `weightEntries: []`. Les fichiers 1.0, dont les sauvegardes faites avant la V1.2, restent acceptés ; l'app n'exporte plus qu'en 1.1.
+- **Restauration** :
+  - les pesées sont remplacées dans la même transaction unique ; la copie interne (`preRestoreBackup`) et l'export de sécurité les contiennent ;
+  - le résumé indique le nombre de pesées du fichier ;
+  - si le fichier n'en contient aucune alors que l'app en a, un avertissement visible le signale.
+
 ---
 
 ## 12. Tests
@@ -363,6 +401,8 @@ Les deux fichiers `examples/` doivent passer la validation et alimenter les test
 | **J8** (optionnel) | Thème sombre complet (écrans, graphiques, états) | Aucun écran cassé en sombre ; le clair est inchangé |
 | **V1.1a** | Coller un programme (zone de texte, presse-papiers, même pipeline que le fichier) · encart « Conseil » (`notes` de l'exercice) | Collage valide (avec/sans clôture Markdown), JSON invalide, `programId` existant, champs ignorés, rien d'écrit avant confirmation, presse-papiers indisponible ; Conseil affiché/absent/replié ; vérifié en navigateur réel à 390 px |
 | **V1.1b** | Export pour le coach (§10.6) : sélection de séances, fichier `training_coach_export`, « Copier pour ChatGPT » · `JSON_SCHEMA.md`, exemple validé | Raccourcis de sélection, contenu exact, autotest, refus par la restauration et l'import, `lastExportAt` intact, `lastCoachExportAt` seulement en cas de succès ; régression complète (390 px, production, hors ligne) |
+| **V1.2a** | Pesées sans interface : modèle et domaine (validation, avertissements doux, périodes, stats), base v2 (`weights`), sauvegarde 1.1 + migration 1.0 → 1.1, restauration atomique, export coach 1.1 (fenêtre), rappel d'export, `weightService`, `JSON_SCHEMA.md` | Base v1 remplie rouverte en v2 intacte ; aller-retour avec pesées ; fichiers 1.0 acceptés ; refus des fichiers invalides ; fenêtres coach ; fuseaux horaires (UTC, Paris, Los Angeles, UTC+14) ; fixtures existantes intactes |
+| **V1.2b** | Onglet « Poids » (§7.11) : saisie du jour, ajout daté, remplacement confirmé, graphique et stats, liste, crayon et poubelle ; section « Pesées » de l'export pour le coach ; pesées dans le résumé de restauration | Navigation 4 onglets à 390 et 360 px ; tous les parcours de saisie ; stats et graphique recalculés ; accessibilité ; régression complète en navigateur réel (base v1 rouverte, S1–S7, hors ligne) |
 
 ### Compte rendu de fin de jalon (obligatoire)
 1. Ce qui a été fait · 2. Fichiers créés/modifiés · 3. Tests exécutés · 4. Résultats (typecheck, lint, test, build) · 5. Décisions prises (aussi dans `DECISIONS.md`) · 6. Ce qui reste.

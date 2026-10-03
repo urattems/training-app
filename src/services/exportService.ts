@@ -1,6 +1,7 @@
 import { db } from '../db/database';
-import type { HistoryExport, StoredProgram, UserPreferences, WorkoutSession } from '../domain/types';
-import { SCHEMA_VERSION } from '../schemas/common';
+import type { HistoryExport, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
+import { sortWeights } from '../domain/weight';
+import { HISTORY_SCHEMA_VERSION } from '../schemas/common';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
 import { strings } from '../i18n/strings';
 import { parseHistoryJson } from '../schemas/parse';
@@ -13,17 +14,19 @@ export interface StoredData {
   workouts: WorkoutSession[];
   activeProgramId: string | null;
   preferences: UserPreferences;
+  weights: WeightEntry[];
 }
 
 /** Lit toutes les données (à appeler dans une transaction pour un instantané cohérent). */
 export async function readStoredData(): Promise<StoredData> {
-  const [programs, workouts, activeProgramId, preferences] = await Promise.all([
+  const [programs, workouts, activeProgramId, preferences, weights] = await Promise.all([
     db.programs.toArray(),
     db.workouts.toArray(),
     getActiveProgramId(),
     getPreferences(),
+    db.weights.toArray(),
   ]);
-  return { programs, workouts, activeProgramId, preferences };
+  return { programs, workouts, activeProgramId, preferences, weights };
 }
 
 /**
@@ -32,7 +35,7 @@ export async function readStoredData(): Promise<StoredData> {
  */
 export function toHistoryExport(data: StoredData, exportedAt: string): HistoryExport {
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: HISTORY_SCHEMA_VERSION,
     type: 'training_history_export',
     exportedAt,
     locale: 'fr-FR',
@@ -43,11 +46,13 @@ export function toHistoryExport(data: StoredData, exportedAt: string): HistoryEx
       .sort((a, b) => Date.parse(a.importedAt) - Date.parse(b.importedAt))
       .map(toTrainingProgram),
     sessions: [...data.workouts].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt)),
+    // 1.1 : pesées complètes (date, poids, recordedAt), par date croissante.
+    weightEntries: sortWeights(data.weights).map((w) => ({ date: w.date, weightKg: w.weightKg, recordedAt: w.recordedAt })),
   };
 }
 
 export async function buildHistoryExport(now: Date = new Date()): Promise<HistoryExport> {
-  const data = await db.transaction('r', db.programs, db.workouts, db.settings, readStoredData);
+  const data = await db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
   return toHistoryExport(data, toLocalIsoString(now));
 }
 

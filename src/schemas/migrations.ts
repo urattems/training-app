@@ -10,10 +10,20 @@ export interface SchemaMigration {
 }
 
 /**
- * Chaîne des migrations de schéma (SPEC §10.4), ex. 1.0 → 1.1 → 2.0.
- * Vide en V1 : seule la version 1.0 existe.
+ * Chaînes des migrations de schéma (SPEC §10.4), une par type de document.
+ * Programme (`training_program`) : toujours en 1.0, aucune migration.
  */
 export const SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [];
+
+/** Sauvegarde : 1.0 → 1.1 ajoute les pesées (`weightEntries`, vide pour un ancien fichier). */
+export const HISTORY_MIGRATIONS: readonly SchemaMigration[] = [
+  { from: '1.0', to: '1.1', migrate: (document) => ({ ...document, weightEntries: [] }) },
+];
+
+/** Export pour le coach : 1.0 → 1.1 ajoute les pesées (aucune) et leur fenêtre (`null`). */
+export const COACH_MIGRATIONS: readonly SchemaMigration[] = [
+  { from: '1.0', to: '1.1', migrate: (document) => ({ ...document, weightEntries: [], weightWindow: null }) },
+];
 
 export type MigrationOutcome =
   | { ok: true; document: JsonObject; appliedSteps: string[] }

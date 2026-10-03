@@ -1,4 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import type { WeightEntry } from '../domain/types';
+import { listWeights } from '../services/weightService';
 import type { ExerciseSummary, RecentProgression } from '../domain/stats';
 import type { ProgramSession, StoredProgram, WorkoutSession } from '../domain/types';
 import { listWorkouts } from '../services/historyService';
@@ -32,3 +34,6 @@ export const useRecentProgress = (): RecentProgression[] | undefined => useLiveQ
 export const useLastExportAt = (): string | null | undefined => useLiveQuery(getLastExportAt, []);
 
 export const useLastCoachExportAt = (): string | null | undefined => useLiveQuery(getLastCoachExportAt, []);
+
+/** Pesées, par date croissante (V1.2). */
+export const useWeights = (): WeightEntry[] | undefined => useLiveQuery(listWeights, []);

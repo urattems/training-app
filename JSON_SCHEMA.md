@@ -1,14 +1,20 @@
-# Formats JSON — Carnet d'entraînement (v1.0)
+# Formats JSON — Carnet d'entraînement
 
-Trois formats, tous en `schemaVersion: "1.0"` :
+Trois formats :
 
-| Format | `type` | Sens | Usage |
-|---|---|---|---|
-| **PROGRAM_JSON** | `training_program` | coach → app | Programme de la semaine, à importer (fichier ou texte collé) |
-| **HISTORY_JSON** | `training_history_export` | app → app (et coach) | Sauvegarde complète et restauration |
-| **COACH_JSON** | `training_coach_export` | app → coach | Sélection de séances à envoyer au coach (V1.1). **Jamais restaurable** |
+| Format | `type` | Version courante | Sens | Usage |
+|---|---|---|---|---|
+| **PROGRAM_JSON** | `training_program` | `"1.0"` | coach → app | Programme de la semaine, à importer (fichier ou texte collé) |
+| **HISTORY_JSON** | `training_history_export` | `"1.1"` (1.0 accepté) | app → app (et coach) | Sauvegarde complète et restauration, pesées comprises |
+| **COACH_JSON** | `training_coach_export` | `"1.1"` (1.0 accepté) | app → coach | Sélection de séances (et de pesées) à envoyer au coach. **Jamais restaurable** |
 
-Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/program.schema.ts), [`src/schemas/history.schema.ts`](src/schemas/history.schema.ts), [`src/schemas/coachExport.schema.ts`](src/schemas/coachExport.schema.ts), [`src/schemas/invariants.ts`](src/schemas/invariants.ts). Exemples valides : [`examples/program-example.json`](examples/program-example.json), [`examples/history-example.json`](examples/history-example.json), [`examples/coach-export-example.json`](examples/coach-export-example.json).
+Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/program.schema.ts), [`src/schemas/history.schema.ts`](src/schemas/history.schema.ts), [`src/schemas/coachExport.schema.ts`](src/schemas/coachExport.schema.ts), [`src/schemas/invariants.ts`](src/schemas/invariants.ts). Exemples valides, vérifiés par les tests (empreintes SHA-256 figées) :
+
+- [`examples/program-example.json`](examples/program-example.json) (1.0) ;
+- [`examples/history-example.json`](examples/history-example.json) (1.0, accepté via la migration) ;
+- [`examples/history-weights-example.json`](examples/history-weights-example.json) (1.1, 10 pesées) ;
+- [`examples/coach-export-example.json`](examples/coach-export-example.json) (1.0, accepté via la migration) ;
+- [`examples/coach-export-weights-example.json`](examples/coach-export-weights-example.json) (1.1, avec pesées).
 
 ## Règles communes
 
@@ -19,9 +25,13 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 - **Identifiants** : texte non vide, **stable**. Un même `id` d'exercice d'une semaine à l'autre = le même exercice pour la progression.
 - **Champs inconnus** : ignorés. La prévisualisation d'import les signale (« Champs ignorés : … »), sans bloquer.
 - **Refus en bloc** : un fichier invalide n'est jamais importé partiellement. Le message d'erreur indique l'endroit, par exemple « la séance A contient un exercice sans identifiant ».
-- **`schemaVersion`** : obligatoire.
-  - Seule `"1.0"` existe aujourd'hui.
-  - L'app contient une chaîne de migrations (`1.0 → 1.1 → …`) qui mettra à jour les anciens fichiers quand de nouvelles versions existeront.
+- **`schemaVersion`** : obligatoire, **propre à chaque type** de document.
+  - Programme : `"1.0"` (aucune autre version).
+  - Sauvegarde et export pour le coach : `"1.1"` depuis la V1.2 (pesées). L'app n'écrit plus qu'en 1.1.
+  - **Migration 1.0 → 1.1** : un fichier 1.0 est mis à jour à la lecture, sans être modifié sur le disque.
+    - Sauvegarde : ajout de `weightEntries: []`.
+    - Export pour le coach : ajout de `weightEntries: []` et `weightWindow: null`.
+    - Les anciennes sauvegardes restent donc restaurables telles quelles.
   - Une version inconnue ou future est refusée avec un message clair : « version de schéma « 2.0 », non prise en charge ».
 
 ---
@@ -86,7 +96,7 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 
 ---
 
-## HISTORY_JSON v1.0 (`training_history_export`)
+## HISTORY_JSON v1.1 (`training_history_export`)
 
 Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.json`), relu par « Restaurer une sauvegarde ». L'export est relu et vérifié par l'app avant d'être proposé : il est toujours restaurable à l'identique.
 
@@ -94,7 +104,7 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 
 | Champ | Type | Oblig. | Exemple | Règles |
 |---|---|---|---|---|
-| `schemaVersion` | `"1.0"` | oui | | |
+| `schemaVersion` | `"1.1"` | oui | | `"1.0"` accepté (migré) |
 | `type` | `"training_history_export"` | oui | | |
 | `exportedAt` | ISO 8601 + offset | oui | `"2026-10-01T18:45:00+02:00"` | Instant de l'instantané des données |
 | `locale` | texte | oui | `"fr-FR"` | |
@@ -103,6 +113,15 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 | `preferences` | objet | facultatif | `{ "unit": "kg", "theme": "light" }` | Défaut `{ kg, light }` ; `theme` ∈ `light`, `dark`, `system` (V1 : `light`) |
 | `programs` | liste | oui | | Programmes complets (format PROGRAM_JSON), **archivés compris** |
 | `sessions` | liste | oui | | Séances (ordre chronologique) |
+| `weightEntries` | liste | oui (1.1) | | Pesées, **par date croissante** ; peut être vide |
+
+### Pesée (`weightEntries[]`, 1.1)
+
+| Champ | Type | Oblig. | Exemple | Règles |
+|---|---|---|---|---|
+| `date` | `YYYY-MM-DD` | oui | `"2026-10-01"` | Date **locale** de la mesure. **Unique** : une pesée par jour. Jamais dans le futur |
+| `weightKg` | nombre | oui | `80.6` | Fini, **> 0**, **au plus 2 décimales** (`80.65` oui, `80.655` refusé, jamais arrondi). kg uniquement |
+| `recordedAt` | ISO 8601 + offset | oui | `"2026-10-01T07:08:00+02:00"` | Instant de la dernière écriture : saisie ou correction du poids |
 
 ### Séance réalisée (`sessions[]`)
 
@@ -185,11 +204,14 @@ En plus des types ci-dessus, une sauvegarde est refusée si :
 2. `activeProgramId` n'est pas `null` et ne correspond à aucun `programId` de `programs` ;
 3. une séance référence un `programId` absent de `programs` ;
 4. des `id` de séance ou des `programId` sont en double ;
-5. une séance `completed` n'a pas de `completedAt`, ou une séance `in_progress` en a un.
+5. une séance `completed` n'a pas de `completedAt`, ou une séance `in_progress` en a un ;
+6. (1.1) deux pesées ont la même date, ou une pesée est datée après aujourd'hui (date locale de l'appareil). Le format de la date, le poids et `recordedAt` sont vérifiés par les types ci-dessus.
+
+La restauration remplace aussi les pesées, dans la même opération unique. Le résumé indique le nombre de pesées du fichier ; si le fichier n'en contient aucune alors que l'app en a, un avertissement le signale avant confirmation.
 
 ---
 
-## COACH_JSON v1.0 (`training_coach_export`)
+## COACH_JSON v1.1 (`training_coach_export`)
 
 Export **partiel** : les séances choisies par l'utilisateur (Paramètres → Exporter pour le coach), en fichier `training-coach-AAAA-MM-JJ.json` ou copiées en JSON compact pour ChatGPT. Ce n'est **pas** une sauvegarde :
 
@@ -201,7 +223,7 @@ Export **partiel** : les séances choisies par l'utilisateur (Paramètres → Ex
 
 | Champ | Type | Oblig. | Règles |
 |---|---|---|---|
-| `schemaVersion` | `"1.0"` | oui | |
+| `schemaVersion` | `"1.1"` | oui | `"1.0"` accepté (migré) |
 | `type` | `"training_coach_export"` | oui | |
 | `exportedAt` | horodatage ISO | oui | Instant où le contenu a été figé |
 | `locale` | texte | oui | `"fr-FR"` |
@@ -210,8 +232,23 @@ Export **partiel** : les séances choisies par l'utilisateur (Paramètres → Ex
 | `selection` | objet | oui | Voir ci-dessous |
 | `programs` | liste de programmes | oui | Le programme actif **et** ceux des séances jointes, objets PROGRAM_JSON complets |
 | `sessions` | liste (≥ 1) | oui | Même forme que `sessions[]` de HISTORY_JSON, **ordre chronologique croissant** |
+| `weightEntries` | liste | oui (1.1) | Pesées **compactes** `{ date, weightKg }` (sans `recordedAt`), par date croissante ; vide si désactivées |
+| `weightWindow` | objet ou `null` | oui (1.1) | Fenêtre des pesées jointes ; `null` = pesées désactivées pour cet envoi |
 
 Pas de `preferences`.
+
+### `weightWindow` (1.1)
+
+| Champ | Type | Règles |
+|---|---|---|
+| `mode` | `"auto_30d"`, `"days_90"` ou `"all"` | Fenêtre choisie (défaut `auto_30d`) |
+| `from` | `YYYY-MM-DD` | Début inclus |
+| `to` | `YYYY-MM-DD` | Fin incluse = date de l'export |
+| `count` | entier ≥ 0 | = nombre d'éléments de `weightEntries` |
+
+- **`auto_30d`** : `from` = la plus ancienne entre la date de la plus ancienne séance jointe et aujourd'hui − 30 jours. Le coach a toujours au moins 30 jours de pesées, et toute la période des séances envoyées.
+- **`days_90`** : les 90 derniers jours.
+- **`all`** : depuis la toute première pesée.
 
 ### `selection`
 
@@ -231,13 +268,14 @@ Pas de `preferences`.
 2. chaque `programId` de séance présent dans `programs` ;
 3. `id` de séance et `programId` uniques ;
 4. aucune séance `in_progress` ; une séance `completed` a un `completedAt` ;
-5. `selection.sessionCount` = nombre de séances ; dates extrêmes et ordre chronologique cohérents.
+5. `selection.sessionCount` = nombre de séances ; dates extrêmes et ordre chronologique cohérents ;
+6. (1.1) pesées : dates uniques et strictement croissantes, toutes dans `[from, to]` ; `count` = nombre de pesées ; `weightWindow` `null` ⇒ `weightEntries` vide.
 
 ### Exemple (abrégé)
 
 ```json
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "type": "training_coach_export",
   "exportedAt": "2026-10-01T18:50:00+02:00",
   "locale": "fr-FR",
@@ -251,11 +289,18 @@ Pas de `preferences`.
     "lastSessionDate": "2026-09-22"
   },
   "programs": [{ "programId": "prog-demo-w37", "…": "programme complet" }],
-  "sessions": [{ "id": "w-0002", "…": "séance complète" }, { "id": "w-0003", "…": "séance complète" }]
+  "sessions": [{ "id": "w-0002", "…": "séance complète" }, { "id": "w-0003", "…": "séance complète" }],
+  "weightEntries": [
+    { "date": "2026-09-02", "weightKg": 82.4 },
+    { "date": "2026-09-05", "weightKg": 82.1 },
+    { "…": "…" },
+    { "date": "2026-10-01", "weightKg": 80.6 }
+  ],
+  "weightWindow": { "mode": "auto_30d", "from": "2026-09-01", "to": "2026-10-01", "count": 10 }
 }
 ```
 
-Fichier complet, validé par les tests : [`examples/coach-export-example.json`](examples/coach-export-example.json).
+Fichier complet, validé par les tests et reproduit à l'identique par l'app : [`examples/coach-export-weights-example.json`](examples/coach-export-weights-example.json).
 
 ---
 
@@ -287,6 +332,13 @@ Fichier complet, validé par les tests : [`examples/coach-export-example.json`](
 - **`programs`** : le programme actif et ceux des séances jointes, pour retrouver les objectifs et les conseils. Le programme à faire évoluer est celui de `activeProgramId`.
 - Les séances se lisent exactement comme dans un export d'historique (ci-dessous).
 
+### Lire les pesées
+
+- **Une pesée par jour au plus**, en kg, à la date locale de la mesure. Les jours sans pesée n'ont simplement pas été mesurés : n'interpole pas et ne déduis rien d'un trou.
+- **`weightWindow`** dit quelle période couvrent les pesées jointes (`from` → `to`) et combien il y en a (`count`). `null` : l'utilisateur n'a pas joint ses pesées. N'en déduis rien sur son poids.
+- Le poids varie d'un jour à l'autre (eau, repas, heure de la mesure) : regarde la **tendance sur plusieurs pesées**, pas un écart isolé.
+- **L'app ne fixe aucun objectif de poids et ne donne aucun conseil.** Si tu tiens compte du poids pour le programme, c'est **ta** décision ; dis-le explicitement, sans l'imposer.
+
 ### Lire un export d'historique
 
 - **Objectif ≠ réalisé** : `targetSets` = ce qui était prévu ce jour-là (snapshot) ; `actualSets` = ce qui a réellement été fait. Ne déduis jamais le réalisé de l'objectif.
@@ -300,8 +352,9 @@ Fichier complet, validé par les tests : [`examples/coach-export-example.json`](
 ### Texte prêt à coller dans ChatGPT
 
 ````text
-Tu es mon coach de musculation. Je te joins l'export JSON de mon carnet (type "training_coach_export", schemaVersion "1.0") : une SÉLECTION de séances, pas tout l'historique.
+Tu es mon coach de musculation. Je te joins l'export JSON de mon carnet (type "training_coach_export", schemaVersion "1.1") : une SÉLECTION de séances, pas tout l'historique.
 "selection" indique combien de séances sont jointes, sur combien au total, et la période. "programs" contient mon programme actif ("activeProgramId") et ceux des séances jointes.
+"weightEntries" = mes pesées (kg, une par jour au plus) sur la période "weightWindow" (null = pesées non jointes). Regarde la tendance, pas un jour isolé ; aucun objectif de poids n'est fixé dans l'app.
 Lecture : "targetSets" = objectifs prévus ce jour-là ; "actualSets" = réalisé réel. null = non saisi. "isExtra": true = série en plus.
 Les séances "abandoned" sont réelles mais interrompues ; "comment" et "sensation" (very_easy → very_hard) donnent le ressenti. Le gainage est noté en secondes dans les répétitions.
 Analyse ma progression puis produis le programme de la semaine suivante, en JSON uniquement, au format "training_program" schemaVersion "1.0" :

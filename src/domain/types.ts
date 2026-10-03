@@ -29,6 +29,8 @@ export type {
   WorkoutStatus,
 } from '../schemas/history.schema';
 
+export type { CoachWeightEntry, WeightEntry } from '../schemas/weight.schema';
+
 /** Programme tel que stocké : contrat JSON + métadonnées internes (retirées à l'export). */
 export type StoredProgram = TrainingProgram & {
   importedAt: string;

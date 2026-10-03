@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  SCHEMA_VERSION,
+  HISTORY_SCHEMA_VERSION,
   dateTimeSchema,
   durationSecSchema,
   idSchema,
@@ -12,6 +12,7 @@ import {
   weightKgSchema,
 } from './common';
 import { programSetListSchema, trainingProgramSchema } from './program.schema';
+import { weightEntrySchema } from './weight.schema';
 
 export const SENSATIONS = ['very_easy', 'easy', 'good', 'hard', 'very_hard'] as const;
 export const WORKOUT_STATUSES = ['in_progress', 'completed', 'abandoned'] as const;
@@ -113,7 +114,7 @@ export const userPreferencesSchema = z.object({
 export const DEFAULT_PREFERENCES: z.infer<typeof userPreferencesSchema> = { unit: 'kg', theme: 'light' };
 
 export const historyExportSchema = z.object({
-  schemaVersion: z.literal(SCHEMA_VERSION),
+  schemaVersion: z.literal(HISTORY_SCHEMA_VERSION),
   type: z.literal('training_history_export'),
   exportedAt: dateTimeSchema,
   locale: z.string().min(1),
@@ -122,6 +123,8 @@ export const historyExportSchema = z.object({
   preferences: userPreferencesSchema.default(() => ({ ...DEFAULT_PREFERENCES })),
   programs: z.array(trainingProgramSchema),
   sessions: z.array(workoutSessionSchema),
+  /** 1.1 : pesées, obligatoire (peut être vide), triées par date croissante à l'export. */
+  weightEntries: z.array(weightEntrySchema),
 });
 
 export type Sensation = z.infer<typeof sensationSchema>;

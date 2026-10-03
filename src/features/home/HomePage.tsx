@@ -12,7 +12,7 @@ import { getExportReminder } from '../../domain/exportReminder';
 import { formatSignedKg } from '../../domain/stats';
 import type { WorkoutSession } from '../../domain/types';
 import { countValidatedExercises } from '../../domain/workout';
-import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession, useRecentProgress, useWorkouts } from '../../hooks/useData';
+import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { historyDetailPath } from '../history/paths';
@@ -137,8 +137,10 @@ function LastWorkoutCard({ workout }: { workout: WorkoutSession }) {
  */
 function ExportReminderBanner({ workouts }: { workouts: WorkoutSession[] }) {
   const lastExportAt = useLastExportAt();
-  if (lastExportAt === undefined) return null;
-  const reminder = getExportReminder(workouts, lastExportAt, new Date());
+  const weights = useWeights();
+  if (lastExportAt === undefined || weights === undefined) return null;
+  // Une pesée enregistrée après le dernier export est aussi une donnée non sauvegardée (V1.2).
+  const reminder = getExportReminder(workouts, lastExportAt, new Date(), weights);
   if (!reminder) return null;
   return (
     <div className={styles.reminder} role="note">

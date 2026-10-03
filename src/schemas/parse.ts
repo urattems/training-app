@@ -1,17 +1,25 @@
 import { strings } from '../i18n/strings';
+import { toLocalDateString } from '../utils/dates';
 import { err, ok, type Result } from '../utils/result';
-import { SCHEMA_VERSION } from './common';
+import { COACH_SCHEMA_VERSION, HISTORY_SCHEMA_VERSION, SCHEMA_VERSION } from './common';
 import { importFailure, zodFailure, type DocumentKind, type ImportFailure } from './errors';
 import { historyExportSchema, type HistoryExport } from './history.schema';
 import { coachExportSchema, COACH_EXPORT_TYPE, type CoachExport } from './coachExport.schema';
 import { checkCoachExportInvariants, checkHistoryInvariants } from './invariants';
-import { migrateToVersion, type JsonObject } from './migrations';
+import { COACH_MIGRATIONS, HISTORY_MIGRATIONS, migrateToVersion, SCHEMA_MIGRATIONS, type JsonObject, type SchemaMigration } from './migrations';
 import { trainingProgramSchema, type TrainingProgram } from './program.schema';
 
 const EXPECTED_TYPE: Record<DocumentKind, string> = {
   program: 'training_program',
   history: 'training_history_export',
   coach: COACH_EXPORT_TYPE,
+};
+
+/** Chaîne de migrations et version courante de chaque type de document. */
+const VERSIONING: Record<DocumentKind, { migrations: readonly SchemaMigration[]; target: string }> = {
+  program: { migrations: SCHEMA_MIGRATIONS, target: SCHEMA_VERSION },
+  history: { migrations: HISTORY_MIGRATIONS, target: HISTORY_SCHEMA_VERSION },
+  coach: { migrations: COACH_MIGRATIONS, target: COACH_SCHEMA_VERSION },
 };
 
 const wrongTypeReason = (doc: DocumentKind, type: string): string => {
@@ -45,16 +53,24 @@ function readDocument(text: string, doc: DocumentKind): Result<{ raw: JsonObject
     return err(importFailure('wrong_type', doc, wrongTypeReason(doc, type)));
   }
 
-  const migration = migrateToVersion(raw);
+  const { migrations, target } = VERSIONING[doc];
+  const migration = migrateToVersion(raw, migrations, target);
   if (!migration.ok) {
     return err(
       migration.reason === 'missing_version'
         ? importFailure('invalid_schema', doc, strings.import.missingVersion)
-        : importFailure('unsupported_version', doc, strings.import.unsupportedVersion(migration.version, SCHEMA_VERSION)),
+        : importFailure('unsupported_version', doc, strings.import.unsupportedVersion(migration.version, target)),
     );
   }
   return ok({ raw: migration.document });
 }
+
+const invariantFailure = (doc: DocumentKind, violations: string[]): ImportFailure | null => {
+  const first = violations[0];
+  if (first === undefined) return null;
+  const more = violations.length > 1 ? ` ${strings.import.moreErrors(violations.length - 1)}` : '';
+  return importFailure('invariant', doc, first + more, violations);
+};
 
 /** Valide un fichier programme (SPEC §10.1). */
 export function parseProgramJson(text: string): Result<TrainingProgram, ImportFailure> {
@@ -65,20 +81,17 @@ export function parseProgramJson(text: string): Result<TrainingProgram, ImportFa
   return ok(result.data);
 }
 
-/** Valide un fichier de sauvegarde/historique, invariants §10.5 compris (SPEC §10.3). */
-export function parseHistoryJson(text: string): Result<HistoryExport, ImportFailure> {
+/**
+ * Valide un fichier de sauvegarde (1.0 migré ou 1.1), invariants §10.5 compris (SPEC §10.3).
+ * `today` (date locale de l'appareil) sert à refuser une pesée datée dans le futur.
+ */
+export function parseHistoryJson(text: string, today: string = toLocalDateString(new Date())): Result<HistoryExport, ImportFailure> {
   const read = readDocument(text, 'history');
   if (!read.ok) return read;
   const result = historyExportSchema.safeParse(read.value.raw);
   if (!result.success) return err(zodFailure(result.error, read.value.raw, 'history'));
-
-  const violations = checkHistoryInvariants(result.data);
-  const first = violations[0];
-  if (first !== undefined) {
-    const more = violations.length > 1 ? ` ${strings.import.moreErrors(violations.length - 1)}` : '';
-    return err(importFailure('invariant', 'history', first + more, violations));
-  }
-  return ok(result.data);
+  const failure = invariantFailure('history', checkHistoryInvariants(result.data, today));
+  return failure ? err(failure) : ok(result.data);
 }
 
 /** Relit un export pour le coach, invariants dédiés compris (autotest avant remise, SPEC §10.6). */
@@ -87,12 +100,19 @@ export function parseCoachExportJson(text: string): Result<CoachExport, ImportFa
   if (!read.ok) return read;
   const result = coachExportSchema.safeParse(read.value.raw);
   if (!result.success) return err(zodFailure(result.error, read.value.raw, 'coach'));
+  const failure = invariantFailure('coach', checkCoachExportInvariants(result.data));
+  return failure ? err(failure) : ok(result.data);
+}
 
-  const violations = checkCoachExportInvariants(result.data);
-  const first = violations[0];
-  if (first !== undefined) {
-    const more = violations.length > 1 ? ` ${strings.import.moreErrors(violations.length - 1)}` : '';
-    return err(importFailure('invariant', 'coach', first + more, violations));
+/** Version de schéma telle qu'écrite dans le fichier (avant migration), pour le résumé. */
+export function sourceSchemaVersion(text: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === 'object' && parsed !== null && 'schemaVersion' in parsed && typeof parsed.schemaVersion === 'string') {
+      return parsed.schemaVersion;
+    }
+  } catch {
+    return null;
   }
-  return ok(result.data);
+  return null;
 }

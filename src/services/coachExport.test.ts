@@ -81,7 +81,7 @@ describe('Contenu exact du fichier training_coach_export', () => {
     const prepared = await prepareCoachExport({ mode: 'manual', selectedIds: ['w-0004', 'w-0001'] }, NOW);
     const data = prepared.data;
     expect(data.type).toBe('training_coach_export');
-    expect(data.schemaVersion).toBe('1.0');
+    expect(data.schemaVersion).toBe('1.1');
     expect(data.exportedAt).toBe('2026-10-20T12:00:00+02:00');
     expect(data.activeProgramId).toBe('prog-2026-w40');
     expect('preferences' in data).toBe(false);
@@ -122,7 +122,7 @@ describe('Contenu exact du fichier training_coach_export', () => {
     const prepared = await prepareCoachExport({ mode: 'last_n', selectedIds: ['w-0004', 'w-0003', 'w-0002'] }, NOW);
     expect(prepared.json).toContain('\n  "schemaVersion"');
     expect(prepared.compactJson).not.toContain('\n');
-    expect(prepared.compactJson.startsWith('{"schemaVersion":"1.0","type":"training_coach_export"')).toBe(true);
+    expect(prepared.compactJson.startsWith('{"schemaVersion":"1.1","type":"training_coach_export"')).toBe(true);
     expect(JSON.parse(prepared.compactJson)).toEqual(JSON.parse(prepared.json));
     expect(await prepared.file.text()).toBe(prepared.json);
   });
@@ -296,9 +296,13 @@ describe('examples/coach-export-example.json', () => {
       workouts: await db.workouts.toArray(),
       activeProgramId: 'prog-demo-w37',
       preferences: { unit: 'kg', theme: 'light' },
+      weights: [],
     };
-    const rebuilt = toCoachExport(stored, { mode: 'last_n', selectedIds: ['w-0003', 'w-0002'] }, '2026-10-01T18:50:00+02:00');
-    expect(rebuilt).toEqual(JSON.parse(readExample()));
+    // Fichier 1.0 sans pesées : reconstruit pesées désactivées, comparé à la fixture MIGRÉE (1.1).
+    const rebuilt = toCoachExport(stored, { mode: 'last_n', selectedIds: ['w-0003', 'w-0002'], weights: null }, '2026-10-01T18:50:00+02:00');
+    const migrated = parseCoachExportJson(readExample());
+    if (!migrated.ok) throw new Error(migrated.error.message);
+    expect(rebuilt).toEqual(migrated.value);
   });
 
   it('les fixtures contractuelles restent intactes', () => {

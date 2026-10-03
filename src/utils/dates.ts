@@ -20,6 +20,12 @@ export function toLocalDateString(date: Date): string {
 
 const ISO_WALL_CLOCK = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/;
 
+/** Date métier décalée de `days` jours calendaires (`YYYY-MM-DD`, sans effet de fuseau). */
+export function addDaysToLocalDate(localDate: string, days: number): string {
+  const [y, m, d] = localDate.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
 /** Nombre de jours calendaires de `fromDate` à `toDate` (`YYYY-MM-DD`). */
 export function daysBetween(fromDate: string, toDate: string): number {
   const utc = (d: string) => {

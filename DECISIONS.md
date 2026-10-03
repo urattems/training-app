@@ -870,3 +870,125 @@ Build de production servi en localhost (contexte sécurisé), Edge headless, 390
     - « depuis le dernier envoi » sans nouveauté : boutons désactivés ;
     - refus par la restauration et par l'import de programme, base inchangée ;
     - écran rechargé hors ligne, copie fonctionnelle.
+
+---
+
+## V1.2a — Pesées : données, migration, sauvegarde, export coach (sans interface)
+
+### Amendement de SPEC.md (autorisé, par ajout uniquement)
+- §2 : sous-section « Ajouts V1.2 — Suivi du poids ».
+- §10.6 : bloc « Complément V1.2 — pesées dans l'export pour le coach ».
+- §11.2 : bloc « Complément V1.2 — `training_history_export` en 1.1 ».
+- §13 : lignes V1.2a et V1.2b.
+- Le §7.1 et le §7.11 (onglet Poids) seront ajoutés avec l'interface, en V1.2b.
+- `git diff` : 40 ajouts, 0 suppression.
+
+### Modèle et règles (`src/domain/weight.ts`, `src/schemas/weight.schema.ts`)
+- **Pesée** : `{ date, weightKg, recordedAt }`.
+  - `date` : date locale de la mesure, **clé unique**, donc une pesée par jour.
+  - `recordedAt` : instant de la dernière écriture (saisie ou correction), en ISO avec offset local.
+- **Poids** : fini, > 0, **au plus 2 décimales**. Au-delà, refus avec message (« Au plus 2 décimales (ex. 78,45). »), jamais d'arrondi.
+  - La comparaison tolère l'erreur de représentation binaire (80.15 × 100 = 8014,999…) sans accepter une vraie 3ᵉ décimale.
+  - Saisie via `parseDecimalInput` : virgule ou point.
+- **Date** : réelle (`2026-02-30` refusé) et jamais après la date locale de l'appareil.
+- **Avertissements doux** (`weightSanity`) : écart de plus de 5 kg avec la pesée précédente, valeur < 20 ou > 300 kg. Jamais bloquants ; l'interface demandera « C'est bien ça ? ».
+- **Historique et stats** : mêmes périodes que la progression (`filterByPeriod`).
+  - `weightStats` :
+    - dernier poids : la dernière pesée de **tout** l'historique, avec son écart ;
+    - min, max et variation (dernière − première) : **sur la période** ;
+    - variation `null` sous 2 pesées dans la période ;
+    - à égalité, le min ou le max retenu est la pesée la plus récente.
+  - L'écart d'une pesée se calcule toujours avec la précédente de **tout** l'historique (`weightDelta`), même hors de la période affichée.
+  - Les écarts sont arrondis au centième pour l'affichage seulement.
+
+### Base IndexedDB : version 2 (première vraie migration)
+- `DB_VERSION = 2`.
+  - La version 1 reste déclarée telle quelle (`STORES_V1`, figée).
+  - La version 2 ajoute **seulement** `weights: '&date'`, sans `upgrade()` : aucune donnée existante n'est lue ni réécrite.
+- **Test** (`src/db/migration.test.ts`) :
+  - le code V1 est recopié à la main : on crée une vraie base v1 remplie avec la fixture, une séance saisie dans l'app (série en plus, décimales, commentaire avec guillemets), les 4 réglages et une copie interne 1.0 ;
+  - la base rouverte par le code v2 : toutes les tables sont identiques, les index des séances inchangés, `weights` vide ;
+  - 4 réouvertures successives ne changent rien, et une pesée ajoutée entre-temps est conservée ;
+  - une base neuve est directement en v2.
+
+### Formats 1.1 et migrations de schéma
+- **Une version par type de document** (`common.ts`) :
+  - programme : `SCHEMA_VERSION = "1.0"`, inchangé ;
+  - sauvegarde : `HISTORY_SCHEMA_VERSION = "1.1"` ;
+  - coach : `COACH_SCHEMA_VERSION = "1.1"`.
+  - Le format programme ne change pas : un programme 1.1 n'existe pas et serait refusé.
+- **Chaînes de migrations par type** (`migrations.ts`) :
+  - `SCHEMA_MIGRATIONS` désigne la chaîne du **programme**, toujours vide. Le test existant qui l'affirme reste donc vrai et n'est pas modifié.
+  - `HISTORY_MIGRATIONS` : 1.0 → 1.1, ajoute `weightEntries: []`.
+  - `COACH_MIGRATIONS` : 1.0 → 1.1, ajoute `weightEntries: []` et `weightWindow: null`.
+  - `readDocument` choisit la chaîne et la version cible selon le type ; le message « version non prise en charge » cite la version du type concerné.
+- **Sauvegarde** : `weightEntries` obligatoire en 1.1, export trié par date croissante.
+- **Invariants ajoutés** (`checkWeightEntries`) : dates uniques, aucune date future. Le format, le poids et `recordedAt` sont vérifiés par Zod. La date du jour est un paramètre, par défaut celle de l'appareil.
+- **Résumé de restauration** :
+  - `schemaVersion` affiche la version **écrite dans le fichier** (avant migration), donc « 1.0 » pour une ancienne sauvegarde : c'est l'information utile ;
+  - `weightCount` est ajouté ;
+  - `weightsLostByRestore` donne le nombre de pesées actuelles qui seraient remplacées par un fichier sans pesée (affichage en V1.2b).
+
+### Restauration
+- Les pesées sont vidées puis réécrites **dans la transaction unique**.
+- La copie interne (`preRestoreBackup`) et l'export de sécurité, lus par `toHistoryExport`, contiennent les pesées.
+- Testé : un échec simulé sur l'écriture des pesées ne change rien.
+- Une copie interne écrite avant la V1.2 reste en 1.0 (documenté sur le type) ; elle n'est jamais relue par l'app.
+
+### Export pour le coach 1.1
+- `weightEntries` contient seulement `{ date, weightKg }`, par date croissante.
+- `weightWindow` vaut `{ mode, from, to, count }`, ou `null` si les pesées sont désactivées.
+- `to` = la date locale de l'export, lue dans `exportedAt`, qui est un horodatage local.
+- **Fenêtres** (`weightWindowBounds`, domaine pur) :
+  - `auto_30d` : le plus ancien entre la première séance choisie et aujourd'hui − 30 jours ;
+  - `days_90` : aujourd'hui − 90 jours ;
+  - `all` : la première pesée, ou aujourd'hui s'il n'y en a aucune.
+- Sans pesée en base, la fenêtre est annoncée avec `count: 0`. Le choix « n'ajoute rien » de la V1.2b sera tranché à l'interface.
+- Dans le service, le champ `weights` de la requête est facultatif : absent, il vaut `auto_30d` (le défaut demandé), et l'écran V1.1b actuel l'utilise déjà.
+- **Invariants ajoutés** :
+  - dates strictement croissantes, donc uniques ;
+  - toutes dans `[from, to]` ;
+  - `count` exact ;
+  - fenêtre `null` ⇒ aucune pesée ;
+  - `from` ≤ `to`.
+- La restauration et l'import de programme refusent toujours ce type, en 1.0 et en 1.1 : testé sur les deux exemples.
+
+### Rappel d'export
+- `getExportReminder(workouts, lastExportAt, now, weights = [])` : une pesée dont `recordedAt` est postérieur au dernier export compte comme donnée non sauvegardée, ce qui inclut une correction ultérieure.
+- Règles inchangées : jamais pendant une séance en cours, et un export pour le coach ne touche pas `lastExportAt`.
+- La forme du résultat ne change pas, donc les tests existants restent valides.
+- L'accueil transmet les pesées (`useWeights`) : ce n'est pas un nouvel écran, seulement une donnée de plus pour le bandeau existant.
+
+### Service (`src/services/weightService.ts`)
+- `listWeights` (croissant), `getWeight`, `addWeight`, `updateWeight`, `deleteWeight`.
+- `addWeight` renvoie `exists`, **sans écrire**, si la date existe déjà, sauf `replace: true` explicite. La lecture et l'écriture sont dans la même transaction.
+- `updateWeight` change le poids seulement ; la date ne change jamais. `recordedAt` prend l'instant de la correction.
+- Chaque écriture est revalidée : date, poids et schéma Zod du contrat.
+
+### Fixtures V1.2 (nouvelles ; les 3 fixtures existantes sont intactes)
+- `examples/history-weights-example.json` : fixture d'historique en 1.1 avec 10 pesées (2 sept. → 1er oct., dont 2 valeurs à 2 décimales).
+- `examples/coach-export-weights-example.json` : même sélection que l'exemple V1.1, fenêtre `auto_30d` du 1er sept. au 1er oct., 10 pesées. Un test vérifie que l'app le **reproduit à l'identique** depuis la fixture d'historique.
+- Les empreintes SHA-256 des trois exemples non contractuels (`coach-export-example.json` compris) sont figées dans `weights.test.ts`.
+
+### Tests existants adaptés (conséquence directe du passage en 1.1)
+1. `services/coachExport.test.ts`, « séances choisies… » : `schemaVersion` attendu `'1.0'` → `'1.1'` (fichier produit par l'app).
+2. `services/coachExport.test.ts`, « fichier indenté, copie compacte… » : préfixe `{"schemaVersion":"1.0",…` → `"1.1"`.
+3. `services/coachExport.test.ts`, « se reconstruit à l'identique… » (**adaptation autorisée**) : comparé à la fixture **passée par la migration**, avec les pesées désactivées puisque ce fichier 1.0 n'en a pas, et `weights: []` dans les données construites à la main.
+4. `features/settings/CoachExport.test.tsx`, « Copier pour ChatGPT » : préfixe `"1.0"` → `"1.1"`.
+5. `services/services.test.ts`, « aller-retour depuis des données saisies dans l'app » : version d'un export produit par l'app, `'1.0'` → `'1.1'`.
+- Les tests 1, 2 et 4 sont de la V1.1b. Le test 5 n'était pas dans la liste autorisée, mais il affirme la version d'un fichier **produit par l'app**, que l'amendement fait passer en 1.1.
+- **Le test d'aller-retour sur `history-example.json` n'a PAS eu besoin d'être modifié** : il compare déjà à la fixture analysée, donc migrée.
+- Le test du résumé de restauration (« Version du schéma : 1.0 ») reste valide sans changement, puisque le résumé affiche la version du fichier.
+
+### Tests ajoutés
+- `domain/weight.test.ts` (21) : 10 cas de validation de saisie, refus des 3 décimales, dates, avertissements doux, 5 périodes, stats, écart sur tout l'historique, états vides, rappel d'export, avertissement de restauration.
+- `db/migration.test.ts` (3).
+- `services/weights.test.ts` (40) :
+  - service : doublon sans écriture, remplacement explicite, date passée, date future, valeurs invalides, correction, suppression ;
+  - **fuseaux horaires** : même instant physique sous UTC, Europe/Paris, America/Los_Angeles et Pacific/Kiritimati (UTC+14), avec date locale et offset de `recordedAt` exacts, et le lendemain local refusé ;
+  - sauvegarde 1.1 et aller-retour avec pesées ;
+  - fichiers 1.0 acceptés ;
+  - 9 fichiers invalides refusés sans écriture ;
+  - restauration atomique et copie interne ;
+  - export coach : 4 fenêtres, aucune pesée, 7 invariants, 1.0 migré, refus des deux versions par la restauration et l'import ;
+  - fixtures et empreintes.

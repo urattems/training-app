@@ -2,7 +2,10 @@
  * Export pour le coach (SPEC §10.6) : quelles séances peuvent partir, et raccourcis de sélection.
  * Règles pures, sans accès à la base.
  */
-import type { WorkoutSession } from './types';
+import type { WeightWindowMode } from '../schemas/coachExport.schema';
+import { addDaysToLocalDate } from '../utils/dates';
+import type { WeightEntry, WorkoutSession } from './types';
+import { sortWeights } from './weight';
 import { isWorkoutEmpty } from './workout';
 
 /** Terminée ou abandonnée, avec au moins une donnée saisie. Jamais en cours, jamais vide. */
@@ -46,4 +49,34 @@ export function summarizeSelection(exportable: readonly WorkoutSession[], select
   const chosen = exportable.filter((w) => selected.has(w.id));
   // `exportable` est trié du plus récent au plus ancien.
   return { count: chosen.length, firstDate: chosen.at(-1)?.date ?? null, lastDate: chosen[0]?.date ?? null };
+}
+
+// --- Pesées jointes (1.1) -----------------------------------------------------------
+
+/** Fenêtre par défaut : 30 jours (ou plus, si les séances choisies sont plus anciennes). */
+export const DEFAULT_WEIGHT_WINDOW: WeightWindowMode = 'auto_30d';
+
+/**
+ * Bornes `[from, to]` (incluses) des pesées jointes ; `to` = aujourd'hui.
+ * - `auto_30d` : la plus ancienne entre la première séance choisie et aujourd'hui − 30 jours ;
+ * - `days_90` : aujourd'hui − 90 jours ;
+ * - `all` : depuis la toute première pesée (aujourd'hui s'il n'y en a aucune).
+ */
+export function weightWindowBounds(
+  mode: WeightWindowMode,
+  oldestSessionDate: string,
+  today: string,
+  weights: readonly Pick<WeightEntry, 'date'>[],
+): { from: string; to: string } {
+  if (mode === 'days_90') return { from: addDaysToLocalDate(today, -90), to: today };
+  if (mode === 'all') return { from: sortWeights(weights)[0]?.date ?? today, to: today };
+  const thirtyDays = addDaysToLocalDate(today, -30);
+  return { from: oldestSessionDate < thirtyDays ? oldestSessionDate : thirtyDays, to: today };
+}
+
+/** Pesées compactes (date, poids) de la fenêtre, par date croissante. */
+export function weightsInWindow(weights: readonly WeightEntry[], from: string, to: string): { date: string; weightKg: number }[] {
+  return sortWeights(weights)
+    .filter((w) => w.date >= from && w.date <= to)
+    .map((w) => ({ date: w.date, weightKg: w.weightKg }));
 }

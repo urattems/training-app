@@ -1,7 +1,7 @@
 import { db } from '../db/database';
-import { listCoachExportable } from '../domain/coachExport';
-import { SCHEMA_VERSION } from '../schemas/common';
-import { COACH_EXPORT_TYPE, type CoachExport, type CoachSelectionMode } from '../schemas/coachExport.schema';
+import { DEFAULT_WEIGHT_WINDOW, listCoachExportable, weightsInWindow, weightWindowBounds } from '../domain/coachExport';
+import { COACH_SCHEMA_VERSION } from '../schemas/common';
+import { COACH_EXPORT_TYPE, type CoachExport, type CoachSelectionMode, type WeightWindow, type WeightWindowMode } from '../schemas/coachExport.schema';
 import { parseCoachExportJson } from '../schemas/parse';
 import { canonicalJson } from '../utils/canonicalJson';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
@@ -13,6 +13,8 @@ import { setLastCoachExportAt } from './settingsService';
 export interface CoachSelectionRequest {
   selectedIds: readonly string[];
   mode: CoachSelectionMode;
+  /** Fenêtre des pesées jointes ; `null` = pesées désactivées ; absent = fenêtre par défaut (`auto_30d`). */
+  weights?: WeightWindowMode | null;
 }
 
 /**
@@ -30,8 +32,20 @@ export function toCoachExport(data: StoredData, request: CoachSelectionRequest, 
 
   const needed = new Set(sessions.map((s) => s.programId));
   if (data.activeProgramId !== null) needed.add(data.activeProgramId);
+
+  // Pesées : `exportedAt` est un horodatage local, ses 10 premiers caractères = date locale du jour.
+  const today = exportedAt.slice(0, 10);
+  const windowMode = request.weights === undefined ? DEFAULT_WEIGHT_WINDOW : request.weights;
+  let weightWindow: WeightWindow | null = null;
+  let weightEntries: CoachExport['weightEntries'] = [];
+  if (windowMode !== null) {
+    const { from, to } = weightWindowBounds(windowMode, first.date, today, data.weights);
+    weightEntries = weightsInWindow(data.weights, from, to);
+    weightWindow = { mode: windowMode, from, to, count: weightEntries.length };
+  }
+
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: COACH_SCHEMA_VERSION,
     type: COACH_EXPORT_TYPE,
     exportedAt,
     locale: 'fr-FR',
@@ -49,6 +63,8 @@ export function toCoachExport(data: StoredData, request: CoachSelectionRequest, 
       .sort((a, b) => Date.parse(a.importedAt) - Date.parse(b.importedAt))
       .map(toTrainingProgram),
     sessions,
+    weightEntries,
+    weightWindow,
   };
 }
 
@@ -80,7 +96,7 @@ export interface PreparedCoachExport {
  * des deux textes, `File`) : au toucher, `share` ou `writeText` part sans attente.
  */
 export async function prepareCoachExport(request: CoachSelectionRequest, now: Date = new Date()): Promise<PreparedCoachExport> {
-  const stored = await db.transaction('r', db.programs, db.workouts, db.settings, readStoredData);
+  const stored = await db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
   const data = toCoachExport(stored, request, toLocalIsoString(now));
   const json = serializeCoachExport(data);
   const compactJson = compactCoachExport(data);

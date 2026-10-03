@@ -39,6 +39,14 @@ export const strings = {
     coachTotalTooSmall: (total: number) => `le nombre de séances exportables (${total}) est inférieur au nombre de séances du fichier.`,
     coachNotChronological: 'les séances ne sont pas dans l’ordre chronologique.',
     coachDatesMismatch: 'les dates de la sélection ne correspondent pas à la première et à la dernière séance.',
+    duplicateWeightDate: (date: string) => `deux pesées portent la même date (${date}) ; une seule pesée par jour est autorisée.`,
+    futureWeightDate: (date: string) => `la pesée du ${date} est datée dans le futur.`,
+    coachWeightsWithoutWindow: 'des pesées sont jointes alors que les pesées sont désactivées (weightWindow vaut null).',
+    coachWeightWindowReversed: 'la fenêtre des pesées se termine avant de commencer.',
+    coachWeightCountMismatch: (declared: number, actual: number) =>
+      `la fenêtre des pesées annonce ${declared} pesée(s) mais le fichier en contient ${actual}.`,
+    coachWeightsNotIncreasing: 'les pesées ne sont pas dans l’ordre croissant des dates (ou une date apparaît deux fois).',
+    coachWeightOutsideWindow: (date: string) => `la pesée du ${date} est hors de la fenêtre annoncée.`,
   },
   workout: {
     alreadyInProgress: 'Une séance est déjà en cours : reprends-la ou abandonne-la avant d’en commencer une autre.',
@@ -323,6 +331,17 @@ export const strings = {
     errorTitle: 'Export impossible',
     error: 'L’export n’a pas pu être effectué. Tes données n’ont pas été modifiées.',
     integrityFailed: 'Export interrompu : le fichier généré ne passe pas la vérification d’intégrité.',
+  },
+  weight: {
+    invalidDate: 'Date invalide : choisis une date réelle.',
+    futureDate: 'Une pesée ne peut pas être datée dans le futur.',
+    notFound: 'Cette pesée n’existe plus.',
+    inputErrors: {
+      empty: 'Indique un poids.',
+      invalid: 'Valeur invalide : chiffres uniquement (ex. 78,4).',
+      not_positive: 'Le poids doit être supérieur à 0.',
+      too_precise: 'Au plus 2 décimales (ex. 78,45).',
+    },
   },
   coachExport: {
     title: 'Export pour le coach',

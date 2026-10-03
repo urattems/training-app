@@ -216,7 +216,7 @@ describe('Export → restauration (aller-retour sans perte)', () => {
     const exported = await buildHistoryExport(NOW);
     const preview = previewRestore(serializeExport(exported));
     if (!preview.ok) throw new Error(preview.error.message);
-    expect(preview.value).toMatchObject({ programCount: 2, sessionCount: 2, schemaVersion: '1.0' });
+    expect(preview.value).toMatchObject({ programCount: 2, sessionCount: 2, schemaVersion: '1.1' });
 
     await resetDatabase();
     await restoreBackup(preview.value.data, new Date(2026, 9, 9));

@@ -1,9 +1,28 @@
 import { Dexie, type EntityTable, type Table } from 'dexie';
 import { DB_NAME } from '../config';
-import type { HistoryExport, StoredProgram, UserPreferences, WorkoutSession } from '../domain/types';
+import type { HistoryExport, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
 
-/** Version du schéma IndexedDB. Chaque évolution ajoute un `this.version(n)` avec `upgrade()`. */
-export const DB_VERSION = 1;
+/**
+ * Version du schéma IndexedDB. Chaque évolution ajoute un `this.version(n)` ; les versions
+ * précédentes restent déclarées pour que Dexie sache mettre à jour une base ancienne.
+ * - 1 (V1) : programmes, séances, réglages, métadonnées ;
+ * - 2 (V1.2) : + `weights` (pesées). Aucun store existant n'est modifié, aucune donnée réécrite.
+ */
+export const DB_VERSION = 2;
+
+/** Stores de la version 1 : figés, ne jamais les modifier (base des mises à jour). */
+export const STORES_V1 = {
+  // Pas d'index sur `archivedAt` : `null` n'est pas indexable dans IndexedDB.
+  programs: '&programId',
+  workouts: '&id, status, date, programId',
+  settings: '&key',
+  metadata: '&key',
+} as const;
+
+/** Version 2 : ajoute SEULEMENT les pesées, clé primaire = date locale (une pesée par jour). */
+export const STORES_V2_ADDED = {
+  weights: '&date',
+} as const;
 
 /** Réglages persistés. Le programme actif n'est défini qu'ici (DECISIONS.md). */
 export type SettingRecord =
@@ -15,7 +34,10 @@ export type SettingRecord =
 
 export type SettingKey = SettingRecord['key'];
 
-/** Copie interne des données remplacées lors d'une restauration. */
+/**
+ * Copie interne des données remplacées lors d'une restauration.
+ * Écrite en 1.1 depuis la V1.2 (pesées comprises) ; une copie écrite avant reste en 1.0.
+ */
 export interface PreRestoreBackupRecord {
   key: 'preRestoreBackup';
   savedAt: string;
@@ -29,16 +51,13 @@ export class TrainingDatabase extends Dexie {
   workouts!: EntityTable<WorkoutSession, 'id'>;
   settings!: Table<SettingRecord, SettingKey>;
   metadata!: Table<MetadataRecord, MetadataRecord['key']>;
+  weights!: EntityTable<WeightEntry, 'date'>;
 
   constructor(name: string = DB_NAME) {
     super(name);
-    // Pas d'index sur `archivedAt` : `null` n'est pas indexable dans IndexedDB.
-    this.version(DB_VERSION).stores({
-      programs: '&programId',
-      workouts: '&id, status, date, programId',
-      settings: '&key',
-      metadata: '&key',
-    });
+    this.version(1).stores(STORES_V1);
+    // Mise à jour 1 → 2 : création du store `weights` (vide), sans `upgrade()` : rien à réécrire.
+    this.version(DB_VERSION).stores(STORES_V2_ADDED);
   }
 }
 

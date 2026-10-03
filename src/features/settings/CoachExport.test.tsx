@@ -170,7 +170,7 @@ describe('Écran « Export pour le coach »', () => {
 
     expect(await screen.findByText('Copié')).toBeInTheDocument();
     const copied = writeText.mock.calls[0]?.[0] ?? '';
-    expect(copied.startsWith('{"schemaVersion":"1.0","type":"training_coach_export"')).toBe(true);
+    expect(copied.startsWith('{"schemaVersion":"1.1","type":"training_coach_export"')).toBe(true);
     expect(copied).not.toContain('\n');
     expect(parseCoachExportJson(copied).ok).toBe(true);
     expect(await getLastCoachExportAt()).not.toBeNull();
