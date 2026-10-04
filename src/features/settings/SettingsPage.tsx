@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Send } from 'lucide-react';
+import { CloudUpload, Send } from 'lucide-react';
 import { ButtonLink } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
 import { Page } from '../../components/Page';
@@ -35,6 +35,12 @@ export function SettingsPage() {
           <p className={styles.hint}>{strings.coachExport.entryHint}</p>
           <ButtonLink to="/settings/coach" variant="secondary" fullWidth icon={<Send aria-hidden />}>
             {strings.coachExport.entry}
+          </ButtonLink>
+        </Card>
+        <Card className={styles.group}>
+          <p className={styles.hint}>{strings.drive.entryHint}</p>
+          <ButtonLink to="/settings/drive" variant="secondary" fullWidth icon={<CloudUpload aria-hidden />}>
+            {strings.drive.entry}
           </ButtonLink>
         </Card>
         <Card className={styles.group}>

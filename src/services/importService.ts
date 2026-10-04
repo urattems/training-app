@@ -6,7 +6,7 @@ import { parseHistoryJson, sourceSchemaVersion } from '../schemas/parse';
 import { toLocalIsoString } from '../utils/dates';
 import { err, ok, type Result } from '../utils/result';
 import { readStoredData, toHistoryExport } from './exportService';
-import { getLastCoachExportAt, getLastExportAt } from './settingsService';
+import { DEVICE_SETTING_KEYS } from '../db/database';
 
 /** Lecture d'un fichier choisi par l'utilisateur. */
 export async function readFileText(file: Blob, doc: DocumentKind): Promise<Result<string, ImportFailure>> {
@@ -56,8 +56,9 @@ export async function restoreBackup(data: HistoryExport, now: Date = new Date())
   const stamp = toLocalIsoString(now);
   await db.transaction('rw', [db.programs, db.workouts, db.settings, db.metadata, db.weights], async () => {
     const current = toHistoryExport(await readStoredData(), stamp);
-    const lastExportAt = await getLastExportAt();
-    const lastCoachExportAt = await getLastCoachExportAt();
+    // Réglages de l'appareil (dates d'export, archive Drive : URL, secret, file, noms gelés) :
+    // relus avant le vidage puis réécrits tels quels. Ils ne viennent jamais du fichier.
+    const deviceSettings = (await db.settings.bulkGet([...DEVICE_SETTING_KEYS])).filter((r) => r !== undefined);
 
     await Promise.all([db.programs.clear(), db.workouts.clear(), db.settings.clear(), db.metadata.clear(), db.weights.clear()]);
     await db.metadata.put({ key: 'preRestoreBackup', savedAt: stamp, data: current });
@@ -73,9 +74,9 @@ export async function restoreBackup(data: HistoryExport, now: Date = new Date())
     await db.settings.bulkPut([
       { key: 'activeProgramId', value: data.activeProgramId },
       { key: 'preferences', value: data.preferences },
-      { key: 'lastExportAt', value: lastExportAt },
     ]);
-    // Historique d'envoi au coach propre à l'appareil : conservé tel quel.
-    if (lastCoachExportAt !== null) await db.settings.put({ key: 'lastCoachExportAt', value: lastCoachExportAt });
+    await db.settings.bulkPut(deviceSettings);
+    // Compatibilité : `lastExportAt` a toujours été présent après une restauration.
+    if (!deviceSettings.some((r) => r.key === 'lastExportAt')) await db.settings.put({ key: 'lastExportAt', value: null });
   });
 }

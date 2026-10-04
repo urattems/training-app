@@ -1,3 +1,4 @@
+import { notifySessionDeleted } from './driveOutbox';
 import { db } from '../db/database';
 import type { WorkoutSession } from '../domain/types';
 
@@ -10,4 +11,6 @@ export async function listWorkouts(): Promise<WorkoutSession[]> {
 /** Suppression d'une séance. L'UI DOIT demander une confirmation explicite avant l'appel. */
 export async function deleteWorkout(id: string): Promise<void> {
   await db.workouts.delete(id);
+  // Archive Drive (V1.3) : le fichier n'est jamais supprimé, la suppression est notée (`mark_deleted`).
+  void notifySessionDeleted(id);
 }

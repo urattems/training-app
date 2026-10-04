@@ -45,6 +45,12 @@ Backend, API externe, cloud/sync, compte/login, IA intégrée, analytics/trackin
   - le programme `training_program` reste en 1.0.
 - Une pesée enregistrée après le dernier export compte comme donnée non sauvegardée pour le rappel d'export (§7.10).
 
+### Ajouts V1.3 : archive Drive (amendement, après validation de la V1.2)
+- **Envoi à sens unique** vers un script Google Apps Script appartenant à l'utilisateur (« Muscu Sync »), qui écrit une copie dans son Drive (dossier `Muscu`). L'app ne lit jamais Drive. **Désactivé par défaut** ; sans configuration ni réseau, l'app fonctionne exactement comme avant (§10.7).
+- **File d'attente persistante et confirmation stricte** : un envoi n'est confirmé que par une réponse JSON `ok: true` ; tout le reste reste en file et repart (reprises, retour du réseau, ouverture de l'app). Un envoi ne bloque jamais la saisie.
+- **Garde-fous anti-perte** : jamais de sauvegarde d'une base vide, refus de régression côté script, activation après test et confirmation, secret et URL propres à l'appareil (jamais exportés ni restaurés).
+- **Nouveaux types JSON** `weight_entry` et `weight_log` (V1.3b, §11).
+
 ---
 
 ## 3. Stack (recommandée)
@@ -207,6 +213,11 @@ Rappel d'export : bandeau discret si dernier export > 14 jours **et** ≥ 1 séa
 - Une ligne d'aide sous chacun distingue la sauvegarde (restaurable) de l'envoi au coach (sélection, non restaurable).
 - Un envoi au coach ne compte pas comme sauvegarde : il ne modifie pas le rappel d'export.
 
+**Complément V1.3 :**
+- **Données** : entrée « Archive Drive » (page `#/settings/drive`, §10.7) : adresse du script, secret masqué, « Envoyer un test », interrupteur « Envoi automatique » (test réussi puis confirmation), état, « Envoyer maintenant », envois en attente ou en erreur avec détail technique à la demande (jamais le secret).
+- **Après une séance** : une ligne discrète d'état (« Archive Drive : envoi en cours… », « ✓ envoyé », « en attente de réseau ») ; aucune action requise.
+- **Accueil** : rien tant que tout va bien ; une puce discrète « Archive Drive : N en attente », vers la page de réglages, si des envois attendent ou sont en erreur depuis plus d'une heure.
+
 ### 7.11 Onglet Poids (amendement V1.2)
 L'app enregistre, affiche et calcule ; **aucun objectif, aucun conseil, aucune interprétation**. kg uniquement.
 
@@ -358,6 +369,102 @@ Export **partiel**, distinct de la sauvegarde (§10.2) : il sert uniquement à e
 - Un fichier 1.0 est migré (`weightEntries: []`, `weightWindow: null`) ; l'autotest avant remise s'applique au format 1.1 ;
 - la restauration et l'import de programme refusent toujours ce type, en 1.0 comme en 1.1.
 
+### 10.7 Archive automatique vers Google Drive (amendement V1.3)
+Reprise des §1 à §9 de `V1.3-SPEC.md` (référence de la V1.3) ; l'interface est décrite au §7.10 (complément V1.3). Dans cette section, un renvoi « §n » désigne la sous-section 10.7.n.
+
+#### 10.7.1 Principe
+
+- **But** : une copie hors de l'appareil (protection contre la perte de l'iPhone ou un nettoyage d'iOS) et une archive lisible dans le Drive de l'utilisateur.
+- **Sens unique** : l'app envoie, elle ne lit **jamais** Drive.
+- **Facultatif et désactivé par défaut.** Sans configuration ou sans réseau, l'app fonctionne exactement comme avant.
+- **L'envoi est secondaire** : aucune erreur d'envoi ne doit jamais empêcher de saisir, de terminer une séance ou de sauvegarder localement. Pas de modale bloquante pour une erreur d'envoi.
+- **Exception assumée à « aucune API externe »** : un seul appel sortant, vers l'URL d'un script Google Apps Script appartenant à l'utilisateur (« Muscu Sync »). Aucune URL ni aucun secret dans le code ou le dépôt.
+
+#### 10.7.2 Contrat du script (version `sync-2`)
+
+- Requête : `POST` vers l'URL `/exec`, corps = JSON **envoyé en `text/plain`** (jamais d'en-tête personnalisé, sinon le navigateur déclenche un préflight CORS que Apps Script refuse). Les redirections sont suivies (comportement par défaut de `fetch`).
+- Réponse : HTTP 200 dans tous les cas, corps JSON `{ ok, error?, retryable?, ... }`.
+- Actions : `ping`, `put`, `mark_deleted`, `reindex`.
+- Champs communs : `secret`, `action`, `requestId` (UUID par tentative, pour le diagnostic).
+- `put` : `folder`, `name`, `content` (chaîne), `chars` (**obligatoire côté app** : `content.length`), `meta` (objet), `force` (booléen, rare).
+- `mark_deleted` : `folder`, `name`, `at` (ISO).
+- Erreurs : `unauthorized`, `not_configured`, `bad_json`, `bad_request`, `forbidden_name`, `bad_extension`, `too_big` (non réessayables) ; `integrity`, `busy`, `drive_error` (réessayables) ; `regression` (voir §8) ; `not_in_index` (pour `mark_deleted` : traiter comme un succès).
+- `ping` renvoie `{ ok, version, serverTime, rootReady }`.
+
+##### Ce que le diagnostic a mesuré (à respecter)
+- La page **peut lire** la réponse JSON (`type=cors`). Un envoi n'est **confirmé** que si la réponse est un JSON avec `ok: true`.
+- Environ **18 %** des appels reçoivent une page **HTML 404** au lieu du JSON ; la latence varie de **1 à 40 s** ; Drive est lent (1 à 2 s par opération).
+- Tout ce qui n'est pas un JSON `ok: true` (réseau, délai dépassé, HTML, JSON invalide, erreur réessayable) = **non confirmé** : la tâche reste en file. Les écritures sont idempotentes (même nom = écrasement), donc renvoyer est toujours sans risque.
+
+#### 10.7.3 Arbre Drive
+
+```text
+Muscu/
+├── _INDEX.json                  tenu par le script (ne jamais l'écrire depuis l'app)
+├── LISEZMOI.txt                 écrit par le script
+├── Semaine 40/                  libellé de semaine du programme
+│   └── 2026-10-04_1810_Seance-A_ab12cd.json
+├── Pesees/
+│   ├── 2026-10-04.json          une pesée par jour
+│   └── _pesees.json             toutes les pesées regroupées
+└── Sauvegardes/
+    ├── sauvegarde-derniere.json     à jour après chaque séance et chaque pesée
+    └── 2026-10-04_hebdo.json        copie datée, au plus une par semaine, jamais écrasée
+```
+
+#### 10.7.4 Noms (gelés au premier envoi)
+
+- **Dossier de semaine** = `week.label` du programme, nettoyé (mêmes règles que le script : `\ / : * ? " < > |` et caractères de contrôle remplacés par `-`, espaces réduits, 120 caractères maximum). Si **plusieurs programmes** partagent le même libellé (comparaison sans casse ni espaces autour), tous sauf le plus ancien (tri par `createdAt` puis `programId`, donc **déterministe depuis les données exportables**) reçoivent le suffixe ` (` + 4 premiers caractères alphanumériques du `programId` + `)`.
+- **Fichier de séance** = `AAAA-MM-JJ_HHmm_<Nom-sans-accents>_<id6>.json` : `date` de la séance, heure locale de `startedAt`, nom de séance sans accents avec les espaces remplacés par `-`, `id6` = 6 premiers caractères alphanumériques de l'identifiant de séance.
+- **Gel** : à la première tentative d'envoi d'une séance, dossier + nom sont **enregistrés localement** (`settings`, clé `driveNames`) et réutilisés ensuite, même si la date de la séance est corrigée plus tard. Une correction met donc à jour le **même** fichier. Ces noms suivent la séance même si elle est ensuite supprimée dans l'app.
+- Pesées : `Pesees/AAAA-MM-JJ.json` ; regroupement `Pesees/_pesees.json`.
+
+#### 10.7.5 Contenus des fichiers (tous validés par leur schéma **avant** envoi ; s'ils échouent, rien n'est envoyé et l'erreur est visible dans Paramètres)
+
+- **Séance** : un `training_coach_export` (version 1.1) contenant **cette seule séance**, le programme concerné (objet complet), `weightEntries: []`, `weightWindow: null`, `selection` cohérent (`mode: "manual"`, `sessionCount: 1`). Mêmes règles d'exportabilité que l'export coach (jamais de séance en cours ni de séance vide).
+- **Pesée du jour** : `{ "schemaVersion": "1.0", "type": "weight_entry", "date", "weightKg", "recordedAt" }`.
+- **Pesées regroupées** : `{ "schemaVersion": "1.0", "type": "weight_log", "exportedAt", "count", "entries": [ { "date", "weightKg", "recordedAt" } ] }` (croissant par date).
+- **Sauvegarde** : exactement le `training_history_export` 1.1 de « Exporter mes données » (même fabrique, même contrôle avant remise). `meta.counts = { sessions, weights, programs }`.
+- `meta` des autres fichiers : séance `{ kind: "session", sessionId, date, sessionName, status, programId, weekLabel }` ; pesée `{ kind: "weight", date, weightKg }` ; regroupement `{ kind: "weights_all", count }` ; sauvegardes `{ kind: "backup_latest" | "backup_weekly", counts, exportedAt }`.
+
+#### 10.7.6 File d'attente
+
+- Persistée dans `settings` (clé `driveOutbox`, pas de changement de version de base). Tâches = **intentions**, dédupliquées par (type, clé), la plus récente remplace l'ancienne : `session:<id>`, `session_deleted:<id>`, `weight:<date>`, `weight_deleted:<date>`, `weights_all`, `backup_latest`, `backup_weekly`.
+- **Le contenu est généré au moment de l'envoi** depuis les données actuelles, jamais figé dans la file. Une tâche `session` dont la séance a disparu ou n'est plus exportable est abandonnée sans erreur ; une tâche `session_deleted` pour une séance jamais envoyée est abandonnée.
+- Un seul envoi à la fois. Ordre : séances, suppressions, pesées, `weights_all`, `backup_latest`, `backup_weekly`.
+- Délai maximal par requête : 90 s (annulation propre).
+- Reprise : 30 s, 2 min, 10 min, 1 h, puis à chaque ouverture de l'app. Déclencheurs d'un envoi : 2 s après une mise en file, démarrage de l'app, retour au premier plan, événement réseau « en ligne », bouton « Envoyer maintenant ».
+- iOS n'exécute rien en arrière-plan : un envoi interrompu reprend à la prochaine ouverture. C'est attendu et documenté.
+- Les erreurs **non réessayables** (`unauthorized`, `bad_request`, `forbidden_name`, `bad_extension`, `too_big`, `not_configured`) marquent la tâche « en erreur » (visible, bouton pour réessayer ou ignorer). `regression` suit §8.
+
+#### 10.7.7 Déclencheurs (mise en file)
+
+| Événement | Tâches |
+|---|---|
+| Séance terminée | `session`, `backup_latest` |
+| Séance abandonnée avec au moins une donnée | `session`, `backup_latest` |
+| Séance corrigée dans l'historique | `session`, `backup_latest` |
+| Séance supprimée dans l'app | `session_deleted` (si déjà envoyée), `backup_latest` |
+| Pesée ajoutée ou modifiée | `weight`, `weights_all`, `backup_latest` |
+| Pesée supprimée | `weight_deleted`, `weights_all`, `backup_latest` |
+| Ouverture de l'app, dernière copie hebdomadaire confirmée vieille de 7 jours ou plus (ou jamais) | `backup_weekly` |
+
+Le fichier de la séance **n'est jamais supprimé de Drive** : `session_deleted` envoie `mark_deleted` (le script note la suppression dans `_INDEX.json`). Idem pour `weight_deleted`.
+
+#### 10.7.8 Garde-fous
+
+1. **Jamais de sauvegarde d'une base vide** (aucune séance, aucune pesée, aucun programme) : `backup_latest` est ignorée avec le statut « Base vide : aucune sauvegarde envoyée (pour protéger ton archive) ».
+2. **Refus de régression** : le script refuse d'écraser `sauvegarde-derniere.json` par une sauvegarde contenant **moins de séances ou moins de pesées** (cas d'une app réinstallée). Réponse `regression` avec `current` et `incoming`. L'app **ne réessaie pas** ; elle met `backup_latest` en pause et affiche, dans Paramètres et sur l'accueil : « Ton Drive contient une sauvegarde plus complète (X séances, Y pesées) que cette app (A, B). Rien n'a été écrasé. » avec trois choix : **Restaurer depuis mon Drive** (explication pas à pas : télécharger `sauvegarde-derniere.json` depuis Drive puis Paramètres > Restaurer), **Remplacer quand même** (confirmation explicite, renvoi avec `force: true`), **Ignorer**. Supprimer une séance (120 au lieu de 121) déclenche aussi ce garde-fou : c'est voulu, l'utilisateur confirme une fois.
+3. **Activation** : un test réussi est requis, puis une confirmation : « L'envoi automatique va créer et mettre à jour des fichiers dans ton Drive, dossier Muscu, et remplacer Sauvegardes/sauvegarde-derniere.json par une sauvegarde de CETTE app. Si tu viens de réinstaller l'app, restaure d'abord ta sauvegarde. »
+4. **Secret et URL** : stockés dans `settings` (clé `driveSync`), **par appareil**, **jamais** dans un export, une sauvegarde, un export coach, un journal d'erreur ou un message (affichage masqué : 4 derniers caractères). La **restauration ne les écrase pas**, et `preRestoreBackup` ne les contient pas.
+5. Le chargeur de données de démo (mode développement) désactive l'envoi.
+6. N'activer l'envoi que sur l'iPhone qui sert à saisir (un miroir sur PC n'a pas de configuration, c'est voulu).
+
+#### 10.7.9 Sauvegarde envoyée et rappel d'export
+
+- Une `sauvegarde-derniere.json` **confirmée** (`ok: true`) compte comme sauvegarde : elle écrit `lastAutoBackupAt` (instant où le contenu a été figé, même définition que `lastExportAt`). Le rappel d'export compare avec le plus récent de `lastExportAt` et `lastAutoBackupAt`.
+- Une réponse non confirmée ne compte **pas**.
+
 ---
 
 ## 11. Contrats JSON (v1.0)
@@ -444,6 +551,8 @@ Les deux fichiers `examples/` doivent passer la validation et alimenter les test
 | **V1.1b** | Export pour le coach (§10.6) : sélection de séances, fichier `training_coach_export`, « Copier pour ChatGPT » · `JSON_SCHEMA.md`, exemple validé | Raccourcis de sélection, contenu exact, autotest, refus par la restauration et l'import, `lastExportAt` intact, `lastCoachExportAt` seulement en cas de succès ; régression complète (390 px, production, hors ligne) |
 | **V1.2a** | Pesées sans interface : modèle et domaine (validation, avertissements doux, périodes, stats), base v2 (`weights`), sauvegarde 1.1 + migration 1.0 → 1.1, restauration atomique, export coach 1.1 (fenêtre), rappel d'export, `weightService`, `JSON_SCHEMA.md` | Base v1 remplie rouverte en v2 intacte ; aller-retour avec pesées ; fichiers 1.0 acceptés ; refus des fichiers invalides ; fenêtres coach ; fuseaux horaires (UTC, Paris, Los Angeles, UTC+14) ; fixtures existantes intactes |
 | **V1.2b** | Onglet « Poids » (§7.11) : saisie du jour, ajout daté, remplacement confirmé, graphique et stats, liste, crayon et poubelle ; section « Pesées » de l'export pour le coach ; pesées dans le résumé de restauration | Navigation 4 onglets à 390 et 360 px ; tous les parcours de saisie ; stats et graphique recalculés ; accessibilité ; régression complète en navigateur réel (base v1 rouverte, S1–S7, hors ligne) |
+| **V1.3a** | Archive Drive (§10.7) : réglages et stockage de la configuration, client du script, bouton de test, file d'attente, envoi des **séances** (création, correction, suppression), alerte de libellé en double, statuts | Test réel sur iPhone : une séance terminée apparaît dans `Muscu/Semaine XX/` ; hors ligne puis retour du réseau ; correction ; suppression |
+| **V1.3b** | Pesées, `weights_all`, `backup_latest`, `backup_weekly`, garde-fous (§10.7), rappel d'export, « Renvoyer toute l'archive », fixtures, documentation, régression complète | Test réel : pesée, sauvegarde, refus de régression, hebdomadaire |
 
 ### Compte rendu de fin de jalon (obligatoire)
 1. Ce qui a été fait · 2. Fichiers créés/modifiés · 3. Tests exécutés · 4. Résultats (typecheck, lint, test, build) · 5. Décisions prises (aussi dans `DECISIONS.md`) · 6. Ce qui reste.

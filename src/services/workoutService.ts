@@ -7,6 +7,7 @@ import { strings } from '../i18n/strings';
 import { workoutSessionSchema } from '../schemas/history.schema';
 import { createId } from '../utils/ids';
 import { getActiveProgramId } from './settingsService';
+import { notifySessionChanged } from './driveOutbox';
 
 const t = strings.workout;
 
@@ -54,6 +55,11 @@ export async function updateWorkout(id: string, update: (workout: WorkoutSession
     if (next.status === 'in_progress' && current.status !== 'in_progress') throw new DomainError(t.notInProgress);
     await db.workouts.put(next);
     return next;
+  }).then((saved) => {
+    // Archive Drive (V1.3) : séance terminée, abandonnée ou corrigée → mise en file, sans attendre
+    // (jamais d'impact sur la saisie ; sans effet si l'envoi n'est pas activé).
+    if (saved.status !== 'in_progress') void notifySessionChanged(saved.id);
+    return saved;
   });
 }
 

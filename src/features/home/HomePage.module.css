@@ -129,3 +129,24 @@
   color: var(--color-accent-strong);
   font-weight: var(--font-weight-semibold);
 }
+
+/* Archive Drive : ligne d'état discrète et puce (V1.3). */
+.driveLine {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.driveChip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-warning-soft);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}

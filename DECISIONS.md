@@ -1127,3 +1127,124 @@ Build de production servi en localhost (contexte sécurisé), Edge headless, 390
   - onglet Poids : 14/14 (carte au-dessus de la barre, point le plus proche, axe 76 → 86) ;
   - états vides et pesée unique : 4/4 (pas de graphique sans pesée ; une pesée : axe 76 → 86, point au milieu) ;
   - régression S1–S7 et hors ligne : 9/9.
+
+---
+
+## V1.3a — Archive Drive : configuration, client, file d'attente, séances
+
+Référence : `V1.3-SPEC.md` (commité avec cette étape).
+
+### Amendement de SPEC.md (autorisé, par ajout uniquement)
+- §2 : sous-section « Ajouts V1.3 : archive Drive » (4 puces).
+- §7.10 : bloc « Complément V1.3 » (entrée Archive Drive, ligne d'état après une séance, puce de l'accueil).
+- §10.7 (nouvelle) : reprise **textuelle** des §1 à §9 de `V1.3-SPEC.md`, avec les titres rétrogradés en 10.7.1 à 10.7.9 et une phrase d'introduction : « §n » y désigne 10.7.n.
+- §13 : lignes V1.3a et V1.3b.
+- Le §11 (types `weight_entry` et `weight_log`) sera ajouté avec la V1.3b, qui les implémente.
+- `git diff` : 109 ajouts, 0 suppression.
+
+### Configuration (`settings.driveSync`, par appareil)
+- `{ url, secret, enabled, testedAt }`. Aucune nouvelle version de base.
+- **URL acceptée** : `https://…`, ou `http://localhost` / `127.0.0.1` pour le serveur factice des tests.
+- **Secret** : 8 caractères au minimum, sans quoi il ne pourrait pas être masqué sans risque.
+- Changer l'URL ou le secret **désactive** l'envoi et efface le test réussi. Un champ secret laissé vide garde le secret enregistré, affiché masqué (« ••••1234 »).
+- **Activation** : refusée par le service sans test réussi pour la configuration **actuelle** (`testedAt`), puis confirmée par une feuille au texte de la spec, en version V1.3a : sans la phrase sur la sauvegarde, qui arrive en V1.3b.
+- **Restauration** : les réglages propres à l'appareil (`DEVICE_SETTING_KEYS` : `lastExportAt`, `lastCoachExportAt`, `driveSync`, `driveOutbox`, `driveNames`) sont relus avant le vidage et réécrits tels quels.
+  - Cela remplace l'ancien traitement au cas par cas, avec le même comportement pour les deux dates d'export (aucun test existant modifié).
+  - `preRestoreBackup` et tous les exports sont produits par `toHistoryExport` ou `toCoachExport`, qui ne lisent jamais `settings` : la configuration n'y entre pas.
+- **Masquage** :
+  - `maskUrl` affiche l'URL sous la forme `/s/[…]/` ;
+  - `maskSecret` n'affiche que les 4 derniers caractères ;
+  - `redact` s'applique à tout détail technique conservé ou affiché. Même si la réponse du serveur ou le message d'erreur du navigateur répète le secret ou l'URL, ils sont retirés.
+  - Un test dédié (`driveSecret.test.ts`) fait subir 8 modes d'échec, chacun répétant le secret, puis parcourt la file, les noms, les contenus envoyés, la sauvegarde, l'export coach, la copie interne et la console : ni le secret ni l'identifiant du script n'y figurent.
+
+### Client (`services/driveClient.ts`)
+- Requête :
+  - POST, corps `JSON.stringify(…)`, donc `text/plain;charset=UTF-8` ;
+  - **aucun** en-tête, `redirect: 'follow'` ;
+  - délai de 90 s par `AbortController` ;
+  - `fetch` injectable ; ne lève jamais d'exception, même si `fetch` lève de façon synchrone.
+- **Classement** :
+  - `confirmed` : seulement un JSON objet avec `ok: true` ;
+  - `rejected` : JSON avec `ok: false`. `retryable` est repris de la réponse, sinon déduit du code (`integrity`, `busy`, `drive_error`) ;
+  - `unconfirmed` : réseau, délai, page HTML (statut 200 ou autre), JSON invalide ou sans `ok`, HTTP anormal.
+- `chars = content.length` est toujours envoyé ; `requestId` est un nouvel identifiant (`createId`) à chaque tentative.
+
+### File (`settings.driveOutbox`) et envoi
+- **Domaine pur** (`domain/driveOutbox.ts`) :
+  - intentions dédupliquées par `type:clé`, avec une **révision** incrémentée à chaque nouvelle intention ;
+  - une confirmation ou un échec ne touche que la révision envoyée : une correction arrivée pendant l'envoi n'est jamais perdue (testé).
+- **Transactions** : toute lecture-modification-écriture de la file se fait dans une transaction `settings`. 20 mises en file simultanées : aucune perdue (testé).
+- **Ordre** : séances, puis suppressions, puis ancienneté.
+- **Un seul envoi à la fois** : les passes concurrentes sont regroupées (testé, 1 requête au plus en vol).
+- **Une passe tente chaque tâche une seule fois** : une intention renouvelée pendant l'envoi attend la passe suivante (2 s). Ce choix est venu d'une boucle infinie trouvée par un test.
+- **Un envoi non confirmé arrête la passe**, pour ne pas enchaîner des requêtes vouées à l'échec. Les autres tâches attendent la reprise.
+- **Reprises** :
+  - échecs réessayables (non confirmés, ou rejetés réessayables) : 30 s, 2 min, 10 min, 1 h, puis plus de minuteur ;
+  - à chaque ouverture, au retour au premier plan, au retour du réseau (`online`) et sur « Envoyer maintenant », **toutes** les tâches en attente sont tentées, quelle que soit leur heure de reprise ;
+  - le minuteur ne prend que les tâches échues.
+- **Erreurs non réessayables** : la tâche passe « en erreur » (Réessayer / Ignorer).
+  - `regression` est traitée comme non réessayable en V1.3a, faute de sauvegarde envoyée (le §8 arrive en V1.3b).
+  - Un contenu refusé par son propre schéma donne `invalid_content` : rien n'est envoyé, l'erreur est visible.
+- **Jamais bloquant** : la mise en file se fait **après** l'écriture de la séance, sans être attendue (`void`), et ne lève jamais. Sans envoi actif : aucune écriture dans la file, **zéro requête** (testé).
+- **Planificateur** (`driveScheduler`, monté par `DriveSyncAgent`) : démarrage, `visibilitychange`, `online`, 2 s après une mise en file, minuteur de reprise.
+
+### Séances
+- **Contenu** :
+  - un `training_coach_export` 1.1 d'**une** séance, avec `weightEntries: []`, `weightWindow: null`, sélection `manual` et `sessionCount: 1` ;
+  - **seulement le programme de la séance** ;
+  - `activeProgramId` vaut le programme de la séance s'il est actif, sinon `null`. La spec ne le précise pas, et l'invariant exige qu'il figure dans `programs`.
+  - Il est validé par `verifyCoachExportIntegrity` avant tout envoi.
+- **Exportabilité** : celle de l'export coach. Séance en cours, vide ou disparue : tâche abandonnée sans erreur.
+- **Déclencheurs** :
+  - tout enregistrement d'une séance qui n'est pas en cours, c'est-à-dire fin, abandon et correction dans l'historique, qui passent tous par `updateWorkout` ;
+  - la suppression (`deleteWorkout`).
+  - `session_deleted` est mise en file à chaque suppression (si l'envoi est actif), puis **abandonnée à l'envoi** si la séance n'a jamais été envoyée : aucun nom gelé.
+  - `not_in_index` vaut succès.
+- **Noms gelés** (`settings.driveNames`) : enregistrés **avant** le premier `put`. Une correction de date réécrit donc le **même** fichier (testé, et en navigateur).
+- **Heure `HHmm`** : lue telle qu'écrite dans `startedAt` (l'heure locale au moment de la séance), et non convertie dans le fuseau de l'appareil au moment de l'envoi. Le nom est donc identique sous tous les fuseaux (testé sous UTC, Paris, Los Angeles et UTC+14). La date vient de `date`.
+- **Suffixe de libellé en double** : appliqué **à la lettre** (« 4 premiers caractères alphanumériques du `programId` »).
+  - ⚠ **Point à trancher** : avec des identifiants du type `prog-2026-w40`, tous les doublons reçoivent `(prog)`, donc le **même** dossier.
+  - Ce n'est pas une perte de données (les noms de fichiers restent distincts), mais le suffixe ne distingue plus rien.
+  - Variantes possibles : les 4 derniers caractères alphanumériques, ou les 4 premiers après le premier tiret. À décider avant la V1.3b.
+
+### Interface
+- **Page `#/settings/drive`** :
+  - champs URL et secret (17 px, 48 px, sans majuscule, correction ni vérification orthographique) ;
+  - « Enregistrer », « Envoyer un test » (version, latence, « Dossier Muscu prêt » ou erreur en français, détails à la demande) ;
+  - interrupteur iOS (composant `Switch`, `role="switch"`) ;
+  - état (dernier envoi confirmé, en attente, en erreur, « Envoi en cours… »), « Envoyer maintenant » ;
+  - liste des tâches (Réessayer / Ignorer, détails techniques expurgés).
+- **« Écran de fin de séance »** : l'app n'en a pas. « Terminer » ramène à l'accueil. La ligne d'état discrète est donc placée **sous la carte « Dernière séance »** de l'accueil.
+- **Puce de l'accueil** : envoi actif **et** au moins une tâche, en attente ou en erreur, mise en file depuis plus d'une heure. Elle mène à la page de réglages.
+- **Alerte d'import** : si un programme existant partage le libellé de semaine (sans casse ni espaces autour), une note douce affiche le dossier calculé par la même règle. Non bloquante.
+- **Chargeur de démo** (mode développement) : désactive l'envoi avant de restaurer la démo.
+
+### Serveur factice (`scripts/fake-muscu-sync.mjs`, tests seulement)
+- Il imite le vrai script :
+  - POST → **302** vers `/macros/echo?user_content_key=…`, suivie en GET ;
+  - en-tête CORS sur la redirection **et** sur la réponse finale, indispensable pour qu'un `fetch` en mode CORS suive la redirection ;
+  - environ 18 % de **404 HTML**, la requête ayant pu être traitée ;
+  - latence de 0,2 à 3 s, `busy` et `drive_error` ;
+  - secret, `ping`, `put`, `mark_deleted`, refus de `_INDEX.json` et `LISEZMOI.txt`, `integrity` si `chars` ne correspond pas ;
+  - préflight `OPTIONS` refusé, comme Apps Script.
+- Pilotage : `/__state`, `/__config`, `/__reset` ; graine reproductible. Types : `fake-muscu-sync.d.mts`.
+- Utilisé par un test d'intégration HTTP réel (Vitest) et par le scénario navigateur. Le vrai script n'est **jamais** contacté.
+
+### Vérification
+- **Tests** : 6 nouveaux fichiers, 73 tests.
+  - Domaine : noms, file.
+  - Client : classement, forme des requêtes, intégration HTTP.
+  - File : désactivé, configuration, séances, suppression, ordre, reprises, réseau, erreurs, contenu invalide, persistance, transactions, course.
+  - Secret.
+  - Interface : réglages, test, activation, état, file, accessibilité, accueil, alerte d'import, démo.
+- **Aucun test existant modifié.**
+- **Navigateur réel** (production, 390 px, tactile, serveur factice sur une autre origine, CORS réel) : **10/10**.
+  - Champs 17 px ; test (« version sync-2, réponse en 0,3 s, dossier prêt ») ; activation confirmée.
+  - Séance terminée → `Semaine 37/2026-10-04_1931_Seance-A_683e1d.json`, « ✓ envoyé ».
+  - 404 HTML → « en attente », puis reprise : même fichier réécrit.
+  - Réseau coupé : correction en attente ; réseau rétabli : envoi **automatique** (événement `online`) sous le même nom, date corrigée.
+  - Suppression → `mark_deleted`.
+  - Requêtes toutes en `text/plain`.
+  - Aucune erreur console, hors 404 attendues du script et réseau coupé volontairement.
+- **Régression** S1–S7 et hors ligne : 9/9.
+- **Reste à faire par l'utilisateur** (critère de sortie de la spec) : le test réel sur iPhone avec le vrai script.

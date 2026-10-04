@@ -12,6 +12,7 @@ import { getExportReminder } from '../../domain/exportReminder';
 import { formatSignedKg } from '../../domain/stats';
 import type { WorkoutSession } from '../../domain/types';
 import { countValidatedExercises } from '../../domain/workout';
+import { sessionDriveStatus, useDriveState, type SessionDriveStatus } from '../../hooks/useDrive';
 import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
@@ -78,6 +79,8 @@ export function HomePage() {
 
       {!loading && <ExportReminderBanner workouts={workouts} />}
 
+      {!loading && <DriveChip />}
+
       {!loading && lastWorkout && <LastWorkoutCard workout={lastWorkout} />}
 
       {!loading && <RecentProgress />}
@@ -124,6 +127,7 @@ function LastWorkoutCard({ workout }: { workout: WorkoutSession }) {
           {[formatDayLong(workout.date), workout.durationSec !== null ? formatDuration(workout.durationSec) : null].filter(Boolean).join(' · ')}
         </p>
       </Link>
+      <DriveSessionLine sessionId={workout.id} />
       <Link to="/history" className={styles.secondaryLink}>
         {strings.history.seeAll}
       </Link>
@@ -167,5 +171,38 @@ function RecentProgress() {
         ))}
       </ul>
     </Card>
+  );
+}
+
+const DRIVE_LINES: Record<SessionDriveStatus, string> = {
+  sending: strings.drive.lineSending,
+  sent: strings.drive.lineSent,
+  waiting: strings.drive.lineWaiting,
+  error: strings.drive.lineError,
+};
+
+/**
+ * Archive Drive : ligne discrète sous la dernière séance (l'app revient ici après « Terminer » ;
+ * il n'existe pas d'écran de fin de séance distinct). Aucune action requise.
+ */
+function DriveSessionLine({ sessionId }: { sessionId: string }) {
+  const drive = useDriveState();
+  const status = drive ? sessionDriveStatus(drive, sessionId) : null;
+  if (status === null) return null;
+  return (
+    <p role="status" className={styles.driveLine}>
+      {DRIVE_LINES[status]}
+    </p>
+  );
+}
+
+/** Puce discrète, seulement si des envois attendent (ou sont en erreur) depuis plus d'une heure. */
+function DriveChip() {
+  const drive = useDriveState();
+  if (!drive?.active || drive.summary.stalled === 0) return null;
+  return (
+    <Link to="/settings/drive" className={styles.driveChip}>
+      {strings.drive.chip(drive.summary.pending + drive.summary.errors)}
+    </Link>
   );
 }

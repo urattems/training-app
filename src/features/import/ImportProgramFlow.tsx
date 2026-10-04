@@ -1,5 +1,6 @@
 import { createContext, use, useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { CircleCheck, ClipboardPaste, FileUp, TriangleAlert } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router';
 import { Button, type ButtonVariant } from '../../components/Button';
 import fieldStyles from '../../components/Field.module.css';
@@ -9,7 +10,8 @@ import { strings } from '../../i18n/strings';
 import type { ImportFailure } from '../../schemas/errors';
 import { ignoredFieldNames } from '../../schemas/ignoredFields';
 import { readFileText } from '../../services/importService';
-import { importProgram, previewPastedProgram, previewProgram, type ProgramPreview } from '../../services/programService';
+import { sameWeekLabel, weekFolderName } from '../../domain/driveNames';
+import { importProgram, listPrograms, previewPastedProgram, previewProgram, type ProgramPreview } from '../../services/programService';
 import { canReadClipboard, readClipboardText } from '../../utils/clipboard';
 import styles from './ImportProgramFlow.module.css';
 
@@ -367,7 +369,19 @@ function PreviewSummary({ preview, activeProgramName }: { preview: ProgramPrevie
         </dl>
       </div>
       {activeProgramName !== null && <p className={styles.note}>{t.willArchive(activeProgramName)}</p>}
+      <DuplicateWeekNote program={preview.program} />
       {ignored.length > 0 && <p className={styles.ignored}>{t.ignoredFields(ignored.join(', '))}</p>}
     </>
   );
+}
+
+/**
+ * Archive Drive (V1.3) : alerte douce, non bloquante, si une semaine du même libellé existe déjà.
+ * Le nom de dossier affiché est celui que l'archive utilisera (règle déterministe, spec §4).
+ */
+function DuplicateWeekNote({ program }: { program: ProgramPreview['program'] }) {
+  const existing = useLiveQuery(listPrograms, []);
+  if (!existing || sameWeekLabel(existing, program).length === 0) return null;
+  const folder = weekFolderName([...existing, program], program.programId);
+  return <p className={styles.note}>{strings.drive.duplicateWeek(program.week.label, folder)}</p>;
 }

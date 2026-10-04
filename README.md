@@ -32,6 +32,7 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
   - sauvegarde complète en JSON, restauration, rappel d'export après 14 jours ;
   - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT ;
   - les pesées font partie de la sauvegarde (format 1.1, anciennes sauvegardes 1.0 toujours acceptées) et peuvent être jointes à l'export pour le coach (30 jours ou plus, 90 jours, tout, ou désactivées).
+- **Archive Drive** (facultative, désactivée par défaut) : copie automatique de chaque séance vers le Drive de l'utilisateur via son propre script « Muscu Sync », à sens unique, avec file d'attente hors ligne (Paramètres → Archive Drive).
 - **PWA** : installable sur l'écran d'accueil, entièrement hors ligne après la première visite, mise à jour proposée (jamais pendant une séance).
 
 ## Développement
@@ -117,6 +118,7 @@ Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runn
 - **Stockage iOS** : Safari peut effacer les données d'une PWA peu utilisée. Seuls des exports réguliers protègent vraiment.
 - **HTTPS requis** pour le mode hors ligne, l'installation complète, la feuille de partage et le stockage persistant (OK sur GitHub Pages ; indisponibles en HTTP sur IP locale).
 - **Une seule unité** (kg, charges et poids) et **un seul thème** (clair). Le thème sombre est prévu au J8, facultatif.
+- **Archive Drive et iOS** : iOS n'exécute rien en arrière-plan ; un envoi interrompu repart à la prochaine ouverture de l'app. À n'activer que sur l'iPhone qui sert à saisir.
 - **Un appareil** : pas de synchronisation. Pour changer d'iPhone, exporter puis restaurer.
 - **Plusieurs onglets ou fenêtres de l'app** (surtout sur ordinateur) : lors d'une mise à jour qui fait évoluer la base (V1.2 : version 2), une ancienne version encore ouverte peut retarder la mise à jour.
   - L'app affiche alors « Ferme les autres onglets de l'app, puis rouvre-la », puis reprend d'elle-même.

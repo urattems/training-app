@@ -1,6 +1,7 @@
 import { Dexie, type EntityTable, type Table } from 'dexie';
 import { DB_NAME } from '../config';
 import { watchConnection } from './connectionStatus';
+import type { DriveNames, DriveOutboxState } from '../domain/driveOutbox';
 import type { HistoryExport, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
 
 /**
@@ -31,7 +32,26 @@ export type SettingRecord =
   | { key: 'preferences'; value: UserPreferences }
   | { key: 'lastExportAt'; value: string | null }
   /** Dernier envoi au coach (V1.1b) : distinct de `lastExportAt`, ne compte jamais comme sauvegarde. */
-  | { key: 'lastCoachExportAt'; value: string | null };
+  | { key: 'lastCoachExportAt'; value: string | null }
+  /**
+   * Archive Drive (V1.3), PAR APPAREIL : jamais exportée, jamais dans `preRestoreBackup`,
+   * jamais écrasée par une restauration. Aucun changement de version de base (table `settings`).
+   */
+  | { key: 'driveSync'; value: DriveSyncSettings }
+  | { key: 'driveOutbox'; value: DriveOutboxState }
+  | { key: 'driveNames'; value: DriveNames };
+
+/** Configuration de l'envoi vers le script « Muscu Sync » de l'utilisateur. */
+export interface DriveSyncSettings {
+  url: string;
+  secret: string;
+  enabled: boolean;
+  /** Dernier test (`ping`) confirmé pour CES url et secret : requis pour activer l'envoi. */
+  testedAt: string | null;
+}
+
+/** Réglages propres à l'appareil, conservés tels quels par une restauration. */
+export const DEVICE_SETTING_KEYS = ['lastExportAt', 'lastCoachExportAt', 'driveSync', 'driveOutbox', 'driveNames'] as const;
 
 export type SettingKey = SettingRecord['key'];
 

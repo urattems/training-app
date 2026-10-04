@@ -1,0 +1,62 @@
+/* Ligne entière cliquable (≥ 48 px). */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--field-height);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 3.25rem;
+  height: 2rem;
+  margin: 0;
+  border-radius: 1rem;
+  background: var(--color-border-strong);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--easing-standard);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+
+.switch:checked {
+  background: var(--color-accent-strong);
+}
+
+.switch:checked::before {
+  transform: translateX(1.25rem);
+}
+
+.switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

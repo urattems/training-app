@@ -9,6 +9,7 @@ import { Button } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { ErrorDetails } from '../../components/ErrorDetails';
+import { setDriveEnabled } from '../../services/driveSettings';
 import { previewRestore, restoreBackup } from '../../services/importService';
 import { toDisplayError, type DisplayError } from '../../utils/errors';
 import demoHistory from '../../../examples/history-example.json?raw';
@@ -31,6 +32,8 @@ const t = {
 export async function loadDemoData(): Promise<number> {
   const preview = previewRestore(demoHistory);
   if (!preview.ok) throw new Error(preview.error.message);
+  // Archive Drive (V1.3 §8.5) : des données de démo ne partent jamais vers le Drive.
+  await setDriveEnabled(false);
   await restoreBackup(preview.value.data);
   return preview.value.sessionCount;
 }
