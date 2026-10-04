@@ -175,6 +175,15 @@ describe('Séances (envoi activé)', () => {
     expect((await getDriveNames())[workout.id]).toEqual({ folder: 'Semaine 37', name: '2026-10-04_1810_Seance-A_wnew1.json' });
   });
 
+  it('fix-v1.3a : un nom déjà gelé (ancienne règle de suffixe) ne change jamais', async () => {
+    const frozen = { folder: 'Semaine 37 (prog)', name: '2026-09-08_1800_Seance-A_w0001.json' };
+    await db.settings.put({ key: 'driveNames', value: { 'w-0001': frozen } });
+    await notifySessionChanged('w-0001');
+    await processDriveOutbox('all');
+    expect(sent.map((r) => ({ folder: r.folder, name: r.name }))).toEqual([frozen]);
+    expect((await getDriveNames())['w-0001']).toEqual(frozen);
+  });
+
   it('suppression : mark_deleted avec le nom gelé ; not_in_index = succès ; jamais envoyée = abandonnée', async () => {
     await notifySessionChanged('w-0002');
     await processDriveOutbox('all');

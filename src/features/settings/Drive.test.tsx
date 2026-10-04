@@ -212,7 +212,7 @@ describe('Import : libellé de semaine en double (alerte douce, non bloquante)',
     await user.paste(JSON.stringify(program));
     await user.click(within(dialog).getByRole('button', { name: 'Vérifier' }));
     const preview = await screen.findByRole('dialog', { name: 'Importer ce programme ?' });
-    expect(await within(preview).findByText('Une semaine « Semaine 37 » existe déjà. Le dossier Drive sera nommé « Semaine 37 (b7c2) ».')).toBeInTheDocument();
+    expect(await within(preview).findByText('Une semaine « Semaine 37 » existe déjà. Le dossier Drive sera nommé « Semaine 37 (b7c2-w40-bis) ».')).toBeInTheDocument();
     expect(within(preview).getByRole('button', { name: 'Importer' })).toBeEnabled();
   });
 });

@@ -1248,3 +1248,27 @@ Référence : `V1.3-SPEC.md` (commité avec cette étape).
   - Aucune erreur console, hors 404 attendues du script et réseau coupé volontairement.
 - **Régression** S1–S7 et hors ligne : 9/9.
 - **Reste à faire par l'utilisateur** (critère de sortie de la spec) : le test réel sur iPhone avec le vrai script.
+
+---
+
+## fix-v1.3a — Suffixe des libellés de semaine en double = programId complet
+
+- **Décision de l'utilisateur** : l'ancienne règle (« 4 premiers caractères alphanumériques du `programId` ») donnait `(prog)` à tous les doublons d'identifiants comme `prog-2026-w40`, donc le même dossier.
+- **Nouvelle règle** (`weekFolderName`, `src/domain/driveNames.ts`) :
+  - tous les programmes qui partagent un libellé, sauf le plus ancien (`createdAt`, puis `programId`), reçoivent ` (<programId complet>)`, par exemple « Semaine 40 (prog-2026-w40) » ;
+  - le `programId` est nettoyé avec les règles du libellé (`\ / : * ? " < > |` et caractères de contrôle remplacés par `-`, espaces réduits) ;
+  - il est unique (l'import refuse les doublons), donc aucune collision ;
+  - au-delà de 120 caractères, seul le **libellé** est tronqué, jamais le `programId`. Le libellé tronqué perd ses espaces de fin, donc le total vaut au plus 120.
+- **Noms déjà gelés** : inchangés. Le gel (`driveNames`) est consulté avant tout calcul, et un nom gelé sous l'ancienne règle est réutilisé tel quel (testé).
+- **Spécifications** (modification autorisée, limitée à ces passages) :
+  - `V1.3-SPEC.md` §4 (règle) et §10 (exemple d'alerte : « Semaine 40 (prog-2026-w40) ») ;
+  - `SPEC.md` §10.7.4 (même règle).
+  - `SPEC.md` ne contenait **aucun** exemple d'alerte : le complément V1.3 du §7.10 ne le reprend pas. Rien n'y a donc été modifié ni ajouté.
+- **Tests adaptés** :
+  1. `domain/driveNames.test.ts`, « libellés en double… » : attentes `(prog)` / `(b7c2)` remplacées par le `programId` complet.
+  2. `features/settings/Drive.test.tsx`, alerte d'import : « Semaine 37 (b7c2) » devient « Semaine 37 (b7c2-w40-bis) ».
+- **Tests ajoutés** :
+  - absence de collision avec `prog-2026-w40`, `…w40b` et `…w40c` ;
+  - `programId` à caractères interdits ;
+  - troncature du libellé seul ;
+  - nom gelé conservé.

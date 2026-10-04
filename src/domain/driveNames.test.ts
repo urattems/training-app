@@ -35,7 +35,7 @@ describe('Dossier de semaine', () => {
     expect(cleanFolderName('   ')).toBe('Sans semaine');
   });
 
-  it('libellés en double : tous sauf le plus ancien (createdAt puis programId) reçoivent « (4 alnum) »', () => {
+  it('libellés en double : tous sauf le plus ancien (createdAt puis programId) reçoivent « (programId complet) »', () => {
     const programs = [
       program('prog-b7c2-w40', 'Semaine 40', '2026-10-01T08:00:00+02:00'),
       program('prog-a1-w40', ' semaine 40 ', '2026-09-28T08:00:00+02:00'),
@@ -43,15 +43,39 @@ describe('Dossier de semaine', () => {
       program('prog-w41', 'Semaine 41', '2026-10-05T08:00:00+02:00'),
     ];
     expect(weekFolderName(programs, 'prog-a1-w40')).toBe('semaine 40');
-    // Règle de la spec : les 4 PREMIERS alphanumériques du programId (ici « prog » pour les deux).
-    expect(weekFolderName(programs, 'prog-b7c2-w40')).toBe('Semaine 40 (prog)');
-    expect(weekFolderName(programs, 'prog-c-w40')).toBe('SEMAINE 40 (prog)');
-    expect(weekFolderName([program('b7c2-x', 'Semaine 40', '2026-10-02T08:00:00+02:00'), ...programs], 'b7c2-x')).toBe('Semaine 40 (b7c2)');
+    // Règle fix-v1.3a : le programId COMPLET, unique, donc jamais deux doublons dans le même dossier.
+    expect(weekFolderName(programs, 'prog-b7c2-w40')).toBe('Semaine 40 (prog-b7c2-w40)');
+    expect(weekFolderName(programs, 'prog-c-w40')).toBe('SEMAINE 40 (prog-c-w40)');
     expect(weekFolderName(programs, 'prog-w41')).toBe('Semaine 41');
     // Déterministe : l'ordre de la liste (ou d'import) ne change rien.
     expect(weekFolderName([...programs].reverse(), 'prog-a1-w40')).toBe('semaine 40');
-    expect(weekFolderName([...programs].reverse(), 'prog-b7c2-w40')).toBe('Semaine 40 (prog)');
+    expect(weekFolderName([...programs].reverse(), 'prog-b7c2-w40')).toBe('Semaine 40 (prog-b7c2-w40)');
     expect(sameWeekLabel(programs, programs[0] ?? program('', '', '')).map((p) => p.programId)).toEqual(['prog-a1-w40', 'prog-c-w40']);
+  });
+
+  it('aucune collision : des identifiants proches (prog-2026-w40, prog-2026-w40b) donnent des dossiers distincts', () => {
+    const programs = [
+      program('prog-2026-w40', 'Semaine 40', '2026-09-28T08:00:00+02:00'),
+      program('prog-2026-w40b', 'Semaine 40', '2026-10-01T08:00:00+02:00'),
+      program('prog-2026-w40c', 'Semaine 40', '2026-10-02T08:00:00+02:00'),
+    ];
+    const folders = programs.map((p) => weekFolderName(programs, p.programId));
+    expect(folders).toEqual(['Semaine 40', 'Semaine 40 (prog-2026-w40b)', 'Semaine 40 (prog-2026-w40c)']);
+    expect(new Set(folders).size).toBe(3);
+  });
+
+  it('programId nettoyé (mêmes règles que le libellé) ; au-delà de 120 caractères, seul le libellé est tronqué', () => {
+    const odd = [program('a', 'S40', '2026-09-01T08:00:00+02:00'), program('id/avec:interdits', 'S40', '2026-09-02T08:00:00+02:00')];
+    expect(weekFolderName(odd, 'id/avec:interdits')).toBe('S40 (id-avec-interdits)');
+    const longLabel = 'Semaine '.repeat(30);
+    const long = [program('first', longLabel, '2026-09-01T08:00:00+02:00'), program('prog-2026-w40', longLabel, '2026-09-02T08:00:00+02:00')];
+    const folder = weekFolderName(long, 'prog-2026-w40');
+    // Le libellé tronqué perd son espace final au nettoyage : au plus 120 caractères.
+    expect(folder.length).toBeLessThanOrEqual(120);
+    expect(folder.length).toBeGreaterThan(110);
+    expect(folder.endsWith(' (prog-2026-w40)')).toBe(true);
+    expect(longLabel.startsWith(folder.slice(0, -' (prog-2026-w40)'.length))).toBe(true);
+    expect(weekFolderName(long, 'first').length).toBeLessThanOrEqual(120);
   });
 
   it('après restauration : mêmes noms (calculés depuis createdAt, jamais importedAt)', () => {

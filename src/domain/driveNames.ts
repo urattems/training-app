@@ -12,9 +12,12 @@ const MAX_FOLDER_LENGTH = 120;
 const FALLBACK_FOLDER = 'Sans semaine';
 const FALLBACK_SESSION = 'Seance';
 
+/** Nettoyage du script : interdits et caractères de contrôle → `-`, espaces réduits. */
+const cleanText = (text: string): string => text.replace(FORBIDDEN, '-').replace(/\s+/g, ' ').trim();
+
 /** Libellé nettoyé pour un nom de dossier : interdits → `-`, espaces réduits, 120 caractères max. */
-export function cleanFolderName(label: string): string {
-  const cleaned = label.replace(FORBIDDEN, '-').replace(/\s+/g, ' ').trim().slice(0, MAX_FOLDER_LENGTH).trim();
+export function cleanFolderName(label: string, maxLength: number = MAX_FOLDER_LENGTH): string {
+  const cleaned = cleanText(label).slice(0, Math.max(0, maxLength)).trim();
   return cleaned === '' ? FALLBACK_FOLDER : cleaned;
 }
 
@@ -35,14 +38,17 @@ const byAge = (a: ProgramLike, b: ProgramLike): number => {
 
 /**
  * Dossier de semaine d'un programme. Si plusieurs programmes partagent le même libellé, tous
- * sauf le plus ancien reçoivent le suffixe ` (` + 4 premiers alphanumériques du programId + `)`.
+ * sauf le plus ancien (createdAt, puis programId) reçoivent le suffixe ` (<programId complet
+ * nettoyé>)`. Le programId est unique (l'import refuse les doublons) : aucune collision.
+ * Au-delà de 120 caractères, c'est le LIBELLÉ qui est tronqué, jamais le programId.
  */
 export function weekFolderName(programs: readonly ProgramLike[], programId: string): string {
   const program = programs.find((p) => p.programId === programId);
   if (!program) return FALLBACK_FOLDER;
-  const base = cleanFolderName(program.week.label);
   const oldest = programs.filter((p) => labelKey(p.week.label) === labelKey(program.week.label)).sort(byAge)[0];
-  return oldest === undefined || oldest.programId === program.programId ? base : `${base} (${alnumPrefix(program.programId, 4)})`;
+  if (oldest === undefined || oldest.programId === program.programId) return cleanFolderName(program.week.label);
+  const suffix = ` (${cleanText(program.programId)})`;
+  return `${cleanFolderName(program.week.label, MAX_FOLDER_LENGTH - suffix.length)}${suffix}`;
 }
 
 /** Programmes existants qui partagent le libellé de semaine d'un programme (alerte d'import). */
