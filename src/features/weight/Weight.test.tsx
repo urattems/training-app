@@ -278,14 +278,18 @@ describe('Graphique, périodes, carte de détail, statistiques', () => {
     expect(await screen.findByText('jeudi 1 octobre', { selector: 'p' })).toBeInTheDocument();
   });
 
-  it('ordonnée ajustée à la plage des données : 80,6 → 82,4 kg occupe plus de la moitié de la hauteur', async () => {
+  it('échelle V1.2c : 80,6 → 82,4 kg sur un axe d’au moins 10 kg (75 → 86), aucun point collé au bord', async () => {
     renderAt('#/weight');
     const figure = await screen.findByRole('figure');
-    // Ordonnées de la courbe (attribut d) : depuis zéro, 1,8 kg d'écart tiendrait en quelques pixels.
+    // Zone de tracé : de y = 16 à y = 186 (170 px) ; ordonnées de la courbe lues dans l'attribut d.
     const d = figure.querySelector('path.recharts-line-curve')?.getAttribute('d') ?? '';
     const ys = [...d.matchAll(/[ML][\d.]+,([\d.]+)/g)].map((m) => Number(m[1]));
     expect(ys).toHaveLength(10);
-    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(220 / 2 - 30);
+    // 1,8 kg sur 11 kg d'axe : environ 1,8 / 11 × 170 ≈ 28 px, pas toute la hauteur.
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo((1.8 / 11) * 170, 0);
+    // Marge ≥ 10 % de la hauteur de tracé de chaque côté.
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(16 + 0.1 * 170);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(186 - 0.1 * 170);
   });
 });
 

@@ -1104,3 +1104,26 @@ Build de production servi en localhost (contexte sécurisé), Edge headless, 390
 - Avec 40 fichiers en parallèle, sur une machine chargée, le scénario 2 complet de l'écran exercice a dépassé 5 s (5,2 s) lors d'une passe.
 - Seul, il dure 1,9 s, **identique avec et sans les changements V1.2b** (mesuré en remettant le code précédent de côté).
 - Aucun test ni aucune assertion modifiés ; même logique qu'au J7 pour `asyncUtilTimeout`.
+
+---
+
+## fix-v1.2c — Échelle du graphique de poids (aucun changement de données ni de format)
+
+- **Règle** (onglet Poids uniquement, fonction pure `weightAxis` dans `src/domain/weight.ts`) :
+  - amplitude visible = max(`MIN_WEIGHT_SPAN_KG` = 10 kg, amplitude des données visibles × 1,25) ;
+  - centrée sur le milieu des données visibles ;
+  - bornes arrondies au kg entier **vers l'extérieur** ;
+  - marge d'au moins 10 % de l'amplitude affichée de chaque côté, **vérifiée après l'arrondi** ;
+  - graduations : multiples d'un pas propre (1, 2, 5, 10, 20… kg), de 4 à 6 lignes.
+- **Si la marge ou les graduations ne conviennent pas** après l'arrondi, l'axe est élargi d'1 kg de chaque côté, toujours centré, jusqu'à ce que tout convienne. Sans ce contrôle, pour 40 kg de données, l'arrondi pouvait ramener la marge à 9,6 %.
+- **Jamais sous 0 kg** : dans le seul cas extrême (plus de 100 kg d'écart dans la période, par exemple 18 → 126 kg), la fenêtre est décalée vers le haut à amplitude égale au lieu d'être centrée. Ce cas a été trouvé par le test de balayage.
+- **Progression des exercices inchangée** : `valueAxis` a retrouvé sa signature d'origine. Les options de marge ajoutées en V1.2b (`WEIGHT_AXIS`) sont supprimées. Le graphique commun reçoit une fonction d'axe facultative (`valueAxisFor`) ; par défaut, c'est l'axe de la progression.
+- **Grille alignée sur les graduations** (`horizontalValues`) : avec la nouvelle règle, les bornes ne sont plus forcément des graduations, et Recharts traçait une ligne sans libellé à la borne haute. En Progression, les bornes sont toujours des graduations : rendu identique, vérifié par la régression S6.
+- Les statistiques (dernier poids, min, max, variation) ne changent pas.
+- **Tests adaptés** : deux tests écrits en V1.2b, qui vérifiaient l'**ancienne** règle de bornes :
+  1. `domain/weight.test.ts`, « ordonnée AJUSTÉE à la plage… » : remplacé par les tests de la nouvelle règle (une pesée, pesées identiques, amplitudes de 3, 8 et 20 kg, trois périodes, balayage de 0 à 120 kg, plancher à 0, constante).
+  2. `features/weight/Weight.test.tsx`, « ordonnée ajustée… occupe plus de la moitié de la hauteur » : la courbe 80,6 → 82,4 kg occupe maintenant environ 1,8 / 11 de la hauteur de tracé, et aucun point n'est à moins de 10 % d'un bord.
+- **Navigateur réel (390 px)** :
+  - onglet Poids : 14/14 (carte au-dessus de la barre, point le plus proche, axe 76 → 86) ;
+  - états vides et pesée unique : 4/4 (pas de graphique sans pesée ; une pesée : axe 76 → 86, point au milieu) ;
+  - régression S1–S7 et hors ligne : 9/9.

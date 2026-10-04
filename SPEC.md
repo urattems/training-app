@@ -229,6 +229,7 @@ L'app enregistre, affiche et calcule ; **aucun objectif, aucun conseil, aucune i
    - points + ligne, axe des dates en échelle réelle ;
    - ordonnée **ajustée à la plage des données** (pas depuis zéro), graduations lisibles ;
    - toucher un point sélectionne **le plus proche du doigt** et ouvre une carte entièrement visible au-dessus de la barre : date, poids, écart avec la pesée précédente de tout l'historique, crayon.
+   - **Échelle (V1.2c)** : l'amplitude visible vaut max(10 kg, 1,25 × l'amplitude des données visibles), centrée sur le milieu des données, avec des bornes au kg entier, une marge d'au moins 10 % de chaque côté et 4 à 6 graduations à pas « propre » (1, 2, 5 ou 10 kg) ; cette règle ne concerne que l'onglet Poids, pas la progression des exercices.
 5. **Statistiques** : dernier poids et son écart avec la pesée précédente ; min, max et variation sur la période (« −1,3 kg » « sur 30 jours »).
 6. **Liste des pesées**, récente d'abord : date, poids, crayon, poubelle (cibles ≥ 44 px, noms accessibles).
 

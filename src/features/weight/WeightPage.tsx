@@ -17,10 +17,10 @@ import {
   parseWeightInput,
   previousWeight,
   validateWeightDate,
-  WEIGHT_AXIS,
   weightDelta,
   weightSanity,
   weightStats,
+  weightValueAxis,
   type WeightWarning,
 } from '../../domain/weight';
 import { useWeights } from '../../hooks/useData';
@@ -301,7 +301,7 @@ function WeightContent({ entries, notice, onNotice, onEdit, adding, onCloseAdd, 
                 formatValue={formatKg}
                 selectedId={visibleSelected}
                 onSelect={onSelect}
-                axis={WEIGHT_AXIS}
+                valueAxisFor={weightValueAxis}
                 pointLabel={pointLabel}
               />
             )}

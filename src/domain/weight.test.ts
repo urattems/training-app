@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { valueAxis } from './chart';
 import { getExportReminder } from './exportReminder';
 import type { WeightEntry } from './types';
 import {
@@ -8,7 +7,8 @@ import {
   parseWeightInput,
   previousWeight,
   validateWeightDate,
-  WEIGHT_AXIS,
+  MIN_WEIGHT_SPAN_KG,
+  weightAxis,
   weightDelta,
   weightSanity,
   weightStats,
@@ -146,13 +146,80 @@ describe('Graphique du poids', () => {
     expect(series.domain).toEqual([Date.UTC(2026, 6, 3, 12), Date.UTC(2026, 9, 3, 12)]);
   });
 
-  it('ordonnée AJUSTÉE à la plage (jamais depuis zéro), contrairement à la progression', () => {
-    const points = buildWeightSeries(HISTORY, '1M', TODAY).points; // 81,2 et 80,6 kg
-    const weight = valueAxis(points, WEIGHT_AXIS);
-    expect(weight.domain[0]).toBeGreaterThanOrEqual(79);
-    expect(weight.domain[1]).toBeLessThanOrEqual(82.5);
-    expect(weight.ticks.length).toBeGreaterThanOrEqual(3);
-    // Réglage par défaut (progression) : marge de 5 % de la valeur, axe beaucoup plus large.
-    expect(valueAxis(points).domain[1] - valueAxis(points).domain[0]).toBeGreaterThan(weight.domain[1] - weight.domain[0]);
+});
+
+/** Toutes les règles d'échelle du poids (V1.2c), vérifiées sur un axe donné. */
+function expectWeightAxisRules(values: number[]) {
+  const { domain, ticks } = weightAxis(values);
+  const [low, high] = domain;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = high - low;
+  // Amplitude visible ≥ max(10 kg, 1,25 × amplitude des données).
+  expect(span).toBeGreaterThanOrEqual(Math.max(MIN_WEIGHT_SPAN_KG, (max - min) * 1.25));
+  // Bornes au kg entier.
+  expect(Number.isInteger(low) && Number.isInteger(high)).toBe(true);
+  // Jamais sous 0 kg ; sinon centrée sur le milieu des données (à l'arrondi au kg près).
+  expect(low).toBeGreaterThanOrEqual(0);
+  if (low > 0) expect(Math.abs((low + high) / 2 - (min + max) / 2)).toBeLessThanOrEqual(1);
+  // Jamais de point collé au bord : marge ≥ 10 % de l'amplitude de chaque côté.
+  expect(min - low).toBeGreaterThanOrEqual(0.1 * span);
+  expect(high - max).toBeGreaterThanOrEqual(0.1 * span);
+  // Graduations propres : 4 à 6 lignes, pas constant de 1, 2, 5, 10… kg, à l'intérieur du domaine.
+  expect(ticks.length).toBeGreaterThanOrEqual(4);
+  expect(ticks.length).toBeLessThanOrEqual(6);
+  const step = (ticks[1] ?? 0) - (ticks[0] ?? 0);
+  expect([1, 2, 5, 10, 20, 50, 100]).toContain(step);
+  ticks.forEach((t, i) => {
+    expect(Math.abs(t % step)).toBe(0);
+    if (i > 0) expect(t - (ticks[i - 1] ?? 0)).toBe(step);
+  });
+  expect(ticks[0]).toBeGreaterThanOrEqual(low);
+  expect(ticks.at(-1)).toBeLessThanOrEqual(high);
+  return { domain, ticks };
+}
+
+describe('Échelle du graphique de poids (V1.2c)', () => {
+  it('une pesée seule : 10 kg centrés sur elle', () => {
+    expect(expectWeightAxisRules([80.6])).toEqual({ domain: [75, 86], ticks: [76, 78, 80, 82, 84, 86] });
+  });
+
+  it('toutes les pesées identiques : 10 kg centrés', () => {
+    expect(expectWeightAxisRules([80, 80, 80])).toEqual({ domain: [75, 85], ticks: [76, 78, 80, 82, 84] });
+  });
+
+  it('amplitude de 3 kg : le plancher de 10 kg s’applique (une variation n’envahit pas la hauteur)', () => {
+    expect(expectWeightAxisRules([79, 80.4, 82])).toEqual({ domain: [75, 86], ticks: [76, 78, 80, 82, 84, 86] });
+  });
+
+  it('amplitude de 8 kg : 10 kg, marge de 1 kg de chaque côté', () => {
+    expect(expectWeightAxisRules([76, 79.5, 84])).toEqual({ domain: [75, 85], ticks: [76, 78, 80, 82, 84] });
+  });
+
+  it('amplitude de 20 kg : 1,25 × 20 = 25 kg (arrondi à 26), pas de 5 kg', () => {
+    expect(expectWeightAxisRules([70, 81, 90])).toEqual({ domain: [67, 93], ticks: [70, 75, 80, 85, 90] });
+  });
+
+  it('plusieurs périodes de la même histoire : règles respectées, la période change l’axe', () => {
+    const axisFor = (period: Parameters<typeof buildWeightSeries>[1]) =>
+      expectWeightAxisRules(buildWeightSeries(HISTORY, period, TODAY).points.map((p) => p.value));
+    expect(axisFor('1M')).toEqual({ domain: [75, 86], ticks: [76, 78, 80, 82, 84, 86] }); // 81,2 et 80,6
+    expect(axisFor('3M')).toEqual({ domain: [77, 88], ticks: [78, 80, 82, 84, 86, 88] }); // 80,6 → 84,5
+    expect(axisFor('all')).toEqual({ domain: [78, 89], ticks: [78, 80, 82, 84, 86, 88] }); // 80,6 → 86
+  });
+
+  it('balayage : les règles tiennent pour des amplitudes de 0 à 120 kg et tous les centres', () => {
+    for (let spread = 0; spread <= 120; spread += 0.7) {
+      for (const base of [18.3, 45, 79.95, 151.2]) expectWeightAxisRules([base, base + spread / 3, base + spread]);
+    }
+  });
+
+  it('jamais sous 0 kg : cas extrême (18 → 126 kg dans la période), fenêtre décalée vers le haut', () => {
+    const { domain } = expectWeightAxisRules([18.3, 126.1]);
+    expect(domain[0]).toBe(0);
+  });
+
+  it('constante nommée : amplitude minimale de 10 kg', () => {
+    expect(MIN_WEIGHT_SPAN_KG).toBe(10);
   });
 });

@@ -95,22 +95,18 @@ export function niceStep(span: number, count = 3): number {
  * Axe Y : domaine aligné sur un pas rond, graduations régulières, jamais négatif.
  * Une marge entoure les valeurs pour que les points ne touchent pas les bords.
  */
-export interface ValueAxisOptions {
-  /** Marge minimale proportionnelle à la valeur max (progression : 5 %). */
-  relativeMargin?: number;
-  /** Marge minimale absolue (progression : 1). */
-  minMargin?: number;
+/** Axe Y d'un graphique : domaine [bas, haut] et graduations. */
+export interface ValueAxis {
+  domain: [number, number];
+  ticks: number[];
 }
 
-export function valueAxis(
-  points: readonly ChartPoint[],
-  { relativeMargin = 0.05, minMargin = 1 }: ValueAxisOptions = {},
-): { domain: [number, number]; ticks: number[] } {
+export function valueAxis(points: readonly ChartPoint[]): ValueAxis {
   if (points.length === 0) return { domain: [0, 1], ticks: [0, 1] };
   const values = points.map((p) => p.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const margin = Math.max((max - min) * 0.15, max * relativeMargin, minMargin);
+  const margin = Math.max((max - min) * 0.15, max * 0.05, 1);
   const step = niceStep(max - min + 2 * margin);
   const low = Math.max(0, Math.floor((min - margin) / step) * step);
   const high = Math.ceil((max + margin) / step) * step;

@@ -1,6 +1,6 @@
 import { memo, useRef, type KeyboardEvent, type MouseEvent } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
-import { valueAxis, type ChartPoint, type ChartSeries, type ValueAxisOptions } from '../../domain/chart';
+import { valueAxis, type ChartPoint, type ChartSeries, type ValueAxis } from '../../domain/chart';
 import { useElementWidth } from '../../hooks/useElementWidth';
 import { formatDayLong, formatDayShort } from '../../utils/format';
 import { formatDecimal } from '../../utils/numbers';
@@ -44,8 +44,8 @@ interface ProgressChartProps {
   formatValue: (value: number) => string;
   selectedId: string | null;
   onSelect: (point: ChartPoint) => void;
-  /** Axe Y : marges (le poids resserre l'ordonnée sur la plage des données). */
-  axis?: ValueAxisOptions;
+  /** Axe Y propre à l'écran (poids : amplitude minimale) ; par défaut, celui de la progression. */
+  valueAxisFor?: (points: readonly ChartPoint[]) => ValueAxis;
   /** Libellé accessible d'un point (par défaut : « date : valeur »). */
   pointLabel?: (point: ChartPoint) => string;
 }
@@ -61,10 +61,10 @@ interface DotProps {
  * Pas de tooltip Recharts : chaque point est un bouton (zone de 44 px) qui sélectionne
  * la séance ; la carte de détail est rendue hors du graphique, pilotée par l'état React.
  */
-export const ProgressChart = memo(function ProgressChart({ series, label, formatValue, selectedId, onSelect, axis, pointLabel }: ProgressChartProps) {
+export const ProgressChart = memo(function ProgressChart({ series, label, formatValue, selectedId, onSelect, valueAxisFor, pointLabel }: ProgressChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(containerRef);
-  const yAxis = valueAxis(series.points, axis);
+  const yAxis = (valueAxisFor ?? valueAxis)(series.points);
 
   const pointById = (id: string | null) => (id === null ? undefined : series.points.find((p) => p.workoutId === id));
 
@@ -117,7 +117,8 @@ export const ProgressChart = memo(function ProgressChart({ series, label, format
       }}
     >
       <LineChart width={width} height={CHART_HEIGHT} data={series.points} margin={{ top: 16, right: 16, bottom: 4, left: 0 }}>
-        <CartesianGrid vertical={false} className={styles.grid} />
+        {/* Lignes exactement sur les graduations (le poids a des bornes hors graduation). */}
+        <CartesianGrid vertical={false} horizontalValues={yAxis.ticks} className={styles.grid} />
         <XAxis
           dataKey="t"
           type="number"
