@@ -47,3 +47,12 @@ export function IconLink({ to, label, children }: { to: string; label: string; c
     </Link>
   );
 }
+
+/** Bouton icône de l'en-tête (44 px), ex. « + » pour ajouter. */
+export function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className={styles.iconButton} aria-label={label} onClick={onClick}>
+      {children}
+    </button>
+  );
+}

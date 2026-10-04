@@ -136,6 +136,14 @@ Barre basse à 3 onglets : **Accueil · Programme · Progression**. Roue cranté
 
 Routes : `/`, `/program`, `/program/:sessionId`, `/workout/:workoutId`, `/workout/:workoutId/exercise/:exerciseId`, `/progress`, `/progress/:exerciseId`, `/history`, `/history/:workoutId`, `/settings`.
 
+**Amendement V1.2 :**
+- La barre basse passe à **4 onglets** : **Accueil · Programme · Progression · Poids**. L'onglet **Poids** (icône balance, Lucide `Scale`) vient après Progression.
+- Les Paramètres restent une roue crantée, jamais un onglet ; l'Historique non plus.
+- Les 4 onglets gardent des cibles ≥ 44 px et des libellés complets, sans débordement, à 390 px comme à 360 px.
+- Routes ajoutées :
+  - `/weight` (§7.11), chargé à la demande avec le même module de graphique que la progression ;
+  - `/settings/coach` (§10.6).
+
 ### 7.2 Accueil
 Répond à : « Qu'est-ce que je dois faire aujourd'hui ? »
 - **Prochaine séance** : nom, nombre d'exercices, durée estimée, **gros bouton « Commencer la séance »**.
@@ -198,6 +206,38 @@ Rappel d'export : bandeau discret si dernier export > 14 jours **et** ≥ 1 séa
 - **Données** : « Exporter pour le coach » (§10.6), à côté de « Exporter mes données », qui reste inchangé (sauvegarde complète).
 - Une ligne d'aide sous chacun distingue la sauvegarde (restaurable) de l'envoi au coach (sélection, non restaurable).
 - Un envoi au coach ne compte pas comme sauvegarde : il ne modifie pas le rappel d'export.
+
+### 7.11 Onglet Poids (amendement V1.2)
+L'app enregistre, affiche et calcule ; **aucun objectif, aucun conseil, aucune interprétation**. kg uniquement.
+
+**Règles**
+- **Une seule pesée par jour**, à la date locale de l'appareil.
+- **Remplacer une pesée existante exige une confirmation explicite** ; jamais de remplacement silencieux.
+- Le crayon modifie le **poids uniquement**. Pour changer le jour d'une pesée : la supprimer, puis la recréer avec « + ».
+- Suppression avec confirmation explicite.
+
+**Écran (`/weight`)**, de haut en bas :
+1. **« + »** dans l'en-tête : feuille « Ajouter une pesée », avec un sélecteur de date (`max` = aujourd'hui, date future refusée) et le poids. Même règle de remplacement si la date a déjà une pesée.
+2. **Carte « Nouvelle pesée »** :
+   - champ décimal (`inputmode="decimal"`, 17 px, `enterkeyhint="done"`, cible ≥ 48 px) ;
+   - le **dernier poids en placeholder gris**, jamais prérempli ;
+   - bouton « Enregistrer » ; date et heure automatiques ;
+   - si une pesée existe déjà aujourd'hui : « Tu as déjà 79,2 kg aujourd'hui. Remplacer par 78,9 kg ? ».
+   - avertissement doux (écart de plus de 5 kg avec la pesée précédente, ou valeur hors de 20 à 300 kg) : confirmation « C'est bien ça ? », jamais bloquante.
+3. **Périodes 1M · 3M · 6M · 1A · Tout**, comme la progression.
+4. **Graphique** (même moteur que la progression) :
+   - points + ligne, axe des dates en échelle réelle ;
+   - ordonnée **ajustée à la plage des données** (pas depuis zéro), graduations lisibles ;
+   - toucher un point sélectionne **le plus proche du doigt** et ouvre une carte entièrement visible au-dessus de la barre : date, poids, écart avec la pesée précédente de tout l'historique, crayon.
+5. **Statistiques** : dernier poids et son écart avec la pesée précédente ; min, max et variation sur la période (« −1,3 kg » « sur 30 jours »).
+6. **Liste des pesées**, récente d'abord : date, poids, crayon, poubelle (cibles ≥ 44 px, noms accessibles).
+
+**États vides** : sans pesée, un message clair s'affiche et le champ de saisie reste disponible. Avec une seule pesée, le graphique est affiché.
+
+**Autre onglet de l'app ouvert pendant une montée de version de la base** :
+- si une ancienne version bloque la mise à jour, un message plein écran demande de fermer les autres onglets de l'app puis de la rouvrir ; la mise à jour reprend seule ;
+- si une version plus récente s'ouvre ailleurs, le message invite à recharger la page ;
+- dans les deux cas, le message assure que les données ne sont pas perdues, et aucune donnée n'est touchée.
 
 ---
 

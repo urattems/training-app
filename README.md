@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1 terminée et déployée** → **https://urattems.github.io/training-app/**
+> **État : V1.2 (V1 + collage du programme, export pour le coach, suivi du poids)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
@@ -22,9 +22,16 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
   - reprise après fermeture, abandon (avec suppression proposée si la séance est vide).
 - **Historique** : détail objectif / réalisé, modification après coup, suppression avec confirmation.
 - **Progression** : graphique de charge (ou de répétitions pour les exercices sans charge) sur une vraie échelle de temps, périodes 1M · 3M · 6M · 1A · Tout, carte de détail au toucher, statistiques et records.
+- **Poids** (4ᵉ onglet) :
+  - une pesée par jour, avec le dernier poids en placeholder ;
+  - ajout à une date passée avec « + », correction du poids avec le crayon, suppression confirmée ;
+  - remplacement toujours confirmé, et « C'est bien ça ? » sur une valeur inhabituelle ;
+  - courbe (ordonnée ajustée aux données), statistiques (dernier poids, min, max, variation sur la période) ;
+  - kg uniquement, sans objectif ni conseil.
 - **Données** :
   - sauvegarde complète en JSON, restauration, rappel d'export après 14 jours ;
-  - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT.
+  - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT ;
+  - les pesées font partie de la sauvegarde (format 1.1, anciennes sauvegardes 1.0 toujours acceptées) et peuvent être jointes à l'export pour le coach (30 jours ou plus, 90 jours, tout, ou désactivées).
 - **PWA** : installable sur l'écran d'accueil, entièrement hors ligne après la première visite, mise à jour proposée (jamais pendant une séance).
 
 ## Développement
@@ -59,10 +66,10 @@ En **HTTP sur une IP locale**, Safari n'est pas en contexte sécurisé : pas de 
 src/
   app/          App (routes HashRouter), Shell (barre basse), filet d'erreur
   components/   UI réutilisable (Button, Card, Sheet, NumberField, TextField…)
-  features/     écrans : home, program, workout, exercise, history, progress, settings, import
+  features/     écrans : home, program, workout, exercise, history, progress, weight, settings, import
   domain/       règles métier pures et testées (séance, rotation, stats, graphique, rappel d'export)
   schemas/      contrat JSON (Zod), invariants, migrations de schéma, messages d'erreur
-  db/           base IndexedDB (Dexie)
+  db/           base IndexedDB (Dexie, version 2 depuis la V1.2), état de connexion entre onglets
   services/     accès aux données : programme, séance, historique, export, restauration, stockage
   hooks/        lectures réactives, enregistrement automatique, export préparé
   pwa/          manifest, bannière de mise à jour
@@ -109,6 +116,10 @@ Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runn
 
 - **Stockage iOS** : Safari peut effacer les données d'une PWA peu utilisée. Seuls des exports réguliers protègent vraiment.
 - **HTTPS requis** pour le mode hors ligne, l'installation complète, la feuille de partage et le stockage persistant (OK sur GitHub Pages ; indisponibles en HTTP sur IP locale).
-- **Une seule unité** (kg) et **un seul thème** (clair) en V1. Le thème sombre est prévu au J8, facultatif.
+- **Une seule unité** (kg, charges et poids) et **un seul thème** (clair). Le thème sombre est prévu au J8, facultatif.
 - **Un appareil** : pas de synchronisation. Pour changer d'iPhone, exporter puis restaurer.
+- **Plusieurs onglets ou fenêtres de l'app** (surtout sur ordinateur) : lors d'une mise à jour qui fait évoluer la base (V1.2 : version 2), une ancienne version encore ouverte peut retarder la mise à jour.
+  - L'app affiche alors « Ferme les autres onglets de l'app, puis rouvre-la », puis reprend d'elle-même.
+  - Aucune donnée n'est touchée.
+  - Sur iPhone, l'app installée et Safari ont des données séparées : le cas ne se présente qu'entre plusieurs onglets Safari.
 - **Feuille de partage** : dépend de Safari. En cas d'échec, l'export bascule automatiquement sur le téléchargement.

@@ -27,14 +27,14 @@ beforeEach(resetDatabase);
 afterEach(cleanup);
 
 describe('Premier lancement', () => {
-  it('affiche « Bienvenue », le bouton d\'import et la navigation à 3 onglets', async () => {
+  it('affiche « Bienvenue », le bouton d\'import et la navigation à 4 onglets', async () => {
     renderAt('#/');
     expect(await screen.findByRole('heading', { name: 'Bienvenue' })).toBeInTheDocument();
     expect(screen.getByText('Importe ton premier programme pour commencer.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Importer un programme JSON' })).toBeInTheDocument();
 
     const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Programme', 'Progression']);
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Programme', 'Progression', 'Poids']);
     expect(within(nav).getByRole('link', { name: 'Accueil' })).toHaveAttribute('aria-current', 'page');
     // Les Paramètres sont une roue crantée, jamais un 4e onglet.
     expect(screen.getByRole('link', { name: 'Paramètres' })).toBeInTheDocument();

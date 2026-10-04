@@ -249,6 +249,8 @@ Pas de `preferences`.
 - **`auto_30d`** : `from` = la plus ancienne entre la date de la plus ancienne séance jointe et aujourd'hui − 30 jours. Le coach a toujours au moins 30 jours de pesées, et toute la période des séances envoyées.
 - **`days_90`** : les 90 derniers jours.
 - **`all`** : depuis la toute première pesée.
+- **Pesées activées mais aucune dans la fenêtre** (ou aucune pesée enregistrée) : `weightWindow` reste **renseigné**, avec `count: 0` et `weightEntries: []`. Cela signifie « aucune pesée sur cette période ».
+- **`weightWindow: null`** est **réservé** au cas où l'utilisateur a désactivé les pesées pour cet envoi. Cela signifie « pesées non jointes », et rien ne doit en être déduit.
 
 ### `selection`
 
@@ -335,7 +337,7 @@ Fichier complet, validé par les tests et reproduit à l'identique par l'app : [
 ### Lire les pesées
 
 - **Une pesée par jour au plus**, en kg, à la date locale de la mesure. Les jours sans pesée n'ont simplement pas été mesurés : n'interpole pas et ne déduis rien d'un trou.
-- **`weightWindow`** dit quelle période couvrent les pesées jointes (`from` → `to`) et combien il y en a (`count`). `null` : l'utilisateur n'a pas joint ses pesées. N'en déduis rien sur son poids.
+- **`weightWindow`** dit quelle période couvrent les pesées jointes (`from` → `to`) et combien il y en a (`count`). `count: 0` : aucune pesée sur la période. `null` : l'utilisateur n'a pas joint ses pesées. N'en déduis rien sur son poids.
 - Le poids varie d'un jour à l'autre (eau, repas, heure de la mesure) : regarde la **tendance sur plusieurs pesées**, pas un écart isolé.
 - **L'app ne fixe aucun objectif de poids et ne donne aucun conseil.** Si tu tiens compte du poids pour le programme, c'est **ta** décision ; dis-le explicitement, sans l'imposer.
 

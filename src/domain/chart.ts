@@ -11,6 +11,7 @@ export interface ChartPoint {
   /** Timestamp UTC de la date métier (midi, pour éviter les effets de fuseau). */
   t: number;
   value: number;
+  /** Identifiant du point : la séance (progression) ou la date de la pesée (poids). */
   workoutId: string;
   date: string;
 }
@@ -50,7 +51,14 @@ export function buildChartSeries(
       date: p.date,
     }),
   );
+  return seriesForPeriod(points, period, today);
+}
 
+/**
+ * Domaine temporel d'une série déjà filtrée sur la période (commun à la progression et
+ * au poids) : période bornée → [début, aujourd'hui] ; « Tout » → [premier, dernier point].
+ */
+export function seriesForPeriod(points: ChartPoint[], period: Period, today: string): ChartSeries {
   const start = periodStart(period, today);
   let domain: [number, number];
   if (start !== null) {
@@ -87,12 +95,22 @@ export function niceStep(span: number, count = 3): number {
  * Axe Y : domaine aligné sur un pas rond, graduations régulières, jamais négatif.
  * Une marge entoure les valeurs pour que les points ne touchent pas les bords.
  */
-export function valueAxis(points: readonly ChartPoint[]): { domain: [number, number]; ticks: number[] } {
+export interface ValueAxisOptions {
+  /** Marge minimale proportionnelle à la valeur max (progression : 5 %). */
+  relativeMargin?: number;
+  /** Marge minimale absolue (progression : 1). */
+  minMargin?: number;
+}
+
+export function valueAxis(
+  points: readonly ChartPoint[],
+  { relativeMargin = 0.05, minMargin = 1 }: ValueAxisOptions = {},
+): { domain: [number, number]; ticks: number[] } {
   if (points.length === 0) return { domain: [0, 1], ticks: [0, 1] };
   const values = points.map((p) => p.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const margin = Math.max((max - min) * 0.15, max * 0.05, 1);
+  const margin = Math.max((max - min) * 0.15, max * relativeMargin, minMargin);
   const step = niceStep(max - min + 2 * margin);
   const low = Math.max(0, Math.floor((min - margin) / step) * step);
   const high = Math.ceil((max + margin) / step) * step;

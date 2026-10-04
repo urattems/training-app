@@ -4,6 +4,7 @@
  */
 import { hasAtMostTwoDecimals } from '../schemas/weight.schema';
 import { parseDecimalInput } from '../utils/numbers';
+import { dateToTime, seriesForPeriod, type ChartSeries, type ValueAxisOptions } from './chart';
 import { filterByPeriod, type Period } from './stats';
 import type { WeightEntry } from './types';
 import { isValidLocalDate } from './values';
@@ -142,4 +143,18 @@ export function weightsRecordedSince(entries: readonly Pick<WeightEntry, 'record
   if (lastExportAt === null) return entries.length;
   const since = Date.parse(lastExportAt);
   return entries.filter((e) => Date.parse(e.recordedAt) > since).length;
+}
+
+// --- Graphique ----------------------------------------------------------------------
+
+/**
+ * Ordonnée du poids AJUSTÉE à la plage des données (jamais depuis zéro) : marge de 15 %
+ * de l'écart, au moins 0,5 kg ; aucune marge proportionnelle au poids lui-même.
+ */
+export const WEIGHT_AXIS: ValueAxisOptions = { relativeMargin: 0, minMargin: 0.5 };
+
+/** Série du graphique de poids : un point par pesée (identifiant = date), axe des dates réel. */
+export function buildWeightSeries(entries: readonly WeightEntry[], period: Period, today: string): ChartSeries {
+  const points = getWeightHistory(entries, period, today).map((e) => ({ t: dateToTime(e.date), value: e.weightKg, workoutId: e.date, date: e.date }));
+  return seriesForPeriod(points, period, today);
 }

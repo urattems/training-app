@@ -1,0 +1,126 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Champ + bouton sur une ligne ; le champ prend la place restante. */
+.inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ≥ 48 px de haut (--field-height), 17 px (pas de zoom iOS), chiffres tabulaires. */
+.weightInput {
+  min-height: var(--field-height);
+  padding-right: 3rem;
+}
+
+.dateInput {
+  min-height: var(--field-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.fieldError {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.notice {
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.error {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.pointDelta {
+  font-size: var(--font-size-sm);
+}
+
+.list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Ligne : date et poids, puis crayon et poubelle (cibles de 44 px). */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 3.5rem;
+}
+
+.row + .row {
+  border-top: 1px solid var(--color-border);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowDate {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.rowValue {
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-accent-strong);
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+
+.rowAction:active {
+  background: var(--color-surface-pressed);
+}
+
+.rowAction svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.rowDelete {
+  color: var(--color-danger);
+}

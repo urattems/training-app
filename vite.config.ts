@@ -67,6 +67,9 @@ export default defineConfig(({ command, isPreview }) => {
       // Fuseau fixe (Europe/Paris) posé avant le démarrage des workers : local = CI.
       globalSetup: ['./src/test/globalSetup.ts'],
       setupFiles: ['./src/test/setup.ts'],
+      // Scénarios UI complets (2 à 3 s seuls) : marge pour une machine ou un runner CI chargé
+      // (40 fichiers en parallèle). Aucune assertion n'en dépend (cf. DECISIONS.md, V1.2b).
+      testTimeout: 15_000,
       include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     },
   };

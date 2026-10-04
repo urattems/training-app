@@ -49,7 +49,7 @@ describe('Historique — liste', () => {
     expect(w2).toHaveAttribute('href', '#/history/w-0002');
   });
 
-  it('accessible depuis Programme et Progression (sans 4e onglet), et depuis la dernière séance de l\'accueil', async () => {
+  it('accessible depuis Programme et Progression (jamais un onglet), et depuis la dernière séance de l\'accueil', async () => {
     await restoreFixture();
     const user = renderAt('#/program');
     await user.click(await screen.findByRole('link', { name: 'Historique des séances' }));
@@ -57,7 +57,12 @@ describe('Historique — liste', () => {
     await user.click(screen.getByRole('link', { name: 'Progression' }));
     await user.click(await screen.findByRole('link', { name: 'Historique des séances' }));
     expect(window.location.hash).toBe('#/history');
-    expect(within(screen.getByRole('navigation', { name: 'Navigation principale' })).getAllByRole('link')).toHaveLength(3);
+    expect(within(screen.getByRole('navigation', { name: 'Navigation principale' })).getAllByRole('link').map((l) => l.textContent)).toEqual([
+      'Accueil',
+      'Programme',
+      'Progression',
+      'Poids',
+    ]);
 
     await user.click(within(screen.getByRole('navigation', { name: 'Navigation principale' })).getByRole('link', { name: 'Accueil' }));
     await user.click(await screen.findByRole('link', { name: /Dernière séance/ }));

@@ -1,0 +1,41 @@
+/* Recouvre toute l'app : plus aucune saisie possible tant que la situation n'est pas réglée. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-connection);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--safe-top) + var(--space-6)) calc(var(--page-gutter) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-6))
+    calc(var(--page-gutter) + var(--safe-left));
+  background: var(--color-bg);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-title);
+}
+
+.text {
+  color: var(--color-text);
+}
+
+.safe {
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}

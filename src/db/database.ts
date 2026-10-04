@@ -1,5 +1,6 @@
 import { Dexie, type EntityTable, type Table } from 'dexie';
 import { DB_NAME } from '../config';
+import { watchConnection } from './connectionStatus';
 import type { HistoryExport, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
 
 /**
@@ -58,6 +59,8 @@ export class TrainingDatabase extends Dexie {
     this.version(1).stores(STORES_V1);
     // Mise à jour 1 → 2 : création du store `weights` (vide), sans `upgrade()` : rien à réécrire.
     this.version(DB_VERSION).stores(STORES_V2_ADDED);
+    // Autre onglet sur une autre version : message clair au lieu d'une attente ou d'une erreur obscure.
+    watchConnection(this);
   }
 }
 

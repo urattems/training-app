@@ -992,3 +992,115 @@ Build de production servi en localhost (contexte sécurisé), Edge headless, 390
   - restauration atomique et copie interne ;
   - export coach : 4 fenêtres, aucune pesée, 7 invariants, 1.0 migré, refus des deux versions par la restauration et l'import ;
   - fixtures et empreintes.
+
+---
+
+## V1.2b — Onglet Poids, pesées dans l'export coach et la restauration, onglets multiples
+
+### Amendement de SPEC.md (autorisé, par ajout uniquement)
+- §7.1 : bloc « Amendement V1.2 » sous le texte d'origine, conservé intact (4 onglets, routes `/weight` et `/settings/coach`).
+- §7.11 (nouvelle) : « Onglet Poids ».
+- `git diff` : 40 ajouts, 0 suppression.
+
+### Décision validée : `weightWindow` quand il n'y a aucune pesée
+- Pesées **activées** mais aucune dans la fenêtre, ou aucune en base : `weightWindow` reste renseigné avec `count: 0` et `weightEntries: []`. Cela veut dire « aucune pesée sur la période ».
+- `weightWindow: null` est **réservé** aux pesées désactivées par l'utilisateur pour cet envoi.
+- Écrit aussi dans `JSON_SCHEMA.md`. Testé dans l'interface : sans pesée en base, la section l'indique et le fichier porte `count: 0`.
+
+### Navigation
+- 4ᵉ onglet « Poids » (Lucide `Scale`) après Progression. La grille passe à 4 colonnes, avec des libellés sur une ligne.
+- **Mesuré en navigateur à 390 px et à 360 px** : chaque onglet fait au moins 44 px dans les deux sens, aucun libellé n'est tronqué, rien ne déborde.
+- `WeightPage` est chargé à la demande (`lazy`), comme Progression.
+  - Le build partage le module de graphique (Recharts + `ProgressChart`) entre les deux écrans, dans un chunk commun que Rolldown nomme automatiquement « ProgressPage.module ». Ce chunk n'est **pas** préchargé au démarrage.
+  - Une tentative de le nommer `chart` par un groupe `codeSplitting` y faisait entrer un module aussi utilisé au démarrage, ce qui le préchargeait dès l'ouverture : elle a été abandonnée.
+
+### Écran Poids
+- **Saisie du jour** :
+  - champ décimal (17 px, au moins 48 px de haut, `inputmode="decimal"`, `enterkeyhint="done"`), unité « kg » affichée ;
+  - le dernier poids est un **placeholder**, jamais une valeur ;
+  - la date et l'heure sont celles de l'appareil ; la date du jour est rappelée sous le champ.
+- **Enchaînement commun** aux trois saisies (jour, « + », crayon) :
+  1. validation (message en français, champ marqué `aria-invalid`) ;
+  2. avertissement doux s'il y a lieu (« C'est bien ça ? », boutons « Corriger » / « Oui, enregistrer ») ;
+  3. confirmation de remplacement si la date a déjà une pesée ;
+  4. écriture.
+  - Le service garde son garde-fou : une pesée apparue entre-temps n'est jamais écrasée sans confirmation.
+- **« + »** : date (`max` = aujourd'hui, une date future saisie malgré tout est refusée avec un message) et poids.
+- **Crayon** : il corrige le poids seulement. La feuille rappelle que, pour changer de jour, il faut supprimer la pesée puis l'ajouter avec « + ». Ici, le champ est prérempli : on corrige une valeur existante.
+- **Graphique** : même composant que la progression, avec deux options ajoutées sans changer son comportement par défaut :
+  - `axis` : ordonnée resserrée pour le poids, marge de 15 % de l'écart et d'au moins 0,5 kg, **sans** la marge de 5 % de la valeur utilisée par la progression ;
+  - `pointLabel` : libellé accessible « Pesée du … : … kg ».
+- **Toucher le point le plus proche** (correction ergonomique trouvée en navigateur réel, qui profite aussi à la progression) :
+  - avec des pesées rapprochées, les zones tactiles de 44 px se chevauchaient et le point dessiné au-dessus captait le toucher (on visait le 25 sept., on obtenait le 1er oct.) ;
+  - désormais, le toucher choisit le point dont la position dessinée est la plus proche du doigt (au plus 32 px horizontalement), y compris entre deux zones tactiles ;
+  - sans coordonnées (clavier, lecteur d'écran, tests jsdom), le point activé reste celui de l'élément : les tests de Progression existants passent sans modification.
+- **Carte de détail** : date, poids, écart avec la pesée précédente de tout l'historique (« −0,25 kg depuis le 22 sept. » ou « Première pesée »), bouton crayon. Elle défile pour rester entièrement au-dessus de la barre (mesuré).
+- **Statistiques** :
+  - dernier poids (avec son écart) ;
+  - min, max avec leurs dates ;
+  - variation sur la période, avec « sur N jours » mesuré entre la première et la dernière pesée de la période ;
+  - nombre de pesées de la période.
+  - Aucun conseil ni objectif.
+- **Liste** : récente d'abord, crayon et poubelle de 44 px, noms accessibles qui incluent la date.
+- **États vides** : sans pesée, un message clair s'affiche sous la carte de saisie, qui reste utilisable ; avec un seul point, le graphique s'affiche.
+
+### Export pour le coach : section « Pesées »
+- Interrupteur natif (`role="switch"`, activé par défaut), dessiné comme un interrupteur iOS.
+- Trois fenêtres en boutons radio (« 30 derniers jours (ou plus si tes séances sont plus anciennes) » par défaut, « 90 jours », « Tout l'historique ») ; lignes d'au moins 44 px.
+- **Aperçu** calculé avec les **mêmes fonctions** que le fichier (`weightWindowBounds`, `weightsInWindow`), par exemple « 10 pesées · 4 sept. au 4 oct. ».
+- La fenêtre fait partie de la demande préparée à l'avance. L'autotest et les règles de remise sont inchangés.
+
+### Restauration
+- Le résumé affiche « Pesées : N ».
+- Si le fichier n'a aucune pesée alors que l'app en contient, un avertissement visible (`role="alert"`) s'affiche, avec le texte demandé et l'accord au singulier (« ta pesée actuelle sera remplacée »).
+- **Correction découverte en route** : l'export de sécurité n'était exigé que s'il y avait au moins un programme ou une séance. Une base contenant **seulement des pesées** aurait pu être remplacée sans cet export. Les pesées comptent désormais (`PreparedExport.weightCount`).
+- L'aide de « Exporter mes données » mentionne les pesées quand il y en a (« 1 programme, 3 séances et 10 pesées : … »). Sans pesée, le texte est inchangé.
+
+### Onglets multiples pendant la montée en version 2 (vérifié et testé)
+- **Comportement de Dexie 4.4.6** (lu dans le code source) :
+  - une connexion qui reçoit `versionchange` **se ferme d'elle-même** pour laisser passer la mise à jour, avec un simple avertissement console. L'ancienne version (V1.1), qui utilise la même bibliothèque, ne bloque donc normalement **pas** la montée en v2 ;
+  - `blocked` n'arrive que si une connexion ne se ferme pas.
+- **Constaté en vrai navigateur**, ancienne version V1.1b (build de production) et nouvelle version sur la même origine :
+  - ancien onglet ouvert, en pleine séance, sur une base v1 remplie : la nouvelle version s'ouvre **sans attente ni message**. Base v2, `weights` vide, toutes les données identiques octet pour octet ;
+  - l'ancien onglet, rechargé, **continue de fonctionner** sur la base v2 (Dexie 4 l'ouvre avec son ancien schéma ; il ignore simplement les pesées). Aucune donnée perdue.
+- **Ajouts** (`src/db/connectionStatus.ts`, branché dans le constructeur de la base) :
+  - `blocked` (montée de version empêchée par un autre onglet) : message plein écran **« Ferme les autres onglets de l'app »**.
+    - Texte : « … une ancienne version est encore ouverte dans un autre onglet ou une autre fenêtre. Ferme les autres onglets de l'app, puis rouvre-la. La mise à jour reprendra d'elle-même. » et « Tes données ne sont pas perdues. »
+    - Bouton « Réessayer ».
+    - Le message **disparaît seul** dès que l'ouverture aboutit (événement `ready`).
+  - `versionchange` reçu (une version **plus récente** s'ouvre ailleurs ; Dexie ferme notre connexion) : message **« Nouvelle version ouverte ailleurs »** : « Recharge cette page pour continuer avec la nouvelle version. », avec l'assurance que les données sont conservées et un bouton « Recharger la page ».
+  - Suppression de base (`newVersion` nul, outils de développement) : aucun message.
+  - Le message est rendu **hors de `#root`** (portail), parce qu'une feuille ouverte rend `#root` inerte. Il passe au-dessus de tout (nouveau token `--z-connection`) et bloque toute saisie tant que la situation n'est pas réglée.
+- **Tests** (`src/db/connection.test.tsx`, vraie base fake-indexeddb) :
+  - connexion v1 « têtue » : message affiché, ouverture en attente ; fermeture de la connexion : reprise seule, message retiré, données intactes ;
+  - ancien Dexie : aucune attente ;
+  - version plus récente (IDB 30) : message, connexion fermée, pesée conservée ;
+  - suppression : aucun message.
+- **Navigateur réel** (3 scénarios : ancienne version normale, connexion bloquante, version plus récente) : 8/8.
+
+### Tests existants adaptés (autorisés : nombre d'onglets)
+1. `app/App.test.tsx`, « … la navigation à 3 onglets » → « à 4 onglets » : liste attendue `['Accueil', 'Programme', 'Progression', 'Poids']`.
+2. `features/history/History.test.tsx`, « … (sans 4e onglet) … » → « (jamais un onglet) » : l'attente `toHaveLength(3)` devient la liste exacte des 4 onglets, ce qui garde l'intention (l'Historique n'est jamais un onglet).
+- Aucun autre test existant modifié.
+- Le test « ordonnée ajustée », écrit pendant cette étape, n'a jamais été vert : il lisait des graduations que jsdom ne rend pas. Il a été remplacé par une mesure de l'écart vertical réel de la courbe, plus un test de domaine. Ce n'est pas une adaptation d'un test existant.
+
+### Tests ajoutés (V1.2b)
+- `features/weight/Weight.test.tsx` (17) :
+  - onglet et navigation, état vide, première pesée (date locale, un seul point) ;
+  - saisies invalides ;
+  - placeholder ;
+  - remplacement (Annuler puis Remplacer), avertissement doux (Corriger puis Oui) ;
+  - « + » avec date passée, date future refusée et date existante ;
+  - crayon (poids seul), poubelle (Annuler puis Supprimer) avec stats et graphique recalculés ;
+  - stats, périodes, point et carte, point le plus proche sur des points serrés, ordonnée ajustée ;
+  - accessibilité (écran, carte, feuille) ;
+  - fuseaux UTC+14 et Los Angeles.
+- `features/settings/WeightsInExports.test.tsx` (7) : section Pesées (défaut, aperçu, fenêtres, désactivée), aucune pesée (`count: 0`), restauration (nombre, avertissement, export de sécurité avec pesées, pesées seules).
+- `domain/weight.test.ts` (+2) : série du graphique, ordonnée resserrée par rapport à la progression.
+- `db/connection.test.tsx` (4).
+
+### Délai par test (Vitest)
+- `testTimeout: 15_000` dans `vite.config.ts`. Le défaut était de 5 s.
+- Avec 40 fichiers en parallèle, sur une machine chargée, le scénario 2 complet de l'écran exercice a dépassé 5 s (5,2 s) lors d'une passe.
+- Seul, il dure 1,9 s, **identique avec et sans les changements V1.2b** (mesuré en remettant le code précédent de côté).
+- Aucun test ni aucune assertion modifiés ; même logique qu'au J7 pour `asyncUtilTimeout`.

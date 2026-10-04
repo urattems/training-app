@@ -11,16 +11,24 @@ import { ProgramSessionPage } from '../features/program/ProgramSessionPage';
 import { WorkoutPage } from '../features/workout/WorkoutPage';
 import { CoachExportPage } from '../features/settings/CoachExportPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { ConnectionNotice } from './ConnectionNotice';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotFoundPage } from './NotFoundPage';
 import { Shell } from './Shell';
 
-// Progression (et Recharts) chargée à la demande : hors du bundle initial.
+// Progression et Poids (et Recharts, partagé) chargés à la demande : hors du bundle initial.
 const ProgressPage = lazy(() => import('../features/progress/ProgressPage'));
+const WeightPage = lazy(() => import('../features/weight/WeightPage'));
 
 const progress = (
   <Suspense fallback={<LoadingState />}>
     <ProgressPage />
+  </Suspense>
+);
+
+const weight = (
+  <Suspense fallback={<LoadingState />}>
+    <WeightPage />
   </Suspense>
 );
 
@@ -37,6 +45,7 @@ export function AppRoutes() {
           <Route path="workout/:workoutId/exercise/:exerciseId" element={<ExercisePage />} />
           <Route path="progress" element={progress} />
           <Route path="progress/:exerciseId" element={progress} />
+          <Route path="weight" element={weight} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="history/:workoutId" element={<HistoryDetailPage />} />
           <Route path="settings" element={<SettingsPage />} />
@@ -55,6 +64,7 @@ export function App() {
       <HashRouter>
         <AppRoutes />
       </HashRouter>
+      <ConnectionNotice />
     </ErrorBoundary>
   );
 }

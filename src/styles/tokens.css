@@ -107,6 +107,8 @@
   /* Plans */
   --z-tabbar: 10;
   --z-sheet: 20;
+  /* Message « autre onglet » : au-dessus de tout, feuilles comprises. */
+  --z-connection: 30;
 }
 
 @media (prefers-reduced-motion: reduce) {

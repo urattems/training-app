@@ -124,6 +124,7 @@ export interface PreparedExport {
   file: File;
   programCount: number;
   sessionCount: number;
+  weightCount: number;
 }
 
 /** Le fichier généré ne repasse pas la validation : il n'est jamais remis à l'utilisateur. */
@@ -161,6 +162,7 @@ export async function prepareExport(now: Date = new Date()): Promise<PreparedExp
     file: new File([json], exportFileName(now), { type: 'application/json' }),
     programCount: data.programs.length,
     sessionCount: data.sessions.length,
+    weightCount: data.weightEntries.length,
   };
 }
 

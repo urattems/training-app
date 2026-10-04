@@ -5,7 +5,7 @@
   bottom: calc(var(--safe-bottom) + var(--tabbar-offset));
   z-index: var(--z-tabbar);
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: min(
     calc(100% - 2 * var(--page-gutter) - var(--safe-left) - var(--safe-right)),
     calc(var(--page-max-width) - 2 * var(--page-gutter))
@@ -51,7 +51,10 @@
   height: var(--icon-size);
 }
 
+/* Libellé complet sur une ligne, même à 360 px (4 onglets). */
 .label {
+  max-width: 100%;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }

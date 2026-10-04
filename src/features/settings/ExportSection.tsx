@@ -46,7 +46,7 @@ export function ExportSection({ state }: { state: PreparedExportState | undefine
 
   return (
     <>
-      {prepared && <p className={styles.hint}>{t.hint(prepared.programCount, prepared.sessionCount)}</p>}
+      {prepared && <p className={styles.hint}>{t.hint(prepared.programCount, prepared.sessionCount, prepared.weightCount)}</p>}
       <Button variant="primary" fullWidth icon={<Download aria-hidden />} loading={state === undefined} disabled={!prepared} onClick={() => void run()}>
         {state === undefined ? t.preparing : t.button}
       </Button>

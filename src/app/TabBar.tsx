@@ -1,4 +1,4 @@
-import { ChartLine, ClipboardList, House } from 'lucide-react';
+import { ChartLine, ClipboardList, House, Scale } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { strings } from '../i18n/strings';
 import styles from './TabBar.module.css';
@@ -7,9 +7,13 @@ const TABS = [
   { to: '/', label: strings.nav.home, icon: House, end: true },
   { to: '/program', label: strings.nav.program, icon: ClipboardList, end: false },
   { to: '/progress', label: strings.nav.progress, icon: ChartLine, end: false },
+  { to: '/weight', label: strings.nav.weight, icon: Scale, end: false },
 ] as const;
 
-/** Barre basse à 3 onglets (SPEC §7.1). Les Paramètres ne sont jamais un 4e onglet. */
+/**
+ * Barre basse à 4 onglets (SPEC §7.1, amendée en V1.2 : « Poids » après Progression).
+ * Les Paramètres restent une roue crantée, jamais un onglet.
+ */
 export function TabBar() {
   return (
     <nav className={styles.tabBar} aria-label={strings.nav.mainNavigation}>

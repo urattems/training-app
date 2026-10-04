@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { valueAxis } from './chart';
 import { getExportReminder } from './exportReminder';
 import type { WeightEntry } from './types';
 import {
+  buildWeightSeries,
   getWeightHistory,
   parseWeightInput,
   previousWeight,
   validateWeightDate,
+  WEIGHT_AXIS,
   weightDelta,
   weightSanity,
   weightStats,
@@ -128,5 +131,28 @@ describe('Sauvegarde et restauration', () => {
     expect(weightsLostByRestore(0, 12)).toBe(12);
     expect(weightsLostByRestore(0, 0)).toBeNull();
     expect(weightsLostByRestore(3, 12)).toBeNull();
+  });
+});
+
+describe('Graphique du poids', () => {
+  it('série : un point par pesée (identifiant = date), axe des dates réel, période', () => {
+    const series = buildWeightSeries(HISTORY, '3M', TODAY);
+    expect(series.points.map((p) => [p.date, p.value, p.workoutId])).toEqual([
+      ['2026-07-20', 84.5, '2026-07-20'],
+      ['2026-09-02', 82.4, '2026-09-02'],
+      ['2026-09-22', 81.2, '2026-09-22'],
+      ['2026-10-01', 80.6, '2026-10-01'],
+    ]);
+    expect(series.domain).toEqual([Date.UTC(2026, 6, 3, 12), Date.UTC(2026, 9, 3, 12)]);
+  });
+
+  it('ordonnée AJUSTÉE à la plage (jamais depuis zéro), contrairement à la progression', () => {
+    const points = buildWeightSeries(HISTORY, '1M', TODAY).points; // 81,2 et 80,6 kg
+    const weight = valueAxis(points, WEIGHT_AXIS);
+    expect(weight.domain[0]).toBeGreaterThanOrEqual(79);
+    expect(weight.domain[1]).toBeLessThanOrEqual(82.5);
+    expect(weight.ticks.length).toBeGreaterThanOrEqual(3);
+    // Réglage par défaut (progression) : marge de 5 % de la valeur, axe beaucoup plus large.
+    expect(valueAxis(points).domain[1] - valueAxis(points).domain[0]).toBeGreaterThan(weight.domain[1] - weight.domain[0]);
   });
 });
