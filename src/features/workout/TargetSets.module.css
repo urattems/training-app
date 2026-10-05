@@ -22,6 +22,11 @@
   height: 0.875rem;
 }
 
+.planned {
+  margin-top: var(--space-1);
+  font-weight: var(--font-weight-semibold);
+}
+
 .list {
   margin: var(--space-2) 0 0;
   padding: 0;

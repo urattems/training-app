@@ -25,14 +25,14 @@ export interface ExerciseProgress {
 
 const allWorkouts = () => db.workouts.toArray();
 
-export async function getExerciseProgress(programExerciseId: string): Promise<ExerciseProgress> {
+export async function getExerciseProgress(exerciseId: string): Promise<ExerciseProgress> {
   const workouts = await allWorkouts();
   return {
-    metric: chartMetricFor(workouts, programExerciseId),
-    load: getExerciseLoadHistory(workouts, programExerciseId),
-    reps: getExerciseRepHistory(workouts, programExerciseId),
-    volume: getExerciseVolumeHistory(workouts, programExerciseId),
-    stats: getExerciseStats(workouts, programExerciseId),
+    metric: chartMetricFor(workouts, exerciseId),
+    load: getExerciseLoadHistory(workouts, exerciseId),
+    reps: getExerciseRepHistory(workouts, exerciseId),
+    volume: getExerciseVolumeHistory(workouts, exerciseId),
+    stats: getExerciseStats(workouts, exerciseId),
   };
 }
 

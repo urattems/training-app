@@ -1398,3 +1398,63 @@ Valider depuis le bas de page → suivant tout en haut, clavier fermé, focus su
 
 ### Test déjà instable (hors périmètre, non modifié)
 - `features/settings/DriveBackups.test.tsx`, « « Ignorer » : la sauvegarde en attente est abandonnée, l'écran disparaît » (V1.3b) échoue par intermittence, **avant** tout changement de cette étape (1 passe complète sur 2 au départ ; 1 exécution isolée sur 3). L'assertion finale `not.toBeInTheDocument()` est lue juste après la file vide, avant que la lecture réactive ait retiré l'avis. Une attente (`waitFor`) suffirait. Laissé tel quel faute d'autorisation de modifier un test ; à traiter à part.
+
+---
+
+## V1.3.1 — Remplacer un exercice pour la séance (partie B ; aucun changement de format JSON, aucune migration de base)
+
+### Amendements de SPEC.md et de JSON_SCHEMA.md (autorisés, par ajout)
+- `SPEC.md` : bloc « Complément V1.3.1 » sous le §7.4 (la partie A en commit A, le remplacement ici) et une ligne V1.3.1 au §13. `git diff` : 24 ajouts, 0 suppression au total sur les deux commits.
+- `JSON_SCHEMA.md` : nouvelle section « Exercice remplacé » (avec la phrase pour le coach), une puce dans « Lire un export d'historique », et **trois lignes du tableau « Exercice réalisé » rendues exactes** (`exerciseId` n'est plus « = `programExerciseId` » sans condition ; `exerciseName` = ce qui a été réellement fait ; `programExerciseId` = lien vers la prescription, la clé de progression étant `exerciseId`). Ces trois retouches ne sont pas de simples ajouts : sans elles, le document se contredisait.
+- Fixtures de `examples/` : **intactes** (empreintes SHA-256 des tests inchangées).
+
+### Principe (verrouillé)
+Le remplacement vaut **pour cette séance**. `targetSets`, `restSec` et le programme restent intacts et visibles ; le réalisé porte le nom choisi ; le programme du coach n'est jamais modifié et le remplacement ne se propage pas. Modèle : `programExerciseId` inchangé ; `exerciseName` = nom choisi ; `exerciseId` = `sub-` + slug ; « remplacé » = `exerciseId` ≠ `programExerciseId`.
+
+### Schémas Zod et invariants §10.5 : **aucun assouplissement nécessaire**
+- Lu dans le code : `exerciseId` et `programExerciseId` sont deux `idSchema` indépendants, et aucun invariant ne les compare ; l'unicité porte sur `programExerciseId` (inchangée).
+- Prouvé par des tests : le contrat de séance, la sauvegarde 1.1, l'export coach et le fichier de séance Drive acceptent un exercice remplacé ; un fichier édité à la main (fixture dont un `exerciseId` est changé) est accepté ; les fixtures existantes le sont aussi. `schemaVersion` inchangées.
+
+### Slug et noms (`src/domain/replacement.ts`)
+- **Slug** : minuscules, sans accents (NFD), ligatures « œ → oe », « æ → ae », « ß → ss » (une ligature seule donnerait « c-ur »), tout caractère non alphanumérique ASCII remplacé par `-`, tirets fusionnés **et retirés aux extrémités**, **40 caractères au maximum pour le slug** (le préfixe `sub-` s'y ajoute : 44 au plus), sans tiret final après la coupe. « Pec Deck (autre machine) » → `sub-pec-deck-autre-machine`. Même nom (casse, accents, espaces, ponctuation différents) = même `exerciseId`.
+- **Nom saisi** : 1 à 60 caractères après `trim` (décompte en points de code), sans caractère de contrôle (`\p{Cc}`), avec **au moins une lettre ou un chiffre** (sans quoi tous les noms de symboles partageraient `sub-`). Conséquence assumée : un nom entièrement non latin (cyrillique, CJK) est refusé, l'app étant en français.
+- **Comparaisons** (nom d'origine, doublons) sur une clé sans troncature (`nameKey` = slug complet) : « chest press », « CHEST-PRESS » et « Chést Press » sont le nom d'origine « Chest Press ».
+- **Nom d'origine** : retire le remplacement (`exerciseId = programExerciseId`, nom du programme). Saisi tel quel sur un exercice non remplacé : aucun changement, aucune écriture.
+- **Doublon dans la séance** : refusé (nom identique **ou** même `exerciseId`, pour qu'une séance n'ait jamais deux exercices de même clé de progression). S'applique aussi au retrait : si un autre exercice porte déjà le nom d'origine, « Revenir à l'exercice prévu » est refusé avec le même message.
+- **Limite connue** : deux noms différents dont les 40 premiers caractères de slug sont identiques partagent le même `exerciseId` d'une séance à l'autre (jamais dans une même séance : c'est refusé).
+- Un remplacement compte comme une **action sur l'exercice** : il entre dans `executionOrder` comme une saisie ou une sensation (règle J1). Sans effet réel (même identité, même nom) : la séance est renvoyée telle quelle, sans écriture.
+- Nom de l'exercice **prévu** : le snapshot tant que rien n'est remplacé, sinon celui du programme d'origine (`useProgram`, toujours conservé même archivé). Si le programme ne connaît plus l'exercice (fichier édité à la main), le crayon n'est pas proposé.
+
+### Clé de progression = `exerciseId`
+- Concerne `getExerciseEntries` (donc courbes, stats, volume, records), `getLastPerformance` (« Dernière fois »), `listTrackedExercises` (sélecteur), `getRecentProgressions` (accueil).
+- **Aucun changement de comportement pour les données existantes** : dans les 4 fixtures et dans toutes les données créées avant, `exerciseId` = `programExerciseId` (vérifié). Les **599 tests existants passent sans aucune modification** après ce changement.
+- **Nom de champ conservé** : `ExerciseSummary.programExerciseId` et `RecentProgression.programExerciseId` contiennent désormais la clé de progression (`exerciseId`). Les renommer aurait obligé à modifier trois assertions existantes ; le commentaire de type l'explique.
+- Un remplacement n'altère jamais la courbe de l'exercice d'origine ; le remplaçant apparaît dans le sélecteur de Progression sous son nom (le plus récent), avec sa propre courbe (testé au niveau du domaine, du service et dans le vrai navigateur).
+- « Dernière fois » d'un exercice remplacé = dernière performance de l'exercice remplaçant, sinon « Aucune séance précédente ». L'exercice d'origine ne voit pas les séances où il a été remplacé.
+
+### Le prévu ne s'applique plus au réalisé
+- Exercice remplacé : pas de « Comme prévu » ni de valeurs prévues en placeholder (`ActualSets`, `plannedApplies`). OBJECTIF reste visible avec « Prévu : <nom d'origine> ». Retrait : tout revient.
+- Séries déjà saisies **conservées** au remplacement et au retrait ; le nombre de lignes reste celui du programme ; « + Série » reste disponible.
+- **Avertissement de validation** (`findIncompleteSets`) : « série sans charge » est déduit de la **charge prévue** ; pour un exercice remplacé, cette charge est celle d'un autre exercice, donc cet avertissement n'est plus émis (une charge sans répétitions reste signalée). Conséquence de la règle ci-dessus, non demandée explicitement.
+- **Catégorie et équipement** (lus dans le programme) décrivent l'exercice prévu : ils ne sont plus affichés sous le nom d'un remplaçant. Le « Conseil » du coach reste affiché (c'est du prévu, lisible).
+
+### Interface
+- **Crayon** (`ReplaceExerciseButton`) : bouton rond de 44 × 44 px, `aria-label` « Remplacer cet exercice », à droite du titre de l'écran exercice ; même composant en mode « Modifier » du détail d'historique (un par exercice).
+- **Feuille « Remplacer l'exercice »** (`Sheet`) : « Prévu : … » (texte), champ « Exercice réalisé » (`label` lié, 17 px, 48 px de haut, clavier complet, correction désactivée, `enterkeyhint=done`), prérempli du nom actuel et **sélectionné au focus** (aucun focus automatique à l'ouverture : règle du J3b), phrase d'avertissement, « Enregistrer » (Entrée aussi), « Revenir à l'exercice prévu » (si remplacé), « Annuler ». Erreurs en français sous le champ (`role=alert`, `aria-invalid`). La feuille reste ouverte tant que le nom est refusé.
+- **Sauvegarde immédiate** : les saisies en attente partent d'abord (`autosave.flush`), puis la mise à jour fonctionnelle passe par `autosave.commit` (même mécanisme que la saisie, donc revalidation Zod et file Drive dans la même transaction).
+- **Badge « Remplacé »** (ton « accent », comme « en plus ») : écran exercice, ligne de l'écran séance, détail d'historique.
+- **Mise en page** : les badges d'état de l'écran exercice et du détail d'historique passent **sous le titre** (le titre et le crayon occupent la ligne, car titre long + deux badges + crayon ne tiennent pas sur 358 px). Le badge « Validé » change donc de place dans ces deux écrans (aucun test n'en dépendait).
+- Détail d'historique : le nom prévu vient du programme, chargé après l'écran : la ligne « Prévu : … » apparaît une fraction de seconde après.
+
+### Archive Drive
+Aucun code spécifique : `updateWorkout` met déjà en file la séance et la sauvegarde pour toute séance exportable modifiée. Testé de bout en bout (interface « Modifier » → crayon → feuille → file → script simulé) : même dossier, même nom gelé, contenu à jour avec `sub-…`, file vide, aucune erreur.
+
+### Tests (nouveaux : 57 ; total 656, tous verts ; tests existants : aucun modifié)
+- `domain/replacement.test.ts` (32) : slug (accents, espaces, casse, caractères spéciaux, ligatures, longueur), même nom = même `exerciseId`, validation du nom, remplacement et retrait, séries conservées, nom d'origine, doublons, avertissement de validation, courbes séparées (origine inchangée), « Dernière fois », sélecteur, progression récente, séances en cours exclues.
+- `services/replacement.test.ts` (9) : schémas et invariants §10.5 (contrat de séance, sauvegarde 1.1, export coach, fichier édité), persistance, doublon refusé par le service, programme jamais modifié, courbes séparées, **aller-retour export puis restauration**, export coach et fichier Drive valides.
+- `features/exercise/ReplaceExercise.test.tsx` (16) : crayon (place, nom, taille), feuille et accessibilité (dialogue, noms, clavier, 17 px, sélection au focus), remplacement, **« Comme prévu » masqué et placeholders absents puis de retour**, **séries conservées**, nom d'origine, doublon, validation, Entrée/Annuler/Échap, écran séance, validation sans avertissement parasite, « Dernière fois », historique en lecture puis en « Modifier » (mêmes règles, séance terminée intacte), **mise à jour du même fichier Drive**.
+- Vérifié par **mutation** (comportement cassé exprès, puis rétabli) : clé de progression sur `programExerciseId` → 8 tests échouent ; « Comme prévu » toujours actif → 1 ; « Dernière fois » sur `programExerciseId` → 1 ; remplacement qui vide les séries → 7.
+- Fuseau : la suite entière passe avec `TZ=UTC` forcé comme sans (le fuseau des tests est fixé à Europe/Paris par `globalSetup`, DECISIONS fix-6).
+
+### Navigateur réel (production, 390 px, tactile, Chromium) : 36/36, 0 erreur console
+Crayon de 44 × 44 px à droite du titre ; feuille (champ prérempli et sélectionné, 17 px, 48 px, boutons ≥ 44 px, phrase, pas de « Revenir » avant remplacement) ; doublon refusé ; remplacement avec accents (« Développé couché haltères (autre machine) ») : badge, « Prévu : Chest Press », « Comme prévu » masqué, placeholders absents, série 1 conservée (12 × 47,5), pas de saut de défilement, validation sans avertissement parasite ; ligne de l'écran séance avec badge ; séance terminée ; historique (badge, « Prévu », réalisé, lecture seule sans crayon) ; mode « Modifier » (trois crayons, « Comme prévu » absent, champ prérempli, « Revenir » proposé) ; Progression (le remplaçant seul, sous son nom) ; export (`exerciseId` = `sub-developpe-couche-halteres-autre-machine`, `programExerciseId` inchangé, prévu conservé, `schemaVersion` 1.1).

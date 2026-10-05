@@ -47,14 +47,15 @@ export interface LastPerformance {
 
 /**
  * Dernière performance réelle d'un exercice (séances terminées ou abandonnées,
- * jamais la séance en cours), `null` si aucune.
+ * jamais la séance en cours), `null` si aucune. La clé est l'`exerciseId` : pour un exercice
+ * remplacé, c'est la dernière performance de l'exercice remplaçant.
  */
 export function getLastPerformance(
   workouts: readonly WorkoutSession[],
-  programExerciseId: string,
+  exerciseId: string,
   excludeWorkoutId?: string,
 ): LastPerformance | null {
-  const entries = getExerciseEntries(workouts, programExerciseId).filter(
+  const entries = getExerciseEntries(workouts, exerciseId).filter(
     (e) => e.workoutId !== excludeWorkoutId && e.record.actualSets.some(isPerformedSet),
   );
   const last = entries.at(-1);

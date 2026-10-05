@@ -184,6 +184,23 @@ Objectif et réalisé ne doivent **jamais** pouvoir être confondus visuellement
 - Aucune saisie n'est perdue : l'écriture en attente est terminée avant le changement d'exercice.
 - Les changements d'onglet et l'ouverture d'un détail démarrent déjà en haut : ils ne sont pas modifiés.
 
+**Complément V1.3.1 — remplacer un exercice pour la séance :**
+- Quand une machine ou un exercice n'est pas disponible, l'utilisateur le remplace **pour cette séance**. Le prévu (`targetSets`, `restSec`, programme) reste intact et visible ; ce qui a été réellement fait porte le nom choisi. Le programme du coach n'est **jamais** modifié et le remplacement ne se propage **pas** aux séances futures.
+- **Modèle, sans changement de format JSON** (`WorkoutExercise`, `exerciseRecords[]`) :
+  - `programExerciseId` : inchangé (lien vers la prescription ; clé de l'écran et de `executionOrder`) ;
+  - `exerciseName` : le nom choisi ;
+  - `exerciseId` : `sub-` + slug du nom choisi (minuscules, sans accents, tout caractère non alphanumérique remplacé par `-`, tirets fusionnés, 40 caractères au maximum pour le slug) : le même nom donne toujours le même `exerciseId`, donc un historique propre par machine de remplacement ;
+  - `targetSets` et `restSec` : snapshot d'origine, inchangés ;
+  - « remplacé » signifie `exerciseId` ≠ `programExerciseId`. Retirer le remplacement, ou saisir le nom d'origine, rétablit `exerciseId = programExerciseId` et `exerciseName` = nom d'origine du programme.
+- **Clé de progression = `exerciseId`** (identique à `programExerciseId` pour toutes les données existantes) : courbes et stats de Progression, « Dernière fois », progression récente de l'accueil, sélecteur d'exercices. Le remplaçant y apparaît comme un exercice à part, sous son nom ; un remplacement n'altère jamais la courbe de l'exercice d'origine. « Dernière fois » d'un exercice remplacé = dernière performance de l'exercice remplaçant, ou « Aucune séance précédente ».
+- **Interface** :
+  - crayon (cible ≥ 44 px, nom accessible « Remplacer cet exercice ») à droite du titre de l'écran exercice (séance en cours) et, dans le mode « Modifier » du détail d'historique d'une séance terminée, mêmes règles et même feuille ;
+  - feuille « Remplacer l'exercice » : rappel « Prévu : <nom d'origine> » non modifiable ; champ « Exercice réalisé » (17 px, 1 à 60 caractères après suppression des espaces de début et de fin, sans caractère de contrôle), prérempli avec le nom actuel et sélectionné au focus ; « Enregistrer » ; « Revenir à l'exercice prévu » (si déjà remplacé) ; « Annuler » ; la phrase « Cela ne change que cette séance. Le programme du coach n'est pas modifié. » ;
+  - un nom qui correspond à un autre exercice de la même séance est refusé, avec un message clair ;
+  - badge « Remplacé » sur l'écran exercice, l'écran séance et le détail d'historique ; le bloc OBJECTIF affiche « Prévu : <nom d'origine> », pour que prévu et réalisé ne se confondent jamais.
+- **Le prévu ne s'applique plus au réalisé** : pas de bouton « Comme prévu » ni de valeurs prévues en placeholder dans les champs RÉALISÉ d'un exercice remplacé (le bloc OBJECTIF reste visible, à titre d'information) ; si le remplacement est retiré, tout revient. Les séries déjà saisies sont **conservées** au remplacement comme au retrait (aucune perte) ; le nombre de lignes reste celui du programme et « + Série » reste disponible.
+- Sauvegarde immédiate (même mécanisme que la saisie) ; les envois Drive suivent comme pour toute modification de séance (même fichier, même nom gelé).
+
 ### 7.5 Saisie
 - Reps : `inputmode="numeric"`. Poids/vitesse/inclinaison : `inputmode="decimal"`. Durée : numérique.
 - Champs ≥ 48 px de haut, saisie à une main, sélection du contenu au focus.
@@ -566,6 +583,7 @@ Les deux fichiers `examples/` doivent passer la validation et alimenter les test
 | **V1.2b** | Onglet « Poids » (§7.11) : saisie du jour, ajout daté, remplacement confirmé, graphique et stats, liste, crayon et poubelle ; section « Pesées » de l'export pour le coach ; pesées dans le résumé de restauration | Navigation 4 onglets à 390 et 360 px ; tous les parcours de saisie ; stats et graphique recalculés ; accessibilité ; régression complète en navigateur réel (base v1 rouverte, S1–S7, hors ligne) |
 | **V1.3a** | Archive Drive (§10.7) : réglages et stockage de la configuration, client du script, bouton de test, file d'attente, envoi des **séances** (création, correction, suppression), alerte de libellé en double, statuts | Test réel sur iPhone : une séance terminée apparaît dans `Muscu/Semaine XX/` ; hors ligne puis retour du réseau ; correction ; suppression |
 | **V1.3b** | Pesées, `weights_all`, `backup_latest`, `backup_weekly`, garde-fous (§10.7), rappel d'export, « Renvoyer toute l'archive », fixtures, documentation, régression complète | Test réel : pesée, sauvegarde, refus de régression, hebdomadaire |
+| **V1.3.1** | Retour en haut au changement d'exercice · remplacer un exercice pour la séance (§7.4), sans changement de format ni de base | Défilement remis à zéro au vrai changement d'exercice seulement ; remplacement et retrait, séries conservées, courbes séparées, aller-retour export puis restauration, fichier Drive mis à jour ; fixtures et tests existants inchangés ; vérifié en navigateur réel (390 px, tactile) |
 
 ### Compte rendu de fin de jalon (obligatoire)
 1. Ce qui a été fait · 2. Fichiers créés/modifiés · 3. Tests exécutés · 4. Résultats (typecheck, lint, test, build) · 5. Décisions prises (aussi dans `DECISIONS.md`) · 6. Ce qui reste.

@@ -11,16 +11,18 @@ import { LoadingState } from '../../components/LoadingState';
 import { Page } from '../../components/Page';
 import { TextField } from '../../components/TextField';
 import { formatActualSet, workoutStatusLabel } from '../../domain/display';
+import { isReplaced, plannedName as plannedNameOf } from '../../domain/replacement';
 import type { WorkoutExercise, WorkoutSession } from '../../domain/types';
 import { isValidLocalDate } from '../../domain/values';
 import { setComment, setSensation, setWorkoutDate } from '../../domain/workout';
-import { useWorkout } from '../../hooks/useData';
+import { useProgram, useWorkout } from '../../hooks/useData';
 import { useWorkoutAutosave, type WorkoutAutosave } from '../../hooks/useWorkoutAutosave';
 import { strings } from '../../i18n/strings';
 import { deleteWorkout } from '../../services/historyService';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { formatDecimal } from '../../utils/numbers';
 import { ActualSets } from '../exercise/ActualSets';
+import { ReplaceExerciseButton } from '../exercise/ReplaceExercise';
 import { SensationPicker } from '../exercise/SensationPicker';
 import { TargetSets } from '../workout/TargetSets';
 import { ErrorSheet, toError, workoutPath } from '../workout/WorkoutActions';
@@ -56,6 +58,9 @@ export function HistoryDetailPage() {
 function WorkoutDetail({ workout }: { workout: WorkoutSession }) {
   const navigate = useNavigate();
   const autosave = useWorkoutAutosave(workout.id);
+  // Programme d'origine (toujours conservé, même archivé) : nom de l'exercice PRÉVU d'un exercice remplacé.
+  const program = useProgram(workout.programId);
+  const programExercises = program?.sessions.find((s) => s.id === workout.programSessionId)?.exercises;
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -151,7 +156,14 @@ function WorkoutDetail({ workout }: { workout: WorkoutSession }) {
       </Card>
 
       {workout.exerciseRecords.map((record) => (
-        <ExerciseDetail key={record.programExerciseId} record={record} editing={isEditing} autosave={autosave} />
+        <ExerciseDetail
+          key={record.programExerciseId}
+          record={record}
+          siblings={workout.exerciseRecords}
+          planned={plannedNameOf(record, programExercises?.find((e) => e.id === record.programExerciseId)?.name)}
+          editing={isEditing}
+          autosave={autosave}
+        />
       ))}
 
       <Card aria-labelledby="history-cardio-title">
@@ -257,23 +269,38 @@ function DateField({ workout, autosave }: { workout: WorkoutSession; autosave: W
   );
 }
 
-function ExerciseDetail({ record, editing, autosave }: { record: WorkoutExercise; editing: boolean; autosave: WorkoutAutosave }) {
+interface ExerciseDetailProps {
+  record: WorkoutExercise;
+  siblings: readonly WorkoutExercise[];
+  /** Nom de l'exercice prévu (`null` : le programme ne le connaît plus). */
+  planned: string | null;
+  editing: boolean;
+  autosave: WorkoutAutosave;
+}
+
+function ExerciseDetail({ record, siblings, planned, editing, autosave }: ExerciseDetailProps) {
   const headingId = useId();
   const id = record.programExerciseId;
+  const replaced = isReplaced(record);
   return (
     <Card aria-labelledby={headingId} className={styles.exercise}>
       <div className={styles.exerciseHeader}>
         <h2 id={headingId} className={styles.exerciseName}>
           {record.exerciseName}
         </h2>
+        {/* Mode « Modifier » : mêmes règles et même feuille que sur l'écran exercice. */}
+        {editing && planned !== null && <ReplaceExerciseButton record={record} siblings={siblings} plannedName={planned} autosave={autosave} />}
+      </div>
+      <div className={styles.badges}>
+        {replaced && <Badge tone="accent">{strings.replace.badge}</Badge>}
         <Badge tone={record.status === 'completed' ? 'success' : 'neutral'}>{record.status === 'completed' ? t.validated : t.notValidated}</Badge>
       </div>
 
-      <TargetSets sets={record.targetSets} restSec={record.restSec} />
+      <TargetSets sets={record.targetSets} restSec={record.restSec} plannedName={replaced && planned !== null ? planned : undefined} />
 
       {editing ? (
         <>
-          <ActualSets record={record} autosave={autosave} />
+          <ActualSets record={record} autosave={autosave} plannedApplies={!replaced} />
           <SensationPicker
             value={record.sensation}
             onChange={(sensation) => {

@@ -1,0 +1,49 @@
+/* Crayon « Remplacer cet exercice » : cible tactile ≥ 44 px, à droite du titre. */
+.pencil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-accent-strong);
+}
+
+.pencil:active {
+  background: var(--color-surface-pressed);
+}
+
+.pencil svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.planned {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.scope {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

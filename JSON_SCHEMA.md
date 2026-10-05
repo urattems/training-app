@@ -148,9 +148,9 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 
 | Champ | Type | Oblig. | Règles |
 |---|---|---|---|
-| `exerciseId` | texte | oui | = `programExerciseId` pour un exercice du programme |
-| `exerciseName` | texte | oui | Nom au moment de la séance |
-| `programExerciseId` | texte | oui | Clé de progression |
+| `exerciseId` | texte | oui | **Clé de progression.** = `programExerciseId` pour un exercice du programme ; `sub-…` si l'exercice a été **remplacé** (voir « Exercice remplacé ») |
+| `exerciseName` | texte | oui | Ce qui a été **réellement fait**, au moment de la séance : le nom du programme, ou le nom choisi si l'exercice a été remplacé |
+| `programExerciseId` | texte | oui | Lien vers la prescription (`id` de l'exercice du programme, `targetSets`). Jamais modifié par un remplacement |
 | `status` | `pending` / `completed` | oui | `completed` = validé par l'utilisateur (rien n'est verrouillé) |
 | `restSec` | entier ≥ 0 ou `null` | oui | |
 | `targetSets` | liste de séries prescrites | oui | **Snapshot** des objectifs au démarrage de la séance (voir ci-dessous) |
@@ -198,6 +198,27 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 ### Snapshot des objectifs
 
 Au démarrage d'une séance, l'app **copie** les objectifs du programme dans `targetSets`, ainsi que `restSec`, le nom de l'exercice, `programId` et `programExerciseId`. Importer un nouveau programme ne modifie jamais les séances passées : chaque séance garde les objectifs du jour où elle a été faite. Objectif et réalisé ne sont jamais mélangés.
+
+### Exercice remplacé
+
+Quand une machine ou un exercice n'est pas disponible, l'utilisateur le **remplace pour cette séance** (crayon sur l'écran exercice, ou « Modifier » dans l'historique). Aucun changement de format : seuls deux champs de `exerciseRecords[]` portent le remplacement.
+
+| Champ | Exercice du programme | Exercice remplacé |
+|---|---|---|
+| `programExerciseId` | `chest-press-machine` | `chest-press-machine` (inchangé) |
+| `exerciseId` | `chest-press-machine` (= `programExerciseId`) | `sub-` + slug du nom choisi, ex. `sub-pec-deck` (**≠ `programExerciseId`**) |
+| `exerciseName` | `Chest Press` | le nom choisi, ex. `Pec Deck (autre machine)` : **ce qui a été réellement fait** |
+| `targetSets`, `restSec` | snapshot du programme | **inchangés** : le prévu reste dans la séance |
+| `actualSets`, `sensation`, `comment` | réalisé | le réalisé de l'exercice remplaçant (les séries déjà saisies sont conservées) |
+
+- **« Remplacé » = `exerciseId` ≠ `programExerciseId`.** Le prévu reste lisible : `targetSets` (objectifs de ce jour-là) et `programs[]` (le programme complet, où l'exercice garde son nom d'origine).
+- **`exerciseId`** = `sub-` + slug du nom choisi : minuscules, sans accents, tout caractère non alphanumérique remplacé par `-`, tirets fusionnés, 40 caractères au maximum pour le slug (`Pec Deck (autre machine)` → `sub-pec-deck-autre-machine`). Le **même nom donne toujours le même `exerciseId`** : un exercice de remplacement a son propre historique, d'une séance à l'autre.
+- **Progression** : la clé d'une courbe est `exerciseId`. L'exercice remplaçant a donc sa propre courbe et n'altère jamais celle de l'exercice d'origine, dont la courbe ne contient que les séances où il a été fait.
+- Retirer le remplacement, ou saisir le nom d'origine, remet `exerciseId = programExerciseId` et `exerciseName` = nom d'origine du programme.
+- Le nom d'un exercice remplacé est unique dans la séance. `executionOrder` reste en `programExerciseId`.
+- Le programme du coach n'est **jamais** modifié, et le remplacement ne se propage pas aux séances suivantes. Aucune migration : `schemaVersion` inchangée, les fichiers existants (où `exerciseId` = `programExerciseId`) restent valides tels quels.
+
+**Pour le coach :** un exercice remplacé signifie que la machine ou l'exercice prévu n'était pas disponible. L'app n'adapte pas le programme : c'est au coach de le faire.
 
 ### Invariants (refus en bloc à la restauration)
 
@@ -434,6 +455,7 @@ Muscu/
 
 - **Objectif ≠ réalisé** : `targetSets` = ce qui était prévu ce jour-là (snapshot) ; `actualSets` = ce qui a réellement été fait. Ne déduis jamais le réalisé de l'objectif.
 - **`null` = non saisi** : une série sans `actualReps` ni `actualWeightKg` n'a pas été faite. Une charge sans reps (ou l'inverse) est une saisie incomplète, laissée telle quelle.
+- **Exercice remplacé** (`exerciseId` ≠ `programExerciseId`) : la machine ou l'exercice prévu n'était pas disponible. `exerciseName` est ce qui a été réellement fait ; le prévu reste dans `targetSets` et dans `programs[]`. Les charges de `targetSets` ne sont pas celles de l'exercice réalisé : ne compare pas le réalisé à ce prévu. L'app n'adapte pas le programme : c'est à toi de le faire.
 - **Séries en plus** (`isExtra: true`) : faites en plus du programme, sans objectif.
 - **Séances abandonnées** (`abandoned`) : arrêtées en cours de route, mais leurs séries sont réelles. Le `comment` donne souvent la raison.
 - **`executionOrder`** : ordre réel des exercices (machine occupée, etc.).

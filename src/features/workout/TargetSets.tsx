@@ -7,14 +7,17 @@ import styles from './TargetSets.module.css';
 /**
  * Bloc OBJECTIF, en lecture seule. Style volontairement distinct du réalisé :
  * fond grisé, bordure pointillée, texte secondaire, jamais de champ (SPEC §7.4).
+ * Pour un exercice remplacé, `plannedName` rappelle l'exercice prévu : prévu et réalisé ne se
+ * confondent jamais (V1.3.1).
  */
-export function TargetSets({ sets, restSec }: { sets: readonly ProgramSet[]; restSec?: number | null }) {
+export function TargetSets({ sets, restSec, plannedName }: { sets: readonly ProgramSet[]; restSec?: number | null; plannedName?: string }) {
   return (
     <section className={styles.objective} aria-label={strings.program.objective}>
       <p className={styles.label}>
         <Target aria-hidden />
         {strings.program.objective}
       </p>
+      {plannedName !== undefined && <p className={styles.planned}>{strings.replace.planned(plannedName)}</p>}
       <ol className={styles.list}>
         {sets.map((set) => (
           <li key={set.setNumber} className={styles.row}>

@@ -10,6 +10,7 @@ import { LoadingState } from '../../components/LoadingState';
 import { Page } from '../../components/Page';
 import { ProgressBar } from '../../components/ProgressBar';
 import { workoutStatusLabel } from '../../domain/display';
+import { isReplaced } from '../../domain/replacement';
 import type { WorkoutExercise, WorkoutSession } from '../../domain/types';
 import { countValidatedExercises } from '../../domain/workout';
 import { useProgram, useWorkout } from '../../hooks/useData';
@@ -163,7 +164,10 @@ function ExerciseRow({ workoutId, record, index }: { workoutId: string; record: 
         {validated ? <Check /> : index + 1}
       </span>
       <span className={styles.rowText}>
-        <span className={styles.rowName}>{record.exerciseName}</span>
+        <span className={styles.rowTitle}>
+          <span className={styles.rowName}>{record.exerciseName}</span>
+          {isReplaced(record) && <Badge tone="accent">{strings.replace.badge}</Badge>}
+        </span>
         <span className={styles.rowMeta}>
           {t.setsEntered(entered, record.targetSets.length)}
           {extras > 0 && ` · ${t.extraSets(extras)}`}

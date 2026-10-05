@@ -61,7 +61,16 @@
   gap: var(--space-3);
 }
 
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: calc(var(--space-2) * -1);
+}
+
 .exerciseName {
+  min-width: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--letter-spacing-title);

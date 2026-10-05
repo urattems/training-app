@@ -166,6 +166,23 @@ export const strings = {
     notInProgress: 'Cette séance n’est plus en cours : l’exercice n’est plus modifiable ici.',
     unknownExercise: 'Cet exercice ne fait pas partie de la séance.',
   },
+  replace: {
+    badge: 'Remplacé',
+    edit: 'Remplacer cet exercice',
+    title: 'Remplacer l’exercice',
+    planned: (name: string) => `Prévu : ${name}`,
+    fieldLabel: 'Exercice réalisé',
+    save: 'Enregistrer',
+    restore: 'Revenir à l’exercice prévu',
+    scope: 'Cela ne change que cette séance. Le programme du coach n’est pas modifié.',
+    errors: {
+      empty: 'Indique le nom de l’exercice réalisé.',
+      tooLong: (max: number) => `Le nom est trop long : ${max} caractères au maximum.`,
+      control: 'Le nom ne peut pas contenir de retour à la ligne, de tabulation ni d’autre caractère de contrôle.',
+      noAlphanumeric: 'Le nom doit contenir au moins une lettre ou un chiffre.',
+      duplicate: (name: string) => `« ${name} » est déjà un exercice de cette séance. Choisis un autre nom.`,
+    },
+  },
   history: {
     title: 'Historique',
     link: 'Historique des séances',

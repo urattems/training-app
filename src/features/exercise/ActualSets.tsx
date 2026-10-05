@@ -21,8 +21,11 @@ const weightPlaceholder = (target: ProgramSet | undefined): string =>
 /**
  * Bloc RÉALISÉ (SPEC §7.4) : une ligne par série [reps] [kg] + « Comme prévu »,
  * puis « + Série » en bas de liste uniquement. Champs vides au départ.
+ * `plannedApplies` à `false` (exercice remplacé, V1.3.1) : le prévu ne s'applique plus au
+ * réalisé, donc ni « Comme prévu » ni valeurs prévues en placeholder (jamais les valeurs de
+ * l'exercice d'origine pour un autre exercice). Le nombre de lignes reste celui du programme.
  */
-export function ActualSets({ record, autosave }: { record: WorkoutExercise; autosave: WorkoutAutosave }) {
+export function ActualSets({ record, autosave, plannedApplies = true }: { record: WorkoutExercise; autosave: WorkoutAutosave; plannedApplies?: boolean }) {
   const titleId = useId();
   const setNumbers = [...new Set([...record.targetSets, ...record.actualSets].map((s) => s.setNumber))].sort((a, b) => a - b);
 
@@ -42,7 +45,7 @@ export function ActualSets({ record, autosave }: { record: WorkoutExercise; auto
             <SetRow
               exerciseId={record.programExerciseId}
               setNumber={setNumber}
-              target={record.targetSets.find((s) => s.setNumber === setNumber)}
+              target={plannedApplies ? record.targetSets.find((s) => s.setNumber === setNumber) : undefined}
               actual={record.actualSets.find((s) => s.setNumber === setNumber)}
               autosave={autosave}
             />

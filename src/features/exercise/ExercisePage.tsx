@@ -11,6 +11,7 @@ import { LoadingState } from '../../components/LoadingState';
 import { ProgressBar } from '../../components/ProgressBar';
 import { TextField } from '../../components/TextField';
 import { formatPerformance, getLastPerformance } from '../../domain/display';
+import { isReplaced, plannedName as plannedNameOf } from '../../domain/replacement';
 import type { ProgramExercise, WorkoutSession } from '../../domain/types';
 import { countValidatedExercises, findIncompleteSets, setComment, setSensation, validateExercise, type IncompleteSets } from '../../domain/workout';
 import { useProgram, useWorkout, useWorkouts } from '../../hooks/useData';
@@ -23,6 +24,7 @@ import { TargetSets } from '../workout/TargetSets';
 import { exercisePath, workoutPath } from '../workout/WorkoutActions';
 import { ActualSets } from './ActualSets';
 import { ExerciseTip } from './ExerciseTip';
+import { ReplaceExerciseButton } from './ReplaceExercise';
 import { SensationPicker } from './SensationPicker';
 import styles from './ExercisePage.module.css';
 
@@ -98,8 +100,12 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
   const previous = records[index - 1];
   const next = records[index + 1];
   const done = countValidatedExercises(workout);
-  const last = getLastPerformance(workouts, exerciseId, workout.id);
+  // « Dernière fois » : la clé est l'exerciseId. Pour un exercice remplacé, c'est la dernière
+  // performance de l'exercice remplaçant (ou « Aucune séance précédente »).
+  const last = getLastPerformance(workouts, record.exerciseId, workout.id);
   const listPath = workoutPath(workout.id);
+  const replaced = isReplaced(record);
+  const planned = plannedNameOf(record, programExercise?.name);
 
   const validate = async (force = false) => {
     await autosave.flush();
@@ -152,14 +158,21 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
         <h1 ref={titleRef} tabIndex={-1} className={styles.name}>
           {record.exerciseName}
         </h1>
-        {record.status === 'completed' && (
-          <Badge tone="success">
-            <CircleCheck aria-hidden />
-            {strings.workoutScreen.statusDone}
-          </Badge>
-        )}
+        {planned !== null && <ReplaceExerciseButton record={record} siblings={records} plannedName={planned} autosave={autosave} />}
       </div>
-      <ExerciseMeta exercise={programExercise} />
+      {(replaced || record.status === 'completed') && (
+        <div className={styles.badges}>
+          {replaced && <Badge tone="accent">{strings.replace.badge}</Badge>}
+          {record.status === 'completed' && (
+            <Badge tone="success">
+              <CircleCheck aria-hidden />
+              {strings.workoutScreen.statusDone}
+            </Badge>
+          )}
+        </div>
+      )}
+      {/* Catégorie et équipement décrivent l'exercice prévu : jamais affichés sous le nom d'un remplaçant. */}
+      {!replaced && <ExerciseMeta exercise={programExercise} />}
 
       {autosave.error !== null && (
         <div className={styles.saveError} role="alert">
@@ -189,9 +202,9 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
 
       <ExerciseTip notes={programExercise?.notes} />
 
-      <TargetSets sets={record.targetSets} />
+      <TargetSets sets={record.targetSets} plannedName={replaced && planned !== null ? planned : undefined} />
 
-      <ActualSets record={record} autosave={autosave} />
+      <ActualSets record={record} autosave={autosave} plannedApplies={!replaced} />
 
       <SensationPicker
         value={record.sensation}

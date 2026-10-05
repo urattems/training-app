@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1.2 (V1 + collage du programme, export pour le coach, suivi du poids)** → **https://urattems.github.io/training-app/**
+> **État : V1.3.1 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
@@ -19,8 +19,10 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
   - exercices dans n'importe quel ordre ;
   - saisie réelle, avec l'objectif en gris dans le champ et le bouton « Comme prévu » ;
   - séries en plus, sensation, commentaire, cardio ;
+  - **remplacer un exercice pour la séance** (machine indisponible) : crayon à côté du titre, feuille « Remplacer l'exercice ». Le prévu reste visible (« Prévu : … »), le réalisé porte le nom choisi, les séries déjà saisies sont conservées, le programme du coach n'est jamais modifié et rien ne se propage aux séances futures. Le remplaçant a sa propre courbe de progression ; possible aussi en mode « Modifier » d'une séance terminée ;
+  - chaque exercice s'ouvre tout en haut, clavier fermé (jamais de retour en haut pendant la saisie) ;
   - reprise après fermeture, abandon (avec suppression proposée si la séance est vide).
-- **Historique** : détail objectif / réalisé, modification après coup, suppression avec confirmation.
+- **Historique** : détail objectif / réalisé, modification après coup (y compris le remplacement d'un exercice), suppression avec confirmation.
 - **Progression** : graphique de charge (ou de répétitions pour les exercices sans charge) sur une vraie échelle de temps, périodes 1M · 3M · 6M · 1A · Tout, carte de détail au toucher, statistiques et records.
 - **Poids** (4ᵉ onglet) :
   - une pesée par jour, avec le dernier poids en placeholder ;

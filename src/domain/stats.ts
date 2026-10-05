@@ -58,12 +58,17 @@ export interface ExerciseEntry {
 const chronological = (a: { date: string; startedAt: string }, b: { date: string; startedAt: string }): number =>
   a.date === b.date ? Date.parse(a.startedAt) - Date.parse(b.startedAt) : a.date < b.date ? -1 : 1;
 
-/** Toutes les occurrences réelles d'un exercice (clé : `programExerciseId`), ordre chronologique. */
-export function getExerciseEntries(workouts: readonly WorkoutSession[], programExerciseId: string): ExerciseEntry[] {
+/**
+ * Toutes les occurrences réelles d'un exercice, ordre chronologique. La clé de progression est
+ * l'`exerciseId` de la séance : identique à `programExerciseId` pour tout exercice du programme,
+ * et propre à l'exercice remplaçant (`sub-…`) quand il a été remplacé (V1.3.1) : un remplacement
+ * n'altère donc jamais la courbe de l'exercice d'origine.
+ */
+export function getExerciseEntries(workouts: readonly WorkoutSession[], exerciseId: string): ExerciseEntry[] {
   const entries: ExerciseEntry[] = [];
   for (const workout of workouts) {
     if (!countsForStats(workout)) continue;
-    const record = workout.exerciseRecords.find((r) => r.programExerciseId === programExerciseId);
+    const record = workout.exerciseRecords.find((r) => r.exerciseId === exerciseId);
     if (record) {
       entries.push({ workoutId: workout.id, date: workout.date, startedAt: workout.startedAt, status: workout.status, record });
     }
@@ -102,30 +107,30 @@ const base = (e: ExerciseEntry): PointBase => ({
   exerciseName: e.record.exerciseName,
 });
 
-export function getExerciseLoadHistory(workouts: readonly WorkoutSession[], programExerciseId: string): LoadPoint[] {
-  return getExerciseEntries(workouts, programExerciseId).flatMap((e) => {
+export function getExerciseLoadHistory(workouts: readonly WorkoutSession[], exerciseId: string): LoadPoint[] {
+  return getExerciseEntries(workouts, exerciseId).flatMap((e) => {
     const load = maxLoadKg(e.record);
     return load === null ? [] : [{ ...base(e), maxLoadKg: load, sets: e.record.actualSets.filter(isPerformedSet) }];
   });
 }
 
-export function getExerciseVolumeHistory(workouts: readonly WorkoutSession[], programExerciseId: string): VolumePoint[] {
-  return getExerciseEntries(workouts, programExerciseId).flatMap((e) => {
+export function getExerciseVolumeHistory(workouts: readonly WorkoutSession[], exerciseId: string): VolumePoint[] {
+  return getExerciseEntries(workouts, exerciseId).flatMap((e) => {
     const volumeKg = exerciseVolume(e.record);
     return volumeKg > 0 ? [{ ...base(e), volumeKg }] : [];
   });
 }
 
-export function getExerciseRepHistory(workouts: readonly WorkoutSession[], programExerciseId: string): RepPoint[] {
-  return getExerciseEntries(workouts, programExerciseId).flatMap((e) => {
+export function getExerciseRepHistory(workouts: readonly WorkoutSession[], exerciseId: string): RepPoint[] {
+  return getExerciseEntries(workouts, exerciseId).flatMap((e) => {
     const reps = maxReps(e.record);
     return reps === null ? [] : [{ ...base(e), maxReps: reps, sets: e.record.actualSets.filter(isPerformedSet) }];
   });
 }
 
 /** Graphique de charge s'il existe au moins une charge réelle, sinon reps max (poids du corps). */
-export const chartMetricFor = (workouts: readonly WorkoutSession[], programExerciseId: string): 'load' | 'reps' =>
-  getExerciseLoadHistory(workouts, programExerciseId).length > 0 ? 'load' : 'reps';
+export const chartMetricFor = (workouts: readonly WorkoutSession[], exerciseId: string): 'load' | 'reps' =>
+  getExerciseLoadHistory(workouts, exerciseId).length > 0 ? 'load' : 'reps';
 
 // --- Records et stats ---------------------------------------------------------
 
@@ -137,9 +142,9 @@ export interface RepRecord {
 }
 
 /** Meilleure série à charge donnée : pour chaque charge, le maximum de reps (première occurrence). */
-export function getRepRecordsByLoad(workouts: readonly WorkoutSession[], programExerciseId: string): RepRecord[] {
+export function getRepRecordsByLoad(workouts: readonly WorkoutSession[], exerciseId: string): RepRecord[] {
   const byLoad = new Map<number, RepRecord>();
-  for (const e of getExerciseEntries(workouts, programExerciseId)) {
+  for (const e of getExerciseEntries(workouts, exerciseId)) {
     for (const set of e.record.actualSets) {
       if (!isPerformedSet(set) || set.actualWeightKg === null) continue;
       const reps = set.actualReps ?? 0;
@@ -165,22 +170,22 @@ export interface ExerciseStats {
   completedSessionCount: number;
 }
 
-export function getExerciseStats(workouts: readonly WorkoutSession[], programExerciseId: string): ExerciseStats {
-  const loads = getExerciseLoadHistory(workouts, programExerciseId);
-  const volumes = getExerciseVolumeHistory(workouts, programExerciseId);
+export function getExerciseStats(workouts: readonly WorkoutSession[], exerciseId: string): ExerciseStats {
+  const loads = getExerciseLoadHistory(workouts, exerciseId);
+  const volumes = getExerciseVolumeHistory(workouts, exerciseId);
   const last = loads[loads.length - 1] ?? null;
   const best = loads.reduce<LoadPoint | null>((b, p) => (b === null || p.maxLoadKg > b.maxLoadKg ? p : b), null);
-  const lastEntry = getExerciseEntries(workouts, programExerciseId).at(-1) ?? null;
+  const lastEntry = getExerciseEntries(workouts, exerciseId).at(-1) ?? null;
 
   return {
     lastLoadKg: last?.maxLoadKg ?? null,
     lastDate: lastEntry?.date ?? null,
     bestLoadKg: best?.maxLoadKg ?? null,
     bestLoadDate: best?.date ?? null,
-    bestSet: getRepRecordsByLoad(workouts, programExerciseId)[0] ?? null,
+    bestSet: getRepRecordsByLoad(workouts, exerciseId)[0] ?? null,
     lastSessionVolumeKg: volumes.at(-1)?.volumeKg ?? null,
     maxSessionVolumeKg: volumes.length > 0 ? Math.max(...volumes.map((v) => v.volumeKg)) : null,
-    completedSessionCount: getExerciseEntries(workouts, programExerciseId).filter(
+    completedSessionCount: getExerciseEntries(workouts, exerciseId).filter(
       (e) => e.status === 'completed' && e.record.actualSets.some(isPerformedSet),
     ).length,
   };
@@ -230,27 +235,32 @@ export function formatLoadDelta(deltaKg: number): string {
 }
 
 export interface ExerciseSummary {
+  /**
+   * Clé de progression = `exerciseId` des séances. Le nom du champ est historique (avant V1.3.1,
+   * l'`exerciseId` valait toujours `programExerciseId`) et reste inchangé pour les consommateurs
+   * existants ; pour un exercice remplacé, il contient l'identifiant `sub-…` du remplaçant.
+   */
   programExerciseId: string;
   exerciseName: string;
   lastDate: string;
 }
 
-/** Exercices présents dans l'historique réel (nom le plus récent), triés par nom. */
+/** Exercices présents dans l'historique réel (nom le plus récent), triés par nom. Un exercice remplaçant y figure à part, sous son nom. */
 export function listTrackedExercises(workouts: readonly WorkoutSession[]): ExerciseSummary[] {
   const latest = new Map<string, { workout: WorkoutSession; record: WorkoutExercise }>();
   for (const workout of workouts) {
     if (!countsForStats(workout)) continue;
     for (const record of workout.exerciseRecords) {
       if (!record.actualSets.some(isPerformedSet)) continue;
-      const current = latest.get(record.programExerciseId);
+      const current = latest.get(record.exerciseId);
       if (!current || chronological(current.workout, workout) < 0) {
-        latest.set(record.programExerciseId, { workout, record });
+        latest.set(record.exerciseId, { workout, record });
       }
     }
   }
   return [...latest.values()]
     .map(({ workout, record }) => ({
-      programExerciseId: record.programExerciseId,
+      programExerciseId: record.exerciseId,
       exerciseName: record.exerciseName,
       lastDate: workout.date,
     }))
@@ -258,6 +268,7 @@ export function listTrackedExercises(workouts: readonly WorkoutSession[]): Exerc
 }
 
 export interface RecentProgression {
+  /** Clé de progression (`exerciseId`), voir `ExerciseSummary.programExerciseId`. */
   programExerciseId: string;
   exerciseName: string;
   deltaKg: number;

@@ -6,6 +6,7 @@
 import { strings } from '../i18n/strings';
 import { daysBetween, secondsBetween, shiftIsoByDays, toLocalDateString, toLocalIsoString } from '../utils/dates';
 import { DomainError } from './errors';
+import { isReplaced, resolveExerciseName } from './replacement';
 import type {
   ActualSet,
   CardioEntry,
@@ -215,13 +216,16 @@ export interface IncompleteSets {
  */
 export function findIncompleteSets(record: WorkoutExercise): IncompleteSets {
   const result: IncompleteSets = { missingReps: [], missingWeight: [] };
+  // Exercice remplacé : la charge prévue est celle de l'exercice d'origine, elle ne dit rien de ce
+  // qui a été fait. Seule une charge sans répétitions reste signalée.
+  const plannedWeightApplies = !isReplaced(record);
   for (const target of record.targetSets) {
     const actual = record.actualSets.find((s) => s.setNumber === target.setNumber);
     if (!actual) continue;
     const hasReps = actual.actualReps !== null;
     const hasWeight = actual.actualWeightKg !== null;
     if (hasWeight && !hasReps) result.missingReps.push(target.setNumber);
-    else if (hasReps && !hasWeight && target.targetWeightKg !== null) result.missingWeight.push(target.setNumber);
+    else if (plannedWeightApplies && hasReps && !hasWeight && target.targetWeightKg !== null) result.missingWeight.push(target.setNumber);
   }
   return result;
 }
@@ -242,6 +246,35 @@ export function isWorkoutEmpty(workout: WorkoutSession): boolean {
     )
   );
 }
+
+/**
+ * Remplace (ou, avec le nom d'origine, rétablit) l'exercice réalisé POUR CETTE SÉANCE (V1.3.1).
+ * Seuls `exerciseId` et `exerciseName` changent : `programExerciseId`, `targetSets`, `restSec`, les
+ * séries déjà saisies, la sensation, le commentaire et le statut sont conservés (aucune perte).
+ * `plannedName` est le nom de l'exercice prévu (programme d'origine). Refus (`DomainError`) si le
+ * nom est invalide ou correspond à un autre exercice de la séance. Sans effet si rien ne change.
+ */
+export function replaceExercise(
+  workout: WorkoutSession,
+  programExerciseId: string,
+  name: string,
+  plannedName: string,
+): WorkoutSession {
+  const record = findRecord(workout, programExerciseId);
+  const others = workout.exerciseRecords.filter((r) => r !== record);
+  const resolved = resolveExerciseName(name, { programExerciseId, plannedName, others });
+  if (!resolved.ok) throw new DomainError(resolved.message);
+  if (resolved.exerciseId === record.exerciseId && resolved.exerciseName === record.exerciseName) return workout;
+  return updateRecord(workout, programExerciseId, (r) => ({
+    ...r,
+    exerciseId: resolved.exerciseId,
+    exerciseName: resolved.exerciseName,
+  }));
+}
+
+/** « Revenir à l'exercice prévu » : `exerciseId = programExerciseId`, nom du programme. */
+export const restorePlannedExercise = (workout: WorkoutSession, programExerciseId: string, plannedName: string): WorkoutSession =>
+  replaceExercise(workout, programExerciseId, plannedName, plannedName);
 
 /** Valider un exercice : `completed`, sans rien verrouiller ni terminer la séance. */
 export function validateExercise(workout: WorkoutSession, programExerciseId: string): WorkoutSession {
