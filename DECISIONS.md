@@ -1272,3 +1272,103 @@ Référence : `V1.3-SPEC.md` (commité avec cette étape).
   - `programId` à caractères interdits ;
   - troncature du libellé seul ;
   - nom gelé conservé.
+
+---
+
+## V1.3b — Archive Drive : pesées, sauvegardes, garde-fous, renvoi de l'archive
+
+### Amendement de SPEC.md (autorisé, par ajout uniquement)
+- §11 : bloc « Complément V1.3 — types de l'archive Drive » (`weight_entry`, `weight_log`).
+- Les autres ajouts du §13 de `V1.3-SPEC.md` (§2, §7.10, §10.7, §13) avaient été faits en V1.3a.
+- `git diff` : 7 ajouts, 0 suppression.
+
+### Nouveaux types (`src/schemas/weightArchive.schema.ts`)
+- `weight_entry` et `weight_log` v1.0 : schémas Zod réutilisant les règles d'une pesée (date réelle, poids > 0 à 2 décimales, `recordedAt` ISO).
+- Invariants de `weight_log` : dates strictement croissantes (donc uniques), `count` exact.
+- Fabriques `toWeightEntryFile` et `toWeightLog` (tri croissant).
+- **Contrôle avant envoi** : le texte sérialisé est relu (schéma, invariants) puis comparé aux données. En cas d'échec : `invalid_content`, et rien n'est envoyé.
+- Exemples : `examples/weight-entry-example.json` (dernière pesée de la fixture V1.2) et `examples/weight-log-example.json` (ses 10 pesées). Les deux sont reproduits à l'identique par les fabriques, et leurs empreintes SHA-256 sont figées dans les tests.
+
+### File d'attente étendue (`domain/driveOutbox.ts`)
+- **Types** : `weight:<date>`, `weight_deleted:<date>`, `weights_all:all`, `backup_latest:latest`, `backup_weekly:weekly`. Clés uniques pour les trois derniers, donc **fusion** : une seule sauvegarde en attente, contenu généré à l'envoi.
+- **Ordre** : séances, suppressions de séances, pesées, suppressions de pesées, `weights_all`, `backup_latest`, `backup_weekly`. Les sauvegardes passent en dernier, puisqu'elles reflètent tout le reste.
+- **Nouveau statut `paused`**, réservé à `backup_latest` refusée pour régression : jamais reprise automatiquement, non comptée « en attente » ni dans la puce de l'accueil (l'écran de choix la remplace). Une nouvelle intention de sauvegarde pendant la pause reste en pause.
+- **État de file complété** : `regression` (`current`, `incoming`, `at`), `emptySkipAt`, `resend` (entrées id + révision).
+- **Défaut corrigé** (trouvé par les tests de la V1.3b) : `completeTask` reconstruisait l'état avec seulement `tasks` et `lastConfirmedAt`, ce qui perdait la régression et la progression du renvoi à chaque confirmation. Il conserve désormais le reste de l'état ; un test le prouve.
+
+### Déclencheurs (§7) : intentions ATOMIQUES
+- **Tableau §7** :
+  - séance terminée, abandonnée **avec données** ou corrigée : `session` + `backup_latest` ;
+  - séance supprimée : `session_deleted` + `backup_latest` ;
+  - pesée ajoutée, modifiée ou remplacée : `weight` + `weights_all` + `backup_latest` ;
+  - pesée supprimée : `weight_deleted` + `weights_all` + `backup_latest` ;
+  - ouverture : `backup_weekly` si la dernière copie **confirmée** a 7 jours ou plus, ou n'existe pas.
+- Écart corrigé par rapport à la V1.3a : une séance abandonnée **vide** ne déclenche plus rien, sauvegarde comprise. Le déclencheur exige une séance exportable.
+- **Mise en file dans la transaction de la donnée** (`queueDriveTasks`, portée incluant `settings`) :
+  - en V1.3a, l'intention était mise en file après l'écriture, sans être attendue ;
+  - le scénario navigateur V1.3b a montré qu'un rechargement **immédiat** après une suppression perdait l'intention : la pesée était supprimée, mais rien n'était noté dans Drive ;
+  - désormais, la donnée et l'intention sont écrites ensemble, ou pas du tout. Un incident Drive est capturé et n'annule jamais l'écriture ;
+  - le planificateur est réveillé après la transaction (`notifyDriveQueued`) ;
+  - c'est testé (intention présente dès la fin de l'appel) et vérifié en navigateur (rechargement immédiat).
+- `notifySessionChanged` et `notifySessionDeleted` (V1.3a) restent comme fonctions bas niveau ; les services utilisent les déclencheurs complets.
+
+### Sauvegardes (`services/driveContent.ts`)
+- **Contenu** : `prepareExport(now)`, soit la même fabrique et le même contrôle d'intégrité que « Exporter mes données ». Testé : contenu **identique octet pour octet** au fichier manuel du même instant.
+- `meta = { kind, counts: { sessions, weights, programs }, exportedAt }`, avec `force` absent par défaut (`false`).
+- **Copie hebdomadaire** : `Sauvegardes/AAAA-MM-JJ_hebdo.json`, à la date **locale** de l'envoi (testé sous UTC+14 et Los Angeles). Même nom le même jour, donc réécriture ; jamais sinon.
+- **Base vide** : sauvegarde retirée de la file sans envoi, et `emptySkipAt` alimente le statut « Base vide : aucune sauvegarde envoyée (pour protéger ton archive). ».
+- **Dates** : `lastAutoBackupAt` et `lastWeeklyBackupAt` sont de nouveaux réglages propres à l'appareil, conservés par une restauration. Ils n'avancent **que** sur `ok: true`, et valent l'instant où le contenu a été figé (`exportedAt`). Testé avec HTML, réseau et `busy` : rien n'avance.
+- **Rappel d'export** : l'accueil passe `latestInstant(lastExportAt, lastAutoBackupAt)` à `getExportReminder`, dont la signature est inchangée. Une réponse non confirmée ne compte pas.
+
+### Refus de régression (§8.2)
+- **Réponse `regression`** (avec `current` et `incoming`) : pas de réessai, sauvegarde en **pause**, écran de choix.
+- **Où** : dans Paramètres → Archive Drive **et** sur l'accueil, avec le même composant `DriveRegressionNotice`.
+- **Les trois choix** :
+  - « Restaurer depuis mon Drive » : feuille d'explication en 4 étapes (télécharger le fichier depuis Drive, Paramètres → Restaurer) ; la pause reste ;
+  - « Remplacer quand même » : confirmation explicite (« Remplacer la sauvegarde du Drive ? »), puis renvoi immédiat avec `force: true` ;
+  - « Ignorer » : sauvegarde en attente abandonnée. Une prochaine modification la relancera et, si le Drive est toujours plus complet, l'écran reviendra : c'est voulu.
+- **Activation** : texte complet du §8.3 (remplacement de `Sauvegardes/sauvegarde-derniere.json`).
+
+### « Renvoyer toute l'archive »
+- **Contenu** : séances exportables (de la plus ancienne à la plus récente), chaque pesée, `weights_all`, `backup_latest`. Le tout est mis en file en une transaction, et la déduplication évite tout doublon.
+- **Progression** « n/total » : une entrée est faite quand l'intention mémorisée (id + révision) a quitté la file. La barre est accessible et le décompte affiché.
+- **Annulation** : retire les tâches restantes du renvoi, mais garde une intention renouvelée entre-temps par un vrai événement (testé).
+- **Reprise** : en relançant, sans doublon. Après une coupure réseau au milieu, la reprise se fait seule au retour du réseau (navigateur réel : coupure à 3/15, fin à 15/15).
+
+### Serveur factice
+- **Refus de régression** sur `Sauvegardes/sauvegarde-derniere.json` : comparaison des `meta.counts` avec la sauvegarde présente, ou avec `regressionCounts`, qui simule un Drive plus complet à la demande. `force: true` passe outre.
+
+### Tests existants adaptés (conséquence directe du §7 : `backup_latest` suit chaque séance)
+1. `services/driveOutbox.test.ts`, « séance terminée… » : file attendue avec `backup_latest` ; requêtes : la séance, puis `sauvegarde-derniere.json`.
+2. Même fichier, « abandonnée AVEC données » : `[put Semaine 37, put Sauvegardes]`.
+3. Même fichier, « correction dans l'historique » : chaque enregistrement est suivi de la sauvegarde (4 requêtes) ; le contenu corrigé est le 3ᵉ envoi.
+4. Même fichier, « suppression » : `mark_deleted` suivi de la sauvegarde.
+5. Même fichier, « ordre » : `['put', 'put', 'mark_deleted', 'put']`, avec la sauvegarde en dernier, vérifiée.
+6. `features/settings/Drive.test.tsx`, utilitaire `configure()` : il marque la copie hebdomadaire comme récente, pour que ces scénarios centrés sur les séances restent comparables. Aucune assertion modifiée.
+- Toutes les vérifications existantes sont conservées ; seules les nouvelles requêtes de sauvegarde ont été ajoutées aux attentes.
+
+### Tests ajoutés
+- `services/driveBackups.test.ts` (31) :
+  - types et fixtures (dont 6 `weight_log` invalides) ;
+  - intentions atomiques ;
+  - pesées (ajout, remplacement, correction, suppression, `not_in_index`) ;
+  - sauvegarde identique à l'export manuel, `counts`, base vide ;
+  - dates avançant seulement sur `ok: true` ;
+  - régression (pause sans réessai, Remplacer avec `force`, Ignorer, déclenchée par une vraie suppression) ;
+  - copie hebdomadaire (7 jours, confirmation requise, fuseaux) ;
+  - rappel d'export ;
+  - renvoi (progression, coupure réseau au milieu, annulation et relance, envoi désactivé) ;
+  - restauration (`driveSync` et dates conservés) et absence du secret.
+- `domain/driveOutbox.test.ts` (+3) : état conservé à la confirmation, pause et choix, ordre et annulation.
+- `features/settings/DriveBackups.test.tsx` (9) : texte d'activation, régression dans Paramètres et sur l'accueil (trois choix), base vide, rappel d'export avec sauvegarde confirmée ou non, renvoi avec progression, annulation, relance et accessibilité.
+
+### Navigateur réel (production, 390 px, tactile, serveur factice, CORS réel)
+- **V1.3b : 10/10.**
+  - Activation (texte §8.3).
+  - Pesée → `Pesees/AAAA-MM-JJ.json`, `_pesees.json` (11 pesées), sauvegarde (`counts` exacts).
+  - Copie hebdomadaire à la réouverture.
+  - Régression simulée : suppression de pesée notée, message exact sur l'accueil, aucun réessai, « Remplacer quand même » (`force`), écran retiré.
+  - Renvoi de l'archive coupé à 3/15 puis terminé seul à 15/15, sans doublon.
+  - Secret masqué ; aucune erreur console (hors 404 du script et coupure volontaire).
+- **V1.3a rejoué : 10/10.** Seule l'attente « 1 en attente » du script a été élargie : la correction met aussi la sauvegarde en file.
+- **Régression S1–S7 et hors ligne : 9/9.**

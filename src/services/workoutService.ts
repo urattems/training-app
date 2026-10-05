@@ -7,7 +7,8 @@ import { strings } from '../i18n/strings';
 import { workoutSessionSchema } from '../schemas/history.schema';
 import { createId } from '../utils/ids';
 import { getActiveProgramId } from './settingsService';
-import { notifySessionChanged } from './driveOutbox';
+import { DRIVE_TRIGGERS, notifyDriveQueued, queueDriveTasks } from './driveOutbox';
+import { isCoachExportable } from '../domain/coachExport';
 
 const t = strings.workout;
 
@@ -46,7 +47,8 @@ export async function getWorkout(id: string): Promise<WorkoutSession | null> {
  * Le résultat est revalidé par le schéma du contrat : aucune donnée invalide n'est écrite.
  */
 export async function updateWorkout(id: string, update: (workout: WorkoutSession) => WorkoutSession): Promise<WorkoutSession> {
-  return db.transaction('rw', db.workouts, async () => {
+  // `settings` dans la portée : l'intention d'envoi Drive est écrite avec la séance (atomique).
+  return db.transaction('rw', [db.workouts, db.settings], async () => {
     const current = await db.workouts.get(id);
     if (!current) throw new DomainError(t.notFound);
     // Textes nettoyés à chaque enregistrement (trim, vide → null), puis revalidation du contrat.
@@ -54,11 +56,12 @@ export async function updateWorkout(id: string, update: (workout: WorkoutSession
     if (next.id !== current.id) throw new DomainError(t.notFound);
     if (next.status === 'in_progress' && current.status !== 'in_progress') throw new DomainError(t.notInProgress);
     await db.workouts.put(next);
+    // Archive Drive (V1.3) : séance terminée, abandonnée avec données ou corrigée (§7) → séance +
+    // sauvegarde en file, dans la même transaction (sans effet si l'envoi n'est pas activé).
+    if (isCoachExportable(next)) await queueDriveTasks(DRIVE_TRIGGERS.sessionSaved(next.id));
     return next;
   }).then((saved) => {
-    // Archive Drive (V1.3) : séance terminée, abandonnée ou corrigée → mise en file, sans attendre
-    // (jamais d'impact sur la saisie ; sans effet si l'envoi n'est pas activé).
-    if (saved.status !== 'in_progress') void notifySessionChanged(saved.id);
+    notifyDriveQueued();
     return saved;
   });
 }

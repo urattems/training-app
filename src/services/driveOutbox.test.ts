@@ -126,9 +126,10 @@ describe('Séances (envoi activé)', () => {
     const workout = await seededWorkout();
     await finishWorkout(workout.id, new Date(2026, 9, 4, 19, 20));
     await flush();
-    expect(await tasks()).toEqual([`session:${workout.id}#1:pending`]);
+    expect(await tasks()).toEqual([`session:${workout.id}#1:pending`, 'backup_latest:latest#1:pending']);
     await processDriveOutbox('all');
-    expect(sent).toHaveLength(1);
+    // V1.3b : la séance, puis la sauvegarde (en dernier).
+    expect(sent.map((r) => r.name)).toEqual(['2026-10-04_1810_Seance-A_wnew1.json', 'sauvegarde-derniere.json']);
     const put = sent[0];
     expect(put).toMatchObject({ action: 'put', folder: 'Semaine 37', name: '2026-10-04_1810_Seance-A_wnew1.json' });
     expect(put?.chars).toBe(put?.content?.length);
@@ -159,7 +160,10 @@ describe('Séances (envoi activé)', () => {
     await abandonWorkout(workout.id);
     await flush();
     await processDriveOutbox('all');
-    expect(sent.map((s) => s.action)).toEqual(['put']);
+    expect(sent.map((s) => [s.action, s.folder])).toEqual([
+      ['put', 'Semaine 37'],
+      ['put', 'Sauvegardes'],
+    ]);
     expect(sent[0]?.meta).toMatchObject({ status: 'abandoned' });
   });
 
@@ -170,8 +174,14 @@ describe('Séances (envoi activé)', () => {
     await updateWorkout(workout.id, (w) => setWorkoutDate(w, '2026-10-02'));
     await flush();
     await processDriveOutbox('all');
-    expect(sent.map((s) => s.name)).toEqual(['2026-10-04_1810_Seance-A_wnew1.json', '2026-10-04_1810_Seance-A_wnew1.json']);
-    expect(parseCoachExportJson(sent[1]?.content ?? '').ok && JSON.parse(sent[1]?.content ?? '{}')).toMatchObject({ sessions: [{ date: '2026-10-02' }] });
+    // V1.3b : chaque enregistrement est suivi de la sauvegarde.
+    expect(sent.map((s) => s.name)).toEqual([
+      '2026-10-04_1810_Seance-A_wnew1.json',
+      'sauvegarde-derniere.json',
+      '2026-10-04_1810_Seance-A_wnew1.json',
+      'sauvegarde-derniere.json',
+    ]);
+    expect(parseCoachExportJson(sent[2]?.content ?? '').ok && JSON.parse(sent[2]?.content ?? '{}')).toMatchObject({ sessions: [{ date: '2026-10-02' }] });
     expect((await getDriveNames())[workout.id]).toEqual({ folder: 'Semaine 37', name: '2026-10-04_1810_Seance-A_wnew1.json' });
   });
 
@@ -195,6 +205,7 @@ describe('Séances (envoi activé)', () => {
     expect(sent.map((s) => [s.action, s.name])).toEqual([
       ['put', '2026-09-15_1810_Seance-A_w0002.json'],
       ['mark_deleted', '2026-09-15_1810_Seance-A_w0002.json'],
+      ['put', 'sauvegarde-derniere.json'], // V1.3b : la suppression met aussi la sauvegarde en file
     ]);
     expect(sent[1]?.at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect((await getOutbox()).tasks).toEqual([]);
@@ -209,7 +220,8 @@ describe('Séances (envoi activé)', () => {
     await notifySessionChanged('w-0003');
     await flush();
     await Promise.all([processDriveOutbox('all'), processDriveOutbox('all'), processDriveOutbox('all')]);
-    expect(sent.map((s) => s.action)).toEqual(['put', 'put', 'mark_deleted']);
+    expect(sent.map((s) => s.action)).toEqual(['put', 'put', 'mark_deleted', 'put']);
+    expect(sent.at(-1)?.name).toBe('sauvegarde-derniere.json'); // V1.3b : sauvegarde en dernier
     expect(maxInFlight).toBe(1);
   });
 

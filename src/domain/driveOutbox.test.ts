@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cancelResend,
   completeTask,
   dropTask,
   EMPTY_OUTBOX,
@@ -10,8 +11,12 @@ import {
   nextDueTask,
   nextWakeUp,
   outboxSummary,
+  pauseForRegression,
+  resendProgress,
+  resolveRegression,
   RETRY_DELAYS_MS,
   retryTask,
+  startResend,
   type DriveOutboxState,
 } from './driveOutbox';
 
@@ -89,5 +94,52 @@ describe('File d’attente (domaine)', () => {
     let s = enqueueTask(EMPTY_OUTBOX, 'session', 'w-1', T0);
     s = enqueueTask(s, 'session', 'w-2', T0 + 3_000_000);
     expect(outboxSummary(s, T0 + 3_600_001)).toMatchObject({ pending: 2, stalled: 1 });
+  });
+});
+
+describe('Garde-fous et renvoi (V1.3b)', () => {
+  it('une confirmation conserve le reste de l’état (régression, base vide, renvoi en cours)', () => {
+    let s: DriveOutboxState = startResend(EMPTY_OUTBOX, [{ type: 'session', key: 'w-1' }, { type: 'backup_latest', key: 'latest' }], T0);
+    s = { ...s, emptySkipAt: new Date(T0).toISOString(), regression: { current: { sessions: 2, weights: 1 }, incoming: { sessions: 1, weights: 1 }, at: 'x' } };
+    const first = s.tasks[0];
+    if (!first) throw new Error();
+    const next = completeTask(s, first, T0 + 1);
+    expect(next.resend).toEqual(s.resend);
+    expect(next.regression).toEqual(s.regression);
+    expect(next.emptySkipAt).toBe(s.emptySkipAt);
+    expect(resendProgress(next)).toEqual({ done: 1, total: 2 });
+  });
+
+  it('sauvegarde en pause : une nouvelle intention reste en pause ; « Remplacer » la relance avec force', () => {
+    let s = enqueueTask(EMPTY_OUTBOX, 'backup_latest', 'latest', T0);
+    const task = s.tasks[0];
+    if (!task) throw new Error();
+    s = pauseForRegression(s, task, { current: { sessions: 5, weights: 2 }, incoming: { sessions: 4, weights: 2 }, at: 'x' }, err, T0);
+    s = enqueueTask(s, 'backup_latest', 'latest', T0 + 1);
+    expect(s.tasks[0]).toMatchObject({ status: 'paused', revision: 2, nextAttemptAt: null });
+    expect(nextDueTask(s, T0 + 10_000, 'all')).toBeNull();
+    expect(outboxSummary(s, T0 + 10 * 3_600_000)).toMatchObject({ paused: 1, pending: 0, stalled: 0 });
+    const replaced = resolveRegression(s, 'replace', T0 + 2);
+    expect(replaced.tasks[0]).toMatchObject({ status: 'pending', force: true });
+    expect(replaced.regression).toBeNull();
+    expect(resolveRegression(s, 'ignore', T0 + 2).tasks).toEqual([]);
+  });
+
+  it('ordre : sauvegardes en dernier ; annulation du renvoi garde une intention renouvelée', () => {
+    let s = enqueueTask(EMPTY_OUTBOX, 'backup_weekly', 'weekly', T0);
+    s = enqueueTask(s, 'backup_latest', 'latest', T0);
+    s = enqueueTask(s, 'weights_all', 'all', T0);
+    s = enqueueTask(s, 'weight', '2026-10-01', T0);
+    s = enqueueTask(s, 'session', 'w-1', T0);
+    const order: string[] = [];
+    let state = s;
+    for (let task = nextDueTask(state, T0, 'all'); task; task = nextDueTask(state, T0, 'all')) {
+      order.push(task.type);
+      state = completeTask(state, task, T0);
+    }
+    expect(order).toEqual(['session', 'weight', 'weights_all', 'backup_latest', 'backup_weekly']);
+    let r = startResend(EMPTY_OUTBOX, [{ type: 'session', key: 'a' }, { type: 'session', key: 'b' }], T0);
+    r = enqueueTask(r, 'session', 'b', T0 + 1); // vrai événement pendant le renvoi
+    expect(cancelResend(r).tasks.map((t) => t.id)).toEqual(['session:b']);
   });
 });

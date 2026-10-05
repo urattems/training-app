@@ -1,12 +1,14 @@
 # Formats JSON — Carnet d'entraînement
 
-Trois formats :
+Trois formats d'échange, plus deux formats de l'archive Drive (V1.3) :
 
 | Format | `type` | Version courante | Sens | Usage |
 |---|---|---|---|---|
 | **PROGRAM_JSON** | `training_program` | `"1.0"` | coach → app | Programme de la semaine, à importer (fichier ou texte collé) |
 | **HISTORY_JSON** | `training_history_export` | `"1.1"` (1.0 accepté) | app → app (et coach) | Sauvegarde complète et restauration, pesées comprises |
 | **COACH_JSON** | `training_coach_export` | `"1.1"` (1.0 accepté) | app → coach | Sélection de séances (et de pesées) à envoyer au coach. **Jamais restaurable** |
+| **WEIGHT_ENTRY** | `weight_entry` | `"1.0"` | app → Drive | Une pesée de l'archive Drive (`Muscu/Pesees/AAAA-MM-JJ.json`) |
+| **WEIGHT_LOG** | `weight_log` | `"1.0"` | app → Drive | Toutes les pesées de l'archive Drive (`Muscu/Pesees/_pesees.json`) |
 
 Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/program.schema.ts), [`src/schemas/history.schema.ts`](src/schemas/history.schema.ts), [`src/schemas/coachExport.schema.ts`](src/schemas/coachExport.schema.ts), [`src/schemas/invariants.ts`](src/schemas/invariants.ts). Exemples valides, vérifiés par les tests (empreintes SHA-256 figées) :
 
@@ -14,7 +16,8 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 - [`examples/history-example.json`](examples/history-example.json) (1.0, accepté via la migration) ;
 - [`examples/history-weights-example.json`](examples/history-weights-example.json) (1.1, 10 pesées) ;
 - [`examples/coach-export-example.json`](examples/coach-export-example.json) (1.0, accepté via la migration) ;
-- [`examples/coach-export-weights-example.json`](examples/coach-export-weights-example.json) (1.1, avec pesées).
+- [`examples/coach-export-weights-example.json`](examples/coach-export-weights-example.json) (1.1, avec pesées) ;
+- [`examples/weight-entry-example.json`](examples/weight-entry-example.json) et [`examples/weight-log-example.json`](examples/weight-log-example.json) (archive Drive, 1.0).
 
 ## Règles communes
 
@@ -306,12 +309,97 @@ Fichier complet, validé par les tests et reproduit à l'identique par l'app : [
 
 ---
 
+## Archive Drive (V1.3)
+
+Facultative, désactivée par défaut : l'app envoie, à sens unique, une copie de ses données vers le script « Muscu Sync » de l'utilisateur, qui l'écrit dans son Google Drive. L'app ne lit **jamais** Drive. Détail complet : `SPEC.md` §10.7.
+
+### Arbre
+
+```text
+Muscu/
+├── _INDEX.json                  tenu par le script (jamais écrit par l'app)
+├── LISEZMOI.txt                 écrit par le script
+├── Semaine 40/                  libellé de semaine du programme
+│   └── 2026-10-04_1810_Seance-A_ab12cd.json      une séance (COACH_JSON d'UNE séance)
+├── Pesees/
+│   ├── 2026-10-04.json          une pesée (WEIGHT_ENTRY)
+│   └── _pesees.json             toutes les pesées (WEIGHT_LOG)
+└── Sauvegardes/
+    ├── sauvegarde-derniere.json     HISTORY_JSON, à jour après chaque séance et chaque pesée
+    └── 2026-10-04_hebdo.json        copie datée, au plus une par semaine, jamais écrasée (sauf le même jour)
+```
+
+### Noms (gelés au premier envoi)
+
+- **Dossier de semaine** = `week.label` nettoyé :
+  - `\ / : * ? " < > |` et caractères de contrôle remplacés par `-`, espaces réduits, 120 caractères maximum ;
+  - si plusieurs programmes ont le même libellé (sans casse ni espaces autour), tous sauf le plus ancien (`createdAt`, puis `programId`) reçoivent ` (<programId complet>)`, par exemple « Semaine 40 (prog-2026-w40) » ;
+  - au-delà de 120 caractères, c'est le libellé qui est tronqué, jamais le `programId`.
+- **Fichier de séance** = `AAAA-MM-JJ_HHmm_<Nom-sans-accents>_<id6>.json` :
+  - `date` de la séance ;
+  - heure telle qu'écrite dans `startedAt` ;
+  - nom sans accents, espaces remplacés par `-` ;
+  - 6 premiers caractères alphanumériques de l'identifiant.
+- **Gel** : dossier et nom sont enregistrés **sur l'appareil** au premier envoi. Une correction de date réécrit le **même** fichier.
+- **Pesées** : `Pesees/AAAA-MM-JJ.json`. Une suppression n'efface jamais un fichier : elle est notée par le script (`mark_deleted`, dans `_INDEX.json`). Idem pour une séance supprimée.
+
+### WEIGHT_ENTRY v1.0 (`weight_entry`)
+
+| Champ | Type | Règles |
+|---|---|---|
+| `schemaVersion` | `"1.0"` | |
+| `type` | `"weight_entry"` | |
+| `date` | `YYYY-MM-DD` | Date locale de la mesure |
+| `weightKg` | nombre | > 0, au plus 2 décimales |
+| `recordedAt` | ISO 8601 + offset | Dernière écriture (saisie ou correction) |
+
+### WEIGHT_LOG v1.0 (`weight_log`)
+
+| Champ | Type | Règles |
+|---|---|---|
+| `schemaVersion` | `"1.0"` | |
+| `type` | `"weight_log"` | |
+| `exportedAt` | ISO 8601 + offset | Instant où le contenu a été figé |
+| `count` | entier ≥ 0 | = nombre d'éléments de `entries` |
+| `entries` | liste | `{ date, weightKg, recordedAt }`, **dates uniques et strictement croissantes** |
+
+### Sauvegardes et garde-fous
+
+- `sauvegarde-derniere.json` et `AAAA-MM-JJ_hebdo.json` sont **exactement** le fichier de « Exporter mes données » (HISTORY_JSON 1.1), vérifié avant l'envoi.
+  - Les deux ont le même `meta.counts = { sessions, weights, programs }`.
+  - Le `meta.kind` diffère : `backup_latest` pour la première, `backup_weekly` pour la copie hebdomadaire.
+- Une sauvegarde **confirmée** par le script compte comme sauvegarde pour le rappel d'export. Une réponse non confirmée ne compte pas.
+- **Base vide** (aucune séance, aucune pesée, aucun programme) : rien n'est envoyé. L'app affiche « Base vide : aucune sauvegarde envoyée (pour protéger ton archive) ».
+- **Refus de régression** : le script refuse de remplacer `sauvegarde-derniere.json` par une sauvegarde contenant **moins de séances ou moins de pesées**, par exemple après une réinstallation. L'app ne réessaie pas, met la sauvegarde en pause et propose trois choix :
+  - **Restaurer depuis mon Drive** ;
+  - **Remplacer quand même** : après confirmation, renvoi avec `force: true` ;
+  - **Ignorer**.
+  - Supprimer une séance déclenche aussi ce garde-fou : c'est voulu, il suffit de confirmer une fois.
+
+### Reprise après perte (iPhone perdu, app supprimée, données effacées par iOS)
+
+1. Réinstaller l'app (Safari → l'adresse de l'app → Partager → Sur l'écran d'accueil).
+2. Dans Google Drive, dossier `Muscu/Sauvegardes`, télécharger `sauvegarde-derniere.json` (sur iPhone : « Ouvrir dans » → « Enregistrer dans Fichiers »).
+3. Dans l'app : Paramètres → **Restaurer une sauvegarde** → choisir ce fichier.
+4. **Seulement ensuite**, Paramètres → Archive Drive : saisir l'adresse et le secret, « Envoyer un test », puis activer l'envoi.
+   - Dans cet ordre, l'app repart de la sauvegarde complète.
+   - Activer avant de restaurer provoquerait le refus de régression, sans perte, puisque rien n'est écrasé, mais avec un choix à faire.
+
+### Limites connues
+
+- **iOS n'envoie rien en arrière-plan** : un envoi interrompu repart à la prochaine ouverture de l'app (retour au premier plan, réseau retrouvé, « Envoyer maintenant »).
+- **Les noms gelés sont locaux** : ils ne sont ni dans les sauvegardes ni restaurés. Une séance dont la date a été corrigée **avant** une réinstallation peut donc produire un **second** fichier sous son nom recalculé, l'ancien restant dans Drive.
+- L'adresse et le secret du script sont propres à l'appareil : jamais exportés, jamais restaurés. À n'activer que sur l'iPhone qui sert à saisir.
+
+---
+
 ## Pour le coach (ChatGPT)
 
 ### Produire un programme valide — pièges à éviter
 
 - [ ] `"schemaVersion": "1.0"` et `"type": "training_program"`.
 - [ ] **`programId` nouveau à chaque programme** (ex. `"prog-2026-w41"`). L'app refuse un `programId` déjà importé.
+- [ ] **Libellé de semaine (`week.label`) UNIQUE** (ex. `"Semaine 41"`, jamais deux fois le même) : il nomme le dossier de l'archive Drive. Un doublon reste accepté, mais son dossier reçoit le `programId` en suffixe.
 - [ ] **Tous les champs nullables sont présents** : `category`, `equipment`, `restSec`, `notes`, `estimatedDurationMin`, `cardio`, `week.startDate`, `week.endDate`, `targetWeightKg`. Valeur `null` si non pertinent, **jamais absents**.
 - [ ] Série : **soit** `targetReps`, **soit** `targetRepsMin` + `targetRepsMax`, **jamais les deux**. Min ≤ max.
 - [ ] `setNumber` commence à 1 et est **unique** dans chaque exercice.
@@ -332,6 +420,7 @@ Fichier complet, validé par les tests et reproduit à l'identique par l'app : [
   - `"manual"` : choisies à la main.
 - **Historique incomplet** : une séance absente du fichier n'est pas une séance manquée. Si la décision demande plus de recul (records, tendance), demande un export plus large plutôt que de conclure.
 - **`programs`** : le programme actif et ceux des séances jointes, pour retrouver les objectifs et les conseils. Le programme à faire évoluer est celui de `activeProgramId`.
+- **Pour redonner TOUT le contexte** (historique complet, toutes les pesées) : l'utilisateur peut t'envoyer `Muscu/Sauvegardes/sauvegarde-derniere.json` (HISTORY_JSON) depuis son Drive.
 - Les séances se lisent exactement comme dans un export d'historique (ci-dessous).
 
 ### Lire les pesées

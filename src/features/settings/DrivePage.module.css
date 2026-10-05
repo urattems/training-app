@@ -134,3 +134,17 @@
   font-size: var(--font-size-xs);
   overflow-wrap: anywhere;
 }
+
+.resendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.resendCount {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}

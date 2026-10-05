@@ -39,7 +39,14 @@ export type SettingRecord =
    */
   | { key: 'driveSync'; value: DriveSyncSettings }
   | { key: 'driveOutbox'; value: DriveOutboxState }
-  | { key: 'driveNames'; value: DriveNames };
+  | { key: 'driveNames'; value: DriveNames }
+  /**
+   * Dernière `sauvegarde-derniere.json` CONFIRMÉE (`ok: true`) : instant où son contenu a été figé
+   * (même définition que `lastExportAt`). Compte comme sauvegarde pour le rappel d'export (§9).
+   */
+  | { key: 'lastAutoBackupAt'; value: string | null }
+  /** Dernière copie hebdomadaire CONFIRMÉE (`ok: true`). */
+  | { key: 'lastWeeklyBackupAt'; value: string | null };
 
 /** Configuration de l'envoi vers le script « Muscu Sync » de l'utilisateur. */
 export interface DriveSyncSettings {
@@ -51,7 +58,15 @@ export interface DriveSyncSettings {
 }
 
 /** Réglages propres à l'appareil, conservés tels quels par une restauration. */
-export const DEVICE_SETTING_KEYS = ['lastExportAt', 'lastCoachExportAt', 'driveSync', 'driveOutbox', 'driveNames'] as const;
+export const DEVICE_SETTING_KEYS = [
+  'lastExportAt',
+  'lastCoachExportAt',
+  'driveSync',
+  'driveOutbox',
+  'driveNames',
+  'lastAutoBackupAt',
+  'lastWeeklyBackupAt',
+] as const;
 
 export type SettingKey = SettingRecord['key'];
 

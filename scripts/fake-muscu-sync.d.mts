@@ -9,6 +9,7 @@ export interface FakeMuscuSyncOptions {
   latencyMax?: number;
   seed?: number;
   online?: boolean;
+  regressionCounts?: { sessions: number; weights: number } | null;
 }
 
 export interface FakeFile {
@@ -29,6 +30,7 @@ export interface FakeRequest {
   contentType: string | null;
   html: boolean;
   chars?: number;
+  force?: boolean;
 }
 
 export interface FakeMuscuSync {

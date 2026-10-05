@@ -5,7 +5,7 @@
  * un envoi interrompu reprend à la prochaine ouverture (attendu).
  */
 import { nextWakeUp } from '../domain/driveOutbox';
-import { getOutbox, onEnqueue, processDriveOutbox } from './driveOutbox';
+import { enqueueWeeklyIfDue, getOutbox, onEnqueue, processDriveOutbox } from './driveOutbox';
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -46,7 +46,8 @@ export function startDriveScheduler(): () => void {
   });
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('online', onOnline);
-  void run('all');
+  // Ouverture de l'app : copie hebdomadaire si la dernière CONFIRMÉE a 7 jours ou plus (§7).
+  void enqueueWeeklyIfDue().then(() => run('all'));
   return () => {
     stopEnqueue();
     document.removeEventListener('visibilitychange', onVisible);

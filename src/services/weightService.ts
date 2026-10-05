@@ -1,4 +1,5 @@
 import { db } from '../db/database';
+import { DRIVE_TRIGGERS, notifyDriveQueued, queueDriveTasks } from './driveOutbox';
 import { DomainError } from '../domain/errors';
 import type { WeightEntry } from '../domain/types';
 import { sortWeights, validateWeightDate, validateWeightKg } from '../domain/weight';
@@ -47,12 +48,16 @@ export interface AddWeightInput {
  */
 export async function addWeight({ date, weightKg, replace = false, now = new Date() }: AddWeightInput): Promise<AddWeightResult> {
   const entry = checkedEntry({ date, weightKg, recordedAt: toLocalIsoString(now) }, now);
-  return db.transaction('rw', db.weights, async (): Promise<AddWeightResult> => {
+  // Archive Drive (V1.3b) : l'intention d'envoi est écrite dans la même transaction que la pesée.
+  const result = await db.transaction('rw', [db.weights, db.settings], async (): Promise<AddWeightResult> => {
     const existing = await db.weights.get(date);
     if (existing && !replace) return { status: 'exists', existing };
     await db.weights.put(entry);
+    await queueDriveTasks(DRIVE_TRIGGERS.weightSaved(date));
     return existing ? { status: 'replaced', entry, previous: existing } : { status: 'added', entry };
   });
+  if (result.status !== 'exists') notifyDriveQueued();
+  return result;
 }
 
 /**
@@ -60,16 +65,26 @@ export async function addWeight({ date, weightKg, replace = false, now = new Dat
  * la supprimer puis la recréer). `recordedAt` devient l'instant de la correction.
  */
 export async function updateWeight(date: string, weightKg: number, now: Date = new Date()): Promise<WeightEntry> {
-  return db.transaction('rw', db.weights, async () => {
+  return db.transaction('rw', [db.weights, db.settings], async () => {
     const existing = await db.weights.get(date);
     if (!existing) throw new DomainError(t.notFound);
     const entry = checkedEntry({ date, weightKg, recordedAt: toLocalIsoString(now) }, now);
     await db.weights.put(entry);
+    await queueDriveTasks(DRIVE_TRIGGERS.weightSaved(date));
+    return entry;
+  }).then((entry) => {
+    notifyDriveQueued();
     return entry;
   });
 }
 
 /** Supprime une pesée. L'interface DOIT demander une confirmation explicite avant l'appel. */
 export async function deleteWeight(date: string): Promise<void> {
-  await db.weights.delete(date);
+  // Archive Drive (V1.3b) : le fichier reste dans Drive, la suppression est notée ; l'intention est
+  // écrite dans la même transaction que la suppression.
+  await db.transaction('rw', [db.weights, db.settings], async () => {
+    await db.weights.delete(date);
+    await queueDriveTasks(DRIVE_TRIGGERS.weightDeleted(date));
+  });
+  notifyDriveQueued();
 }

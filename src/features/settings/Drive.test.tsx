@@ -8,6 +8,7 @@ import { createDriveClient, type FetchLike } from '../../services/driveClient';
 import { enqueueDriveTask, getOutbox, processDriveOutbox, setDriveClient } from '../../services/driveOutbox';
 import { getDriveSync, markDriveTested, saveDriveConfig, setDriveEnabled } from '../../services/driveSettings';
 import { previewRestore, restoreBackup } from '../../services/importService';
+import { setLastWeeklyBackupAt } from '../../services/settingsService';
 import { readFixture, resetDatabase } from '../../test/fixtures';
 import { loadDemoData } from './DevTools';
 
@@ -33,6 +34,8 @@ async function configure(enabled: boolean) {
   await saveDriveConfig(URL_, SECRET);
   await markDriveTested('2026-10-04T10:00:00+02:00', { url: URL_, secret: SECRET });
   if (enabled) await setDriveEnabled(true);
+  // V1.3b : copie hebdomadaire récente, donc pas due à l'ouverture (scénarios centrés sur les séances).
+  await setLastWeeklyBackupAt(new Date().toISOString());
 }
 
 function renderAt(hash: string) {

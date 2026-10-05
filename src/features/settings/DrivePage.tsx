@@ -7,20 +7,22 @@ import { ConfirmSheet } from '../../components/ConfirmSheet';
 import fieldStyles from '../../components/Field.module.css';
 import { LoadingState } from '../../components/LoadingState';
 import { Page } from '../../components/Page';
+import { ProgressBar } from '../../components/ProgressBar';
 import { Switch } from '../../components/Switch';
 import { maskSecret } from '../../domain/driveNames';
-import type { DriveTask } from '../../domain/driveOutbox';
+import { resendProgress, type DriveTask } from '../../domain/driveOutbox';
 import type { WorkoutSession } from '../../domain/types';
 import { useWorkouts } from '../../hooks/useData';
 import { useDriveState, type DriveState } from '../../hooks/useDrive';
 import { strings } from '../../i18n/strings';
-import { getDriveClient, ignoreDriveTask, retryDriveTask } from '../../services/driveOutbox';
+import { cancelWholeArchiveResend, getDriveClient, ignoreDriveTask, resendWholeArchive, retryDriveTask } from '../../services/driveOutbox';
 import { sendDriveNow } from '../../services/driveScheduler';
 import { markDriveTested, saveDriveConfig, setDriveEnabled } from '../../services/driveSettings';
 import { toLocalIsoString } from '../../utils/dates';
 import { toDisplayError } from '../../utils/errors';
 import { formatDateTime, formatDayShort } from '../../utils/format';
 import { formatDecimal } from '../../utils/numbers';
+import { DriveRegressionNotice } from './DriveRegressionNotice';
 import styles from './DrivePage.module.css';
 
 const t = strings.drive;
@@ -180,8 +182,10 @@ function DriveSettings({ state, workouts }: { state: DriveState; workouts: Worko
         )}
       </Card>
 
+      {state.active && state.outbox.regression && <DriveRegressionNotice regression={state.outbox.regression} />}
       <StatusCard state={state} />
       <TaskList tasks={state.outbox.tasks} workouts={workouts} state={state} />
+      <ResendCard state={state} />
 
       {confirmEnable && (
         <ConfirmSheet
@@ -246,6 +250,9 @@ function StatusCard({ state }: { state: DriveState }) {
           {state.sending ? t.sending : summary.lastConfirmedAt !== null ? t.lastConfirmed(formatDateTime(summary.lastConfirmedAt)) : t.neverConfirmed}
         </p>
         {!state.active && <p className={styles.hint}>{t.disabled}</p>}
+        <p className={styles.hint}>{state.lastAutoBackupAt !== null ? t.lastAutoBackup(formatDateTime(state.lastAutoBackupAt)) : t.neverAutoBackup}</p>
+        {state.lastWeeklyBackupAt !== null && <p className={styles.hint}>{t.lastWeekly(formatDateTime(state.lastWeeklyBackupAt))}</p>}
+        {state.outbox.emptySkipAt && <p className={styles.hint}>{t.emptySkipped}</p>}
         <p className={styles.counts}>
           <span>{t.pending(summary.pending)}</span>
           <span>{t.errors(summary.errors)}</span>
@@ -259,11 +266,75 @@ function StatusCard({ state }: { state: DriveState }) {
 }
 
 const taskLabel = (task: DriveTask, workouts: WorkoutSession[], state: DriveState): string => {
-  const workout = workouts.find((w) => w.id === task.key);
-  const frozen = state.names[task.key];
-  const label = workout ? `${workout.sessionName} · ${formatDayShort(workout.date)}` : (frozen?.name ?? task.key);
-  return task.type === 'session' ? t.taskSession(label) : t.taskSessionDeleted(label);
+  switch (task.type) {
+    case 'weight':
+      return t.taskWeight(formatDayShort(task.key));
+    case 'weight_deleted':
+      return t.taskWeightDeleted(formatDayShort(task.key));
+    case 'weights_all':
+      return t.taskWeightsAll;
+    case 'backup_latest':
+      return t.taskBackupLatest;
+    case 'backup_weekly':
+      return t.taskBackupWeekly;
+    default: {
+      const workout = workouts.find((w) => w.id === task.key);
+      const frozen = state.names[task.key];
+      const label = workout ? `${workout.sessionName} · ${formatDayShort(workout.date)}` : (frozen?.name ?? task.key);
+      return task.type === 'session' ? t.taskSession(label) : t.taskSessionDeleted(label);
+    }
+  }
 };
+
+/** « Renvoyer toute l'archive » : progression « 37/120 », annulable, relançable sans doublon. */
+function ResendCard({ state }: { state: DriveState }) {
+  const [message, setMessage] = useState<string | null>(null);
+  const progress = resendProgress(state.outbox);
+  const running = progress !== null && progress.done < progress.total;
+  return (
+    <section className={styles.section} aria-labelledby="drive-resend">
+      <Eyebrow id="drive-resend">{t.resendTitle}</Eyebrow>
+      <Card className={styles.group}>
+        <p className={styles.hint}>{t.resendHint}</p>
+        {progress !== null && (
+          <div className={styles.resendRow}>
+            <ProgressBar value={progress.done} max={progress.total} label={t.resendProgressLabel(progress.done, progress.total)} />
+            <span className={styles.resendCount} aria-hidden>
+              {t.resendProgress(progress.done, progress.total)}
+            </span>
+          </div>
+        )}
+        {progress !== null && !running && <p role="status" className={styles.success}>{t.resendDone(progress.total)}</p>}
+        {message !== null && <p role="status" className={styles.hint}>{message}</p>}
+        {running ? (
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => {
+              void cancelWholeArchiveResend().then(() => {
+                setMessage(t.resendCancelled);
+              });
+            }}
+          >
+            {t.resendCancel}
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={!state.active}
+            onClick={() => {
+              setMessage(null);
+              void resendWholeArchive().then(() => sendDriveNow());
+            }}
+          >
+            {t.resendStart}
+          </Button>
+        )}
+      </Card>
+    </section>
+  );
+}
 
 function TaskList({ tasks, workouts, state }: { tasks: DriveTask[]; workouts: WorkoutSession[]; state: DriveState }) {
   if (tasks.length === 0) return null;
@@ -288,7 +359,9 @@ function TaskRow({ task, label }: { task: DriveTask; label: string }) {
     <li className={styles.task}>
       <div className={styles.taskHead}>
         <span className={styles.taskLabel}>{label}</span>
-        <Badge tone={task.status === 'error' ? 'danger' : 'accent'}>{task.status === 'error' ? t.taskError : t.taskPending}</Badge>
+        <Badge tone={task.status === 'error' ? 'danger' : task.status === 'paused' ? 'warning' : 'accent'}>
+          {task.status === 'error' ? t.taskError : task.status === 'paused' ? t.taskPaused : t.taskPending}
+        </Badge>
       </div>
       {task.lastError && <p className={styles.hint}>{task.lastError.message}</p>}
       <p className={styles.meta}>

@@ -12,6 +12,9 @@ import { getExportReminder } from '../../domain/exportReminder';
 import { formatSignedKg } from '../../domain/stats';
 import type { WorkoutSession } from '../../domain/types';
 import { countValidatedExercises } from '../../domain/workout';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { DriveRegressionNotice } from '../settings/DriveRegressionNotice';
+import { getLastAutoBackupAt, latestInstant } from '../../services/settingsService';
 import { sessionDriveStatus, useDriveState, type SessionDriveStatus } from '../../hooks/useDrive';
 import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
@@ -141,10 +144,12 @@ function LastWorkoutCard({ workout }: { workout: WorkoutSession }) {
  */
 function ExportReminderBanner({ workouts }: { workouts: WorkoutSession[] }) {
   const lastExportAt = useLastExportAt();
+  const lastAutoBackupAt = useLiveQuery(getLastAutoBackupAt, []);
   const weights = useWeights();
-  if (lastExportAt === undefined || weights === undefined) return null;
+  if (lastExportAt === undefined || lastAutoBackupAt === undefined || weights === undefined) return null;
   // Une pesée enregistrée après le dernier export est aussi une donnée non sauvegardée (V1.2).
-  const reminder = getExportReminder(workouts, lastExportAt, new Date(), weights);
+  // V1.3b : une sauvegarde Drive CONFIRMÉE compte comme export (le plus récent des deux).
+  const reminder = getExportReminder(workouts, latestInstant(lastExportAt, lastAutoBackupAt), new Date(), weights);
   if (!reminder) return null;
   return (
     <div className={styles.reminder} role="note">
@@ -196,9 +201,13 @@ function DriveSessionLine({ sessionId }: { sessionId: string }) {
   );
 }
 
-/** Puce discrète, seulement si des envois attendent (ou sont en erreur) depuis plus d'une heure. */
+/**
+ * Archive Drive sur l'accueil : écran de choix si la sauvegarde est en pause (refus de régression),
+ * sinon une puce discrète, seulement si des envois attendent (ou sont en erreur) depuis plus d'une heure.
+ */
 function DriveChip() {
   const drive = useDriveState();
+  if (drive?.active && drive.outbox.regression) return <DriveRegressionNotice regression={drive.outbox.regression} />;
   if (!drive?.active || drive.summary.stalled === 0) return null;
   return (
     <Link to="/settings/drive" className={styles.driveChip}>

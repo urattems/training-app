@@ -520,6 +520,13 @@ Les champs non pertinents sont `null`, jamais absents.
   - le résumé indique le nombre de pesées du fichier ;
   - si le fichier n'en contient aucune alors que l'app en a, un avertissement visible le signale.
 
+**Complément V1.3 — types de l'archive Drive** (`schemaVersion: "1.0"`, écrits par l'app via le script, jamais relus par elle ; §10.7) :
+- **`weight_entry`** (`Pesees/AAAA-MM-JJ.json`) : `{ schemaVersion, type: "weight_entry", date, weightKg, recordedAt }`, mêmes règles qu'une pesée de `weightEntries`.
+- **`weight_log`** (`Pesees/_pesees.json`) : `{ schemaVersion, type: "weight_log", exportedAt, count, entries: [ { date, weightKg, recordedAt } ] }`.
+  - **Invariants** : dates uniques et strictement croissantes, `count` = `entries.length`, poids valides.
+- Schémas Zod, contrôle avant chaque envoi (rien n'est envoyé si un fichier ne passe pas), exemples `examples/weight-entry-example.json` et `examples/weight-log-example.json` validés par tests, empreintes figées.
+- Les fichiers de séance (`training_coach_export` d'une seule séance) et de sauvegarde (`training_history_export`) reprennent les formats existants, sans changement.
+
 ---
 
 ## 12. Tests

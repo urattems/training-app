@@ -8,7 +8,10 @@
  *   un préflight (OPTIONS, provoqué par un en-tête personnalisé) est REFUSÉ, comme Apps Script ;
  * - environ 18 % de réponses « 404 » en HTML (la requête a pu être traitée : l'app doit renvoyer) ;
  * - latence aléatoire de 0,2 à 3 s ; erreurs réessayables (busy, drive_error) ;
- * - secret, actions ping / put / mark_deleted, refus de _INDEX.json et LISEZMOI.txt.
+ * - secret, actions ping / put / mark_deleted, refus de _INDEX.json et LISEZMOI.txt ;
+ * - refus de RÉGRESSION (V1.3b) : `Sauvegardes/sauvegarde-derniere.json` n'est jamais remplacée par
+ *   une sauvegarde contenant moins de séances ou moins de pesées (`meta.counts`), sauf `force: true`.
+ *   À la demande des tests : `regressionCounts` simule un Drive déjà plus complet.
  *
  * Usage : `node scripts/fake-muscu-sync.mjs [port]` (défaut 4190, secret FAKE_SECRET ou
  * « fake-secret-1234 »). Pilotage pour les tests : GET /__state, POST /__config, POST /__reset.
@@ -25,7 +28,11 @@ const DEFAULTS = {
   seed: 42,
   /** `false` : le réseau « tombe » (connexion coupée sans réponse). */
   online: true,
+  /** `{ sessions, weights }` : contenu (simulé) de la sauvegarde déjà présente dans Drive. */
+  regressionCounts: null,
 };
+
+const LATEST_KEY = 'Sauvegardes/sauvegarde-derniere.json';
 
 const MAX_CONTENT = 5_000_000;
 const FORBIDDEN_NAMES = new Set(['_INDEX.json', 'LISEZMOI.txt']);
@@ -99,9 +106,21 @@ export function createFakeMuscuSync(options = {}) {
       const error = random() < 0.5 ? 'busy' : 'drive_error';
       return { log: { ...log, outcome: error }, response: fail(error, true) };
     }
+    if (key === LATEST_KEY && request.force !== true) {
+      const existing = config.regressionCounts ?? files.get(LATEST_KEY)?.meta?.counts ?? null;
+      const incoming = request.meta?.counts ?? { sessions: 0, weights: 0 };
+      if (existing && (incoming.sessions < existing.sessions || incoming.weights < existing.weights)) {
+        const current = { sessions: existing.sessions, weights: existing.weights };
+        return {
+          log: { ...log, outcome: 'regression' },
+          response: fail('regression', false, { current, incoming: { sessions: incoming.sessions, weights: incoming.weights } }),
+        };
+      }
+    }
+    if (key === LATEST_KEY && request.force === true) config.regressionCounts = null;
     const previous = files.get(key);
     files.set(key, { folder, name, content: request.content, meta: request.meta, writes: (previous?.writes ?? 0) + 1, deletedAt: previous?.deletedAt ?? null });
-    return { log: { ...log, outcome: 'ok', chars: request.chars }, response: json({ ok: true, folder, name, chars: request.chars }) };
+    return { log: { ...log, outcome: 'ok', chars: request.chars, force: request.force === true }, response: json({ ok: true, folder, name, chars: request.chars }) };
   }
 
   const cors = { 'Access-Control-Allow-Origin': '*' };

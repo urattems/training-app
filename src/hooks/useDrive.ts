@@ -4,6 +4,7 @@ import type { DriveSyncSettings } from '../db/database';
 import { outboxSummary, taskId, type DriveNames, type DriveOutboxState, type OutboxSummary } from '../domain/driveOutbox';
 import { getDriveNames, getOutbox, isSending, subscribeSending } from '../services/driveOutbox';
 import { getDriveSync, isDriveActive } from '../services/driveSettings';
+import { getLastAutoBackupAt, getLastWeeklyBackupAt } from '../services/settingsService';
 
 export interface DriveState {
   config: DriveSyncSettings;
@@ -12,6 +13,9 @@ export interface DriveState {
   names: DriveNames;
   summary: OutboxSummary;
   sending: boolean;
+  /** Dernières sauvegardes CONFIRMÉES (`ok: true`). */
+  lastAutoBackupAt: string | null;
+  lastWeeklyBackupAt: string | null;
 }
 
 /** Heure courante, rafraîchie chaque minute (seuil « en attente depuis plus d'une heure »). */
@@ -34,9 +38,19 @@ export function useDriveState(): DriveState | undefined {
   const config = useLiveQuery(getDriveSync, []);
   const outbox = useLiveQuery(getOutbox, []);
   const names = useLiveQuery(getDriveNames, []);
+  const backups = useLiveQuery(async () => ({ latest: await getLastAutoBackupAt(), weekly: await getLastWeeklyBackupAt() }), []);
   const sending = useSyncExternalStore(subscribeSending, isSending, isSending);
-  if (config === undefined || outbox === undefined || names === undefined) return undefined;
-  return { config, active: isDriveActive(config), outbox, names, summary: outboxSummary(outbox, now), sending };
+  if (config === undefined || outbox === undefined || names === undefined || backups === undefined) return undefined;
+  return {
+    config,
+    active: isDriveActive(config),
+    outbox,
+    names,
+    summary: outboxSummary(outbox, now),
+    sending,
+    lastAutoBackupAt: backups.latest,
+    lastWeeklyBackupAt: backups.weekly,
+  };
 }
 
 export type SessionDriveStatus = 'sending' | 'sent' | 'waiting' | 'error';
