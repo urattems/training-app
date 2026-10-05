@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Check, ChevronRight, CircleDashed, HeartPulse } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Badge } from '../../components/Badge';
@@ -16,6 +16,7 @@ import { useProgram, useWorkout } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { finishWorkout } from '../../services/workoutService';
 import { formatTime } from '../../utils/format';
+import { resetScreen } from '../../utils/screen';
 import { CardioSection } from './CardioSection';
 import { AbandonWorkoutButton, ErrorSheet, exercisePath, toError } from './WorkoutActions';
 import type { DisplayError } from '../../utils/errors';
@@ -58,6 +59,11 @@ function InProgressWorkout({ workout }: { workout: WorkoutSession }) {
   const [confirmPending, setConfirmPending] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<DisplayError | null>(null);
+
+  // Retour à la Liste (depuis un exercice) : la liste s'ouvre tout en haut, clavier fermé.
+  useLayoutEffect(() => {
+    resetScreen();
+  }, []);
 
   const done = countValidatedExercises(workout);
   const total = workout.exerciseRecords.length;

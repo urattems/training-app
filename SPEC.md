@@ -178,6 +178,12 @@ Ordre vertical :
 
 Objectif et réalisé ne doivent **jamais** pouvoir être confondus visuellement.
 
+**Complément V1.3.1 — changement d'exercice :**
+- À chaque **vrai changement d'exercice** sur l'écran exercice (Valider puis suivant, flèches ← et →, retour à la Liste, ouverture depuis l'écran séance, changement d'identifiant dans l'URL), l'écran s'ouvre **tout en haut**, sans animation : le défilement est remis à zéro, le clavier est fermé (blur du champ actif) et le focus est placé sur le titre sans faire défiler.
+- **Jamais** de retour en haut pendant la saisie, après une modification de champ, l'ajout d'une série, « Comme prévu », le choix d'une sensation ou un enregistrement automatique.
+- Aucune saisie n'est perdue : l'écriture en attente est terminée avant le changement d'exercice.
+- Les changements d'onglet et l'ouverture d'un détail démarrent déjà en haut : ils ne sont pas modifiés.
+
 ### 7.5 Saisie
 - Reps : `inputmode="numeric"`. Poids/vitesse/inclinaison : `inputmode="decimal"`. Durée : numérique.
 - Champs ≥ 48 px de haut, saisie à une main, sélection du contenu au focus.

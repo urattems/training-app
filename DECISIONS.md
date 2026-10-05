@@ -1372,3 +1372,29 @@ Référence : `V1.3-SPEC.md` (commité avec cette étape).
   - Secret masqué ; aucune erreur console (hors 404 du script et coupure volontaire).
 - **V1.3a rejoué : 10/10.** Seule l'attente « 1 en attente » du script a été élargie : la correction met aussi la sauvegarde en file.
 - **Régression S1–S7 et hors ligne : 9/9.**
+
+---
+
+## fix-ux — Retour en haut au changement d'exercice (V1.3.1, partie A ; aucun changement de données ni de format)
+
+### Constat (navigateur réel, build de production, 390 px, tactile, avant correction)
+- **Reproduit** : défiler en bas de l'écran exercice, toucher « Valider l'exercice » → l'exercice suivant s'ouvre à `scrollY = 669` (page restée en bas), et un changement d'identifiant dans l'URL fait de même.
+- **Cause** : `ExerciseEditor` est remonté par exercice (`key`), mais l'écran n'a aucun état « Chargement » entre deux exercices (les données sont déjà chargées) : le document ne rétrécit jamais, donc le navigateur garde le décalage de défilement. Les autres écrans (onglets, détails, Liste) passent par un court « Chargement… » à l'ouverture : la page se raccourcit, le navigateur ramène le défilement à 0, et ils démarrent donc déjà en haut **par effet de bord**.
+- **Onglets et détails** (consigne : « si ça démarre déjà en haut, ne touche à rien ») : Programme défilé à 712 px → onglet Poids : `scrollY = 0` ; → détail `#/program/A` (page de 996 px, donc assez haute pour garder le décalage) : `scrollY = 0`. **Non modifiés.**
+
+### Règle (`src/utils/screen.ts`, `resetScreen`)
+- Au **montage** d'un éditeur d'exercice (un éditeur par exercice, donc exactement un changement d'exercice : Valider puis suivant, ← et →, ouverture depuis l'écran séance, changement d'URL) : blur du champ actif (clavier fermé), focus sur le titre `h1` (`tabIndex=-1`, `preventScroll`), puis `window.scrollTo({ top: 0, left: 0, behavior: 'instant' })`. Effet de **layout** : la remise en haut a lieu avant l'affichage, sans flash.
+- **Retour à la Liste** : l'écran séance fait la même remise en haut à son montage. Il démarrait déjà en haut, mais seulement grâce à l'effet de bord ci-dessus ; la consigne le nomme explicitement, la règle ne dépend donc plus d'un état de chargement.
+- **Jamais pendant la saisie** : l'effet n'a aucune dépendance (montage seul). Une frappe, l'enregistrement automatique, « + Série », « Comme prévu », la sensation ou le commentaire ne remontent jamais l'écran. Vérifié par deux mutations : sans l'effet, 6 des 7 tests échouent ; avec un effet rejoué à chaque rendu, le test « jamais pendant la saisie » échoue.
+- **Aucune saisie perdue** : inchangé. « Valider » termine `autosave.flush()` avant de naviguer ; le démontage de l'ancien éditeur écrit toute saisie en attente, comme avant.
+- **Titre focalisé** : pas un contrôle, donc `.name:focus-visible { box-shadow: none }`. Sans cela, le focus déplacé depuis un champ de saisie afficherait l'anneau de focus autour du titre (le navigateur le conserve quand le focus quitte un champ texte). Le test existant sur `outline: none` n'est pas concerné (aucun `outline` ajouté).
+- `window.scrollTo` n'existe pas sous jsdom : shim sans effet ajouté au setup de test, comme `scrollIntoView` et `matchMedia`. Les tests qui le vérifient l'espionnent.
+
+### Tests (`features/exercise/ScrollReset.test.tsx`, 7)
+Ouverture d'un exercice ; Valider puis suivant (champ actif quitté, focus sur le titre, saisie conservée) ; ← et → ; ouverture depuis l'écran séance puis retour à la Liste ; validation du dernier exercice (Liste en haut) ; changement d'URL ; et **jamais** pendant frappe, enregistrement automatique, « Comme prévu », « + Série », sensation, commentaire (aucun appel à `scrollTo`, le champ garde le focus). Scénarios 2, 3 et 4 de la SPEC et tous les tests existants : inchangés.
+
+### Navigateur réel (production, 390 × 560, tactile) : 24/24, 0 erreur console
+Valider depuis le bas de page → suivant tout en haut, clavier fermé, focus sur le `h1`, aucun anneau de focus ; ← et → depuis une page défilée ; changement d'URL ; validation du dernier exercice → Liste en haut ; ouverture depuis la Liste ; saisie, enregistrement automatique, « + Série », sensation, « Comme prévu » : pas de retour en haut, le champ garde le focus.
+
+### Test déjà instable (hors périmètre, non modifié)
+- `features/settings/DriveBackups.test.tsx`, « « Ignorer » : la sauvegarde en attente est abandonnée, l'écran disparaît » (V1.3b) échoue par intermittence, **avant** tout changement de cette étape (1 passe complète sur 2 au départ ; 1 exécution isolée sur 3). L'assertion finale `not.toBeInTheDocument()` est lue juste après la file vide, avant que la lecture réactive ait retiré l'avis. Une attente (`waitFor`) suffirait. Laissé tel quel faute d'autorisation de modifier un test ; à traiter à part.

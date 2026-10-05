@@ -8,6 +8,12 @@ if (typeof Element !== 'undefined' && !('scrollIntoView' in Element.prototype)) 
   Object.defineProperty(Element.prototype, 'scrollIntoView', { value: () => undefined, writable: true });
 }
 
+// jsdom n'implémente pas window.scrollTo (remise en haut au changement d'exercice) : sans effet par défaut,
+// les tests qui le vérifient l'espionnent avec vi.spyOn.
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'scrollTo', { value: () => undefined, writable: true, configurable: true });
+}
+
 // jsdom n'implémente pas matchMedia (utilisé pour prefers-reduced-motion).
 if (typeof window !== 'undefined' && typeof (window as { matchMedia?: unknown }).matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', {

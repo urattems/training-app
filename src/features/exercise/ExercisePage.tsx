@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, CircleCheck, HeartPulse, List, TriangleAlert } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Badge } from '../../components/Badge';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { Button, ButtonLink } from '../../components/Button';
@@ -18,6 +18,7 @@ import { useWorkoutAutosave } from '../../hooks/useWorkoutAutosave';
 import { getWorkout } from '../../services/workoutService';
 import { strings } from '../../i18n/strings';
 import { formatDayShort } from '../../utils/format';
+import { resetScreen } from '../../utils/screen';
 import { TargetSets } from '../workout/TargetSets';
 import { exercisePath, workoutPath } from '../workout/WorkoutActions';
 import { ActualSets } from './ActualSets';
@@ -72,6 +73,14 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
   const autosave = useWorkoutAutosave(workout.id);
   const [incomplete, setIncomplete] = useState<IncompleteSets | null>(null);
   const programExercise = useProgramExercise(workout, exerciseId);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  // Un éditeur par exercice (`key` ci-dessus) : ce montage est exactement un changement d'exercice
+  // (Valider puis suivant, ← →, Liste, ouverture depuis l'écran séance, changement d'URL).
+  // Jamais rejoué par une saisie, une série en plus, « Comme prévu » ou un enregistrement.
+  useLayoutEffect(() => {
+    resetScreen(titleRef.current);
+  }, []);
 
   /** « Compléter » : ferme l'avertissement et place le curseur sur le premier champ manquant. */
   const completeMissing = (sets: IncompleteSets) => {
@@ -140,7 +149,9 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
       </header>
 
       <div className={styles.titleBlock}>
-        <h1 className={styles.name}>{record.exerciseName}</h1>
+        <h1 ref={titleRef} tabIndex={-1} className={styles.name}>
+          {record.exerciseName}
+        </h1>
         {record.status === 'completed' && (
           <Badge tone="success">
             <CircleCheck aria-hidden />

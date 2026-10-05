@@ -100,6 +100,11 @@ a.navButton:active {
   line-height: var(--line-height-tight);
 }
 
+/* Titre focalisé par programme à l'ouverture (lecteurs d'écran) : pas un contrôle, donc pas d'anneau. */
+.name:focus-visible {
+  box-shadow: none;
+}
+
 .meta {
   margin-top: calc(var(--space-3) * -1);
   color: var(--color-text-secondary);
