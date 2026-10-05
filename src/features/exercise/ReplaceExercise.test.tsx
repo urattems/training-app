@@ -368,7 +368,10 @@ describe('Historique : badge, « Prévu » et crayon en mode « Modifier »', ()
     const user = renderAt('#/history/w-fin');
     await screen.findByRole('region', { name: 'Pec Deck' });
     await user.click(screen.getByRole('button', { name: 'Modifier' }));
-    expect(screen.getAllByRole('button', PENCIL)).toHaveLength(3);
+    // Le crayon d'un exercice déjà remplacé attend le programme d'origine (nom prévu) : attendu, pas lu trop tôt.
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', PENCIL)).toHaveLength(3);
+    });
 
     const pec = screen.getByRole('region', { name: 'Pec Deck' });
     expect(within(pec).queryAllByRole('button', { name: /remplir comme prévu/ })).toHaveLength(0);

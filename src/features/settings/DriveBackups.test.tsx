@@ -126,7 +126,9 @@ describe('Refus de régression : écran de choix (Paramètres ET accueil)', () =
       expect(await getLastAutoBackupAt()).not.toBeNull();
     });
     expect(sent.filter((r) => r.name === 'sauvegarde-derniere.json').map((r) => r.force ?? false)).toEqual([false, true]);
-    expect(screen.queryByText(/Ton Drive contient une sauvegarde plus complète/)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/Ton Drive contient une sauvegarde plus complète/)).not.toBeInTheDocument();
+    });
   });
 
   it('« Ignorer » : la sauvegarde en attente est abandonnée, l’écran disparaît', async () => {
@@ -136,7 +138,9 @@ describe('Refus de régression : écran de choix (Paramètres ET accueil)', () =
     await waitFor(async () => {
       expect((await getOutbox()).tasks).toEqual([]);
     });
-    expect(screen.queryByText(/Ton Drive contient une sauvegarde plus complète/)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/Ton Drive contient une sauvegarde plus complète/)).not.toBeInTheDocument();
+    });
   });
 });
 

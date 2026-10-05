@@ -1458,3 +1458,23 @@ Aucun code spécifique : `updateWorkout` met déjà en file la séance et la sau
 
 ### Navigateur réel (production, 390 px, tactile, Chromium) : 36/36, 0 erreur console
 Crayon de 44 × 44 px à droite du titre ; feuille (champ prérempli et sélectionné, 17 px, 48 px, boutons ≥ 44 px, phrase, pas de « Revenir » avant remplacement) ; doublon refusé ; remplacement avec accents (« Développé couché haltères (autre machine) ») : badge, « Prévu : Chest Press », « Comme prévu » masqué, placeholders absents, série 1 conservée (12 × 47,5), pas de saut de défilement, validation sans avertissement parasite ; ligne de l'écran séance avec badge ; séance terminée ; historique (badge, « Prévu », réalisé, lecture seule sans crayon) ; mode « Modifier » (trois crayons, « Comme prévu » absent, champ prérempli, « Revenir » proposé) ; Progression (le remplaçant seul, sous son nom) ; export (`exerciseId` = `sub-developpe-couche-halteres-autre-machine`, `programExerciseId` inchangé, prévu conservé, `schemaVersion` 1.1).
+
+---
+
+## fix-test — Tests instables : lecture de l'écran avant la lecture réactive (aucun code de l'app modifié)
+
+### Constat
+- `features/settings/DriveBackups.test.tsx`, « Ignorer » (V1.3b), échouait par intermittence **avant tout changement de la V1.3.1** (mesuré sur le dépôt de départ : 1 passe complète sur 2 ; en exécution isolée, environ 1 sur 6).
+- **Cause** : l'assertion finale `expect(screen.queryByText(/Ton Drive contient une sauvegarde plus complète/)).not.toBeInTheDocument()` est lue juste après `waitFor` sur la **base** (`getOutbox().tasks` vide). La file est déjà vide, mais la lecture réactive (`useLiveQuery`) n'a pas encore retiré l'avis de l'écran : l'assertion lisait l'écran trop tôt.
+
+### Adaptation d'un test existant (justifiée, signalée)
+- `DriveBackups.test.tsx` : la dernière assertion de « Ignorer » et celle du cas voisin « Remplacer quand même » (même forme) sont enveloppées dans `await waitFor(() => { … })`.
+- **Pas un affaiblissement** : la vérification est strictement la même (même texte, même `not.toBeInTheDocument()`) ; elle est seulement attendue, avec le délai de 3 s déjà configuré pour Testing Library. Si l'avis ne disparaissait jamais (vraie régression), le test échouerait toujours, à l'expiration du délai.
+- **Mesure** : « Ignorer » n’a échoué **0 fois sur 25** exécutions isolées après correction.
+
+### Test de ma propre partie B, même famille de course
+- `ReplaceExercise.test.tsx`, « mode « Modifier » : un crayon par exercice… » : il comptait les trois crayons tout de suite après l'ouverture du mode « Modifier ». Le crayon d'un exercice **déjà remplacé** attend le programme d'origine (c'est de lui que vient le nom prévu), donc il en trouvait 2 sur 3 par intermittence, sous la charge de la suite complète. Le comptage est maintenant attendu (`waitFor`). Aucun code de l'app modifié : c'est le comportement voulu (le crayon apparaît dès que le nom prévu est connu).
+- Mesuré : 15 exécutions successives des quatre fichiers de tests de la V1.3.1, 0 échec ; 3 passes complètes de la suite, 656/656.
+
+### Reste instable (non modifié, hors de la consigne « ne rien changer d'autre »)
+- `DriveBackups.test.tsx`, « Renvoyer toute l'archive » → « progression « n/15 », annulation, relance sans doublon ; noms accessibles » : **1 échec sur 25** exécutions isolées après la correction (et 1 sur 12 avant). Même famille : après « Renvoi annulé… » et la file vide, `screen.getByRole('button', { name: 'Renvoyer toute l’archive' })` (ligne 203) est lu de façon synchrone, avant que l'écran ait réaffiché le bouton. Une attente (`await screen.findByRole(…)`) corrigerait de la même manière.
