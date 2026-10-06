@@ -215,6 +215,14 @@ Section en fin de séance, simple et flexible. Champs : type (`treadmill`, `bike
 ### 7.7 Historique
 Liste chronologique inverse : date · nom de séance · statut · durée. Détail : pour chaque exercice, **OBJECTIF puis RÉALISÉ séparés**, sensation, commentaire, cardio, ordre d'exécution. Édition et suppression (§6).
 
+**Supprimer une séance abandonnée (V1.3.3)** : exception stricte à « aucune donnée perdue », limitée aux séances **abandonnées**, jamais silencieuse.
+- **Balayage vers la gauche** sur une ligne « Abandonnée » de la liste : la ligne glisse et révèle une action rouge « Supprimer » (style iOS), qui reste ouverte. Retour par balayage inverse, toucher ailleurs, ou ouverture d'une autre ligne (une seule ligne ouverte à la fois). Les séances terminées et en cours ne se balayent pas.
+- Le geste ne gêne ni le défilement vertical (il ne démarre qu'au-delà de 10 px et s'il est plus horizontal que vertical) ni le tap, qui ouvre toujours le détail (sur une ligne ouverte, le tap la referme). Un balayage complet **ne supprime pas** : il faut toucher « Supprimer ».
+- **Confirmation obligatoire** : feuille avec le nom de la séance, sa date, le nombre de séries saisies et la phrase « La suppression est définitive… », boutons « Supprimer » (destructif) et « Annuler ». Annuler ne change rien ; après suppression, la liste se met à jour.
+- **Sans geste** : dans le détail d'une séance abandonnée, bouton « Supprimer cette séance » (même confirmation, même service). L'action du balayage est aussi exposée à VoiceOver (« Supprimer la séance abandonnée « … » du … »).
+- Le service refuse toute séance qui n'est pas abandonnée. La suppression d'une séance terminée depuis son détail (§6) est inchangée.
+- Archive Drive : la séance est seulement **notée supprimée** (`mark_deleted`), jamais effacée du Drive ; la sauvegarde suivante, qui a une séance de moins, déclenche le refus de régression déjà prévu au §10.7 (choix « Remplacer quand même »).
+
 ### 7.8 Progression
 Sélecteur d'exercice → graphique de charge → sélecteur de période (**1M · 3M · 6M · 1A · Tout**, recalcule le domaine) → stats hiérarchisées : dernière charge, meilleure charge (record), volume, nombre de séances → historique récent de l'exercice.
 

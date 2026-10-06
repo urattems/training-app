@@ -1618,3 +1618,70 @@ Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient i
 
 ### Contrôles
 - Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 656 en V1.3.1, 679 après les correctifs 1 à 5, **693** avec l'autosave immédiat (§ 6).
+
+---
+
+## V1.3.3 — Supprimer une séance abandonnée par balayage (aucun changement de format, de schéma Zod ni de version Dexie)
+
+### Choix
+- **Restriction aux séances abandonnées.** « Aucune donnée perdue » reste la règle. Une séance abandonnée est le seul cas où l'utilisateur a lui-même dit « ce n'est pas une vraie séance ». La suppression rapide est une **exception stricte**, jamais silencieuse : un balayage révèle l'action, et seule la confirmation supprime.
+- **Service restreint** (`deleteAbandonedWorkout`) : une transaction Dexie (`workouts` + `settings` pour l'intention Drive). La séance est relue DANS la transaction, et le service refuse (`DomainError`) toute séance qui n'est pas abandonnée (terminée, en cours, inconnue). Il ne supprime rien en cascade.
+  - Programmes, pesées et réglages ne sont pas touchés.
+  - Les statistiques, la progression, l'historique, l'export coach et la sauvegarde sont dérivés des séances : ils se recalculent seuls (testé, y compris l'aller-retour export → restauration).
+- **Existant conservé, signalé.** Le détail d'historique permettait DÉJÀ de supprimer **toute** séance terminée ou abandonnée (SPEC §6 : « Autorisée depuis le détail historique, avec confirmation explicite » ; tests J4).
+  - La consigne « refusée côté service si … terminée » contredisait cette fonction existante. Je ne l'ai **pas retirée**, ce qui aurait été une perte de fonction non demandée. Le service générique `deleteWorkout` et le bouton des séances terminées sont inchangés.
+  - Le nouveau service restreint sert au balayage et au bouton des séances abandonnées. **À trancher** : si tu veux qu'une séance terminée ne soit plus supprimable du tout, c'est un retrait simple (bouton + service), à décider explicitement.
+- **Logique unifiée.** `DeleteWorkoutSheet` est la confirmation commune du balayage et du détail.
+  - Pour une séance abandonnée, elle affiche le nom, la date (« mardi 22 septembre »), le nombre de séries saisies (`countEnteredSets` : séries avec au moins une valeur) et la phrase « La suppression est définitive… ». Ses boutons sont « Supprimer » et « Annuler ».
+  - Pour les autres statuts, elle garde le texte d'avant.
+  - La suppression d'une séance VIDE à l'abandon (`deleteEmptyWorkout`, séance en cours sans saisie) reste distincte : c'est une autre règle (séance en cours), pas d'affaiblissement.
+- **Sans dépendance.**
+  - Le geste repose sur les événements pointer natifs (`SwipeRow`).
+  - Il ne prend la main qu'au-delà de 10 px de déplacement, et s'il est plus horizontal que vertical. Sinon, le navigateur garde le défilement (`touch-action: pan-y`).
+  - L'action fait 88 px de large, toute la hauteur de la ligne.
+  - Pour l'état de la ligne :
+    - ouverture si le balayage dépasse la moitié de l'action ;
+    - une seule ligne ouverte (état tenu par la liste) ;
+    - toucher ailleurs referme la ligne, et dans la liste ce toucher ne fait rien d'autre, comme sur iOS ;
+    - un tap sur une ligne ouverte la referme.
+  - Pour les clics :
+    - la fin d'un balayage n'est jamais prise pour un tap ;
+    - l'indicateur « ignorer le prochain clic » est remis à zéro à chaque nouveau geste, puisqu'au doigt un balayage n'est suivi d'aucun clic. Un tap légitime n'est jamais avalé (défaut trouvé par les tests, corrigé).
+  - Accessibilité :
+    - l'action est un vrai bouton, nommé pour VoiceOver ;
+    - le focus clavier ouvre la ligne ;
+    - `prefers-reduced-motion` coupe la transition.
+  - La ligne va d'un bord à l'autre de la carte, et la carte la rogne à ses coins arrondis.
+
+### Archive Drive : conclusion (point 4) — STOP, rien de modifié
+- **Ce qui se passe** (testé avec un script simulé qui applique la même règle que le vrai) :
+  1. La suppression met en file `session_deleted` + `backup_latest`, dans la transaction de la suppression.
+  2. `session_deleted` envoie `mark_deleted` : le fichier de la séance **n'est jamais effacé du Drive** (archive à sens unique, respectée).
+  3. `backup_latest` contient une séance de moins : le script la **refuse** (`regression`), comme pour une app réinstallée. L'app ne réessaie pas. La tâche passe **en pause** et l'écran de choix s'affiche dans Paramètres et sur l'accueil (« Ton Drive contient une sauvegarde plus complète (3 séances…) que cette app (2…). Rien n'a été écrasé. »).
+- **La file n'est pas bloquée** : les autres envois (séances, pesées, regroupement) continuent (testé). Seule `sauvegarde-derniere.json` reste figée à l'état d'avant la suppression, et **toute sauvegarde suivante reste en pause** jusqu'au choix de l'utilisateur. Ce n'est pas un blocage durable de la file, mais c'est un **blocage durable de la sauvegarde** si l'utilisateur ne fait rien.
+- **Déblocage existant** : « Remplacer quand même » renvoie avec `force: true` (testé : la sauvegarde passe à 2 séances), ou « Ignorer », qui abandonne cette sauvegarde. La SPEC §10.7 prévoyait déjà ce cas (« Supprimer une séance (120 au lieu de 121) déclenche aussi ce garde-fou : c'est voulu, l'utilisateur confirme une fois »).
+- **Pourquoi STOP** : la sauvegarde ne peut pas être envoyée automatiquement après la baisse du nombre de séances. C'est exactement la condition d'arrêt de la consigne. Je n'ai rien contourné : pas de `force` automatique, pas de modification du script.
+- **Options proposées** (à choisir) :
+  - **A. Garder tel quel** : comportement documenté. Une confirmation de plus, sur l'écran de régression, après chaque suppression. Simple et sûr, mais l'utilisateur doit y penser. Sinon la sauvegarde Drive reste figée.
+  - **B. `force` automatique côté app, encadré** : renvoyer avec `force: true` seulement si l'écart annoncé par le script (`current − incoming`) est égal au nombre de séances supprimées par l'utilisateur depuis la dernière sauvegarde confirmée, et si le nombre de pesées est identique. Il faudrait mémoriser ce compteur dans les réglages de l'appareil (aucun changement de format). Pas de changement de script.
+    - Risque : un garde-fou affaibli si le compteur se trompe, par exemple sur une app réinstallée suivie de suppressions.
+  - **C. Côté script (hors dépôt)** : faire tenir compte au script des `mark_deleted` déjà reçus (`_INDEX.json`). Une baisse égale au nombre de séances notées supprimées ne serait plus une régression. C'est le plus juste, mais cela demande une modification du script Apps Script, que je n'ai pas faite.
+
+### Tests
+- `services/deleteAbandoned.test.ts` (9) :
+  - suppression exacte, sans cascade ;
+  - refus d'une séance terminée, en cours ou inconnue, sans rien modifier (base identique) ;
+  - nombre de séries ;
+  - progression et statistiques ;
+  - historique, export coach, sauvegarde et aller-retour ;
+  - Drive : `mark_deleted` sans effacement, sauvegarde en pause, file non bloquée, déblocage par « Remplacer quand même ».
+- `features/history/DeleteAbandoned.test.tsx` (12) :
+  - détail : confirmation complète, Annuler, suppression exacte, séance terminée inchangée ;
+  - balayage : ouverture, séance terminée insensible, geste vertical, seuil, balayage court, tap qui ouvre le détail, tap et toucher ailleurs qui referment, une seule ligne ouverte, confirmation et suppression, VoiceOver et focus.
+- **Test existant adapté (signalé)** : `History.test.tsx`, « suppression : confirmation explicite, puis stats recalculées ». Il supprime `w-0003`, qui est **abandonnée**. Seuls les libellés changent (« Supprimer cette séance », titre et bouton de la nouvelle confirmation). Ses vérifications sont identiques : Annuler ne supprime rien, puis suppression et stats recalculées.
+- **Navigateur réel** (Edge headless, tactile, production) : 24/24 à 320 et 390 px.
+  - Contrôles : pas de défilement horizontal ; action visible et ≥ 44 px ; séance terminée insensible ; toucher ailleurs ; défilement vertical réel (`scrollY` 0 → 420) sans mouvement de la ligne ; une seule ligne ouverte ; confirmation ; Annuler ; suppression sans rechargement ; tap qui ouvre le détail ; aucune erreur console.
+  - Le premier rendu coupait le texte au bord intérieur de la carte. Il a été corrigé : ligne d'un bord à l'autre, coins rognés.
+
+### Contrôles
+- Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 693 en V1.3.2, **714** en V1.3.3.
