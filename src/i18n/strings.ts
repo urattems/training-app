@@ -502,6 +502,7 @@ export const strings = {
     showAll: 'Voir tout l’historique',
     tapHint: 'Touche un point pour voir le détail de la prise.',
     selectLabel: (zone: string) => `Afficher le graphique : ${zone}`,
+    noValue: 'aucune valeur',
     pointLabel: (date: string, value: string) => `${date} : ${value}`,
     pointValue: 'Mesure',
     pointDelta: 'Écart',

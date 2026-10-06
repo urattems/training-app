@@ -114,3 +114,62 @@ export function valueAxis(points: readonly ChartPoint[]): ValueAxis {
   for (let v = low; v <= high + step / 2; v += step) ticks.push(Math.round(v * 100) / 100);
   return { domain: [low, high], ticks };
 }
+
+// --- Axe à amplitude minimale (poids, mensurations) ------------------------------------
+
+/** L'amplitude visible vaut au moins 1,25 × celle des données : ≥ 10 % de marge de chaque côté. */
+const SPAN_FACTOR = 1.25;
+/** Marge minimale entre les données et chaque bord, en part de l'amplitude affichée. */
+const MIN_EDGE_MARGIN = 0.1;
+/** Pas de graduation « propres », dans l'unité des valeurs (kg, cm). */
+const TICK_STEPS = [1, 2, 5, 10, 20, 50, 100] as const;
+const MIN_TICKS = 4;
+const MAX_TICKS = 6;
+
+const ticksInside = (low: number, high: number, step: number): number[] => {
+  const ticks: number[] = [];
+  for (let v = Math.ceil(low / step) * step; v <= high; v += step) ticks.push(v);
+  return ticks;
+};
+
+/**
+ * Axe Y à amplitude minimale, NON ancré à zéro (règle V1.2c du poids, généralisée en V1.6.0 pour
+ * les mensurations), fonction pure :
+ * - amplitude visible = max(minSpan, amplitude des données × 1,25) ;
+ * - centrée sur le milieu des données, bornes arrondies à l'unité entière vers l'EXTÉRIEUR
+ *   (la marge ≥ 10 % n'est jamais réduite) ;
+ * - marge ≥ 10 % de l'amplitude affichée de chaque côté (vérifiée APRÈS l'arrondi) ;
+ * - graduations : multiples d'un pas propre (1, 2, 5, 10…), 4 à 6 lignes.
+ * Si la marge ou les graduations ne conviennent pas, l'axe est élargi d'une unité de chaque côté
+ * (il reste centré) jusqu'à ce que tout convienne.
+ * Jamais sous 0 : dans ce seul cas extrême, la fenêtre est décalée vers le haut, à amplitude
+ * égale, au lieu d'être centrée.
+ */
+export function paddedValueAxis(values: readonly number[], minSpan: number): ValueAxis {
+  if (values.length === 0) return paddedValueAxis([minSpan / 2], minSpan);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const middle = (min + max) / 2;
+  const span = Math.max(minSpan, (max - min) * SPAN_FACTOR);
+  let low = Math.floor(middle - span / 2);
+  let high = Math.ceil(middle + span / 2);
+  const notBelowZero = () => {
+    if (low < 0) {
+      high -= low;
+      low = 0;
+    }
+  };
+  notBelowZero();
+  for (;;) {
+    const margin = MIN_EDGE_MARGIN * (high - low);
+    if (min - low >= margin && high - max >= margin) {
+      for (const step of TICK_STEPS) {
+        const ticks = ticksInside(low, high, step);
+        if (ticks.length >= MIN_TICKS && ticks.length <= MAX_TICKS) return { domain: [low, high], ticks };
+      }
+    }
+    low -= 1;
+    high += 1;
+    notBelowZero();
+  }
+}

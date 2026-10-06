@@ -4,7 +4,7 @@
  */
 import { hasAtMostTwoDecimals } from '../schemas/weight.schema';
 import { parseDecimalInput } from '../utils/numbers';
-import { dateToTime, seriesForPeriod, type ChartPoint, type ChartSeries, type ValueAxis } from './chart';
+import { dateToTime, paddedValueAxis, seriesForPeriod, type ChartPoint, type ChartSeries, type ValueAxis } from './chart';
 import { filterByPeriod, type Period } from './stats';
 import type { WeightEntry } from './types';
 import { isValidLocalDate } from './values';
@@ -152,62 +152,12 @@ export function weightsRecordedSince(entries: readonly Pick<WeightEntry, 'record
  * occuperait toute la hauteur et paraîtrait spectaculaire. Modifiable ici seulement.
  */
 export const MIN_WEIGHT_SPAN_KG = 10;
-/** L'amplitude visible vaut au moins 1,25 × celle des données : ≥ 10 % de marge de chaque côté. */
-const WEIGHT_SPAN_FACTOR = 1.25;
-/** Marge minimale entre les données et chaque bord, en part de l'amplitude affichée. */
-const MIN_EDGE_MARGIN = 0.1;
-/** Pas de graduation « propres », en kg. */
-const WEIGHT_TICK_STEPS = [1, 2, 5, 10, 20, 50, 100] as const;
-const MIN_TICKS = 4;
-const MAX_TICKS = 6;
-
-const ticksInside = (low: number, high: number, step: number): number[] => {
-  const ticks: number[] = [];
-  for (let v = Math.ceil(low / step) * step; v <= high; v += step) ticks.push(v);
-  return ticks;
-};
-
 /**
- * Axe Y de l'onglet Poids (règle V1.2c), fonction pure :
- * - amplitude visible = max(MIN_WEIGHT_SPAN_KG, amplitude des données × 1,25) ;
- * - centrée sur le milieu des données, bornes arrondies au kg entier vers l'EXTÉRIEUR
- *   (la marge ≥ 10 % n'est jamais réduite) ;
- * - marge ≥ 10 % de l'amplitude affichée de chaque côté (vérifiée APRÈS l'arrondi) ;
- * - graduations : multiples d'un pas propre (1, 2, 5, 10… kg), 4 à 6 lignes.
- * Si la marge ou les graduations ne conviennent pas, l'axe est élargi d'1 kg de chaque côté
- * (il reste centré) jusqu'à ce que tout convienne.
- * Jamais sous 0 kg : dans ce seul cas extrême (écart de plus de 100 kg dans la période),
- * la fenêtre est décalée vers le haut, à amplitude égale, au lieu d'être centrée.
+ * Axe Y de l'onglet Poids (règle V1.2c) : l'axe à amplitude minimale commun (`paddedValueAxis`,
+ * extrait tel quel en V1.6.0 pour les mensurations), avec une amplitude minimale de 10 kg.
  * L'axe de la progression (exercices) n'est pas concerné.
  */
-export function weightAxis(values: readonly number[]): ValueAxis {
-  if (values.length === 0) return { domain: [0, MIN_WEIGHT_SPAN_KG], ticks: [0, 2, 4, 6, 8, 10] };
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const middle = (min + max) / 2;
-  const span = Math.max(MIN_WEIGHT_SPAN_KG, (max - min) * WEIGHT_SPAN_FACTOR);
-  let low = Math.floor(middle - span / 2);
-  let high = Math.ceil(middle + span / 2);
-  const notBelowZero = () => {
-    if (low < 0) {
-      high -= low;
-      low = 0;
-    }
-  };
-  notBelowZero();
-  for (;;) {
-    const margin = MIN_EDGE_MARGIN * (high - low);
-    if (min - low >= margin && high - max >= margin) {
-      for (const step of WEIGHT_TICK_STEPS) {
-        const ticks = ticksInside(low, high, step);
-        if (ticks.length >= MIN_TICKS && ticks.length <= MAX_TICKS) return { domain: [low, high], ticks };
-      }
-    }
-    low -= 1;
-    high += 1;
-    notBelowZero();
-  }
-}
+export const weightAxis = (values: readonly number[]): ValueAxis => paddedValueAxis(values, MIN_WEIGHT_SPAN_KG);
 
 /** Axe du graphique de poids, pour les points d'une série. */
 export const weightValueAxis = (points: readonly ChartPoint[]): ValueAxis => weightAxis(points.map((p) => p.value));

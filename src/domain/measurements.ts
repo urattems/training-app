@@ -5,19 +5,19 @@
  */
 import { strings } from '../i18n/strings';
 import type { MeasurementEntry } from '../schemas/measurement.schema';
-import { seriesForPeriod, dateToTime, type ChartSeries } from './chart';
+import { dateToTime, paddedValueAxis, seriesForPeriod, type ChartPoint, type ChartSeries, type ValueAxis } from './chart';
 import { filterByPeriod, type Period } from './stats';
 
 const t = strings.measurements;
 
 /** Les 6 zones, DANS CET ORDRE (constante unique) : clé du contrat, libellé, consigne de mesure. */
 export const MEASUREMENT_ZONES = [
-  { key: 'chestCm', label: t.zones.chest.label, instruction: t.zones.chest.instruction },
-  { key: 'bellyCm', label: t.zones.belly.label, instruction: t.zones.belly.instruction },
-  { key: 'waistCm', label: t.zones.waist.label, instruction: t.zones.waist.instruction },
-  { key: 'bicepsCm', label: t.zones.biceps.label, instruction: t.zones.biceps.instruction },
-  { key: 'thighCm', label: t.zones.thigh.label, instruction: t.zones.thigh.instruction },
-  { key: 'calfCm', label: t.zones.calf.label, instruction: t.zones.calf.instruction },
+  { key: 'chestCm', slug: 'poitrine', label: t.zones.chest.label, instruction: t.zones.chest.instruction },
+  { key: 'bellyCm', slug: 'ventre', label: t.zones.belly.label, instruction: t.zones.belly.instruction },
+  { key: 'waistCm', slug: 'taille', label: t.zones.waist.label, instruction: t.zones.waist.instruction },
+  { key: 'bicepsCm', slug: 'biceps', label: t.zones.biceps.label, instruction: t.zones.biceps.instruction },
+  { key: 'thighCm', slug: 'cuisse', label: t.zones.thigh.label, instruction: t.zones.thigh.instruction },
+  { key: 'calfCm', slug: 'mollet', label: t.zones.calf.label, instruction: t.zones.calf.instruction },
 ] as const;
 
 export type MeasurementZoneKey = (typeof MEASUREMENT_ZONES)[number]['key'];
@@ -115,6 +115,40 @@ export function variation(entries: readonly MeasurementEntry[], key: Measurement
   if (!first || !last || first.date === last.date) return null;
   return round1(last.value - first.value);
 }
+
+// --- Graphique (V1.6.0) -----------------------------------------------------------------
+
+/** Périodes propres aux mensurations (pas de 1M) ; `PERIODS` de la progression n'est pas touché. */
+export const MEASUREMENT_PERIODS = ['3M', '6M', '1A', 'all'] as const satisfies readonly Period[];
+export type MeasurementPeriod = (typeof MEASUREMENT_PERIODS)[number];
+export const DEFAULT_MEASUREMENT_PERIOD: MeasurementPeriod = 'all';
+export const isMeasurementPeriod = (value: string | null): value is MeasurementPeriod => MEASUREMENT_PERIODS.some((p) => p === value);
+
+/** Série affichée par défaut : Ventre. */
+export const DEFAULT_MEASUREMENT_SERIES: MeasurementSeriesKey = 'bellyCm';
+/** Identifiant de série dans l'URL (`?zone=`) : nom de la zone en minuscules, ou `total`. */
+export const seriesSlug = (key: MeasurementSeriesKey): string => (key === 'total' ? 'total' : (MEASUREMENT_ZONES.find((z) => z.key === key)?.slug ?? 'total'));
+export function seriesFromSlug(slug: string | null): MeasurementSeriesKey {
+  if (slug === 'total') return 'total';
+  return MEASUREMENT_ZONES.find((z) => z.slug === slug)?.key ?? DEFAULT_MEASUREMENT_SERIES;
+}
+
+/** Amplitudes minimales de l'axe Y (cm) : sans plancher, 0,5 cm occuperait toute la hauteur. */
+export const MIN_ZONE_SPAN_CM = 4;
+export const MIN_TOTAL_SPAN_CM = 10;
+
+/** Axe Y d'une série (non ancré à zéro, marges ≥ 10 %, graduations propres). */
+export const measurementValueAxis =
+  (key: MeasurementSeriesKey) =>
+  (points: readonly ChartPoint[]): ValueAxis =>
+    paddedValueAxis(
+      points.map((p) => p.value),
+      key === 'total' ? MIN_TOTAL_SPAN_CM : MIN_ZONE_SPAN_CM,
+    );
+
+/** Valeur précédente d'une série (par date, strictement avant), pour l'écart d'un point. */
+export const previousPoint = (entries: readonly MeasurementEntry[], key: MeasurementSeriesKey, date: string): MeasurementPoint | null =>
+  measurementPoints(entries, key).filter((p) => p.date < date).at(-1) ?? null;
 
 /** Série de graphique d'une zone ou du Total sur une période (points reliés, dates métier). */
 export function buildMeasurementSeries(entries: readonly MeasurementEntry[], key: MeasurementSeriesKey, period: Period, today: string): ChartSeries {

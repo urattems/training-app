@@ -15,11 +15,20 @@ import {
   measurementTotal,
   measurementValueError,
   measurementWarnings,
+  measurementValueAxis,
+  MEASUREMENT_PERIODS,
+  MIN_TOTAL_SPAN_CM,
+  MIN_ZONE_SPAN_CM,
+  previousPoint,
   previousZoneValue,
+  seriesFromSlug,
+  seriesSlug,
   variation,
   type MeasurementValues,
 } from './measurements';
 import type { MeasurementEntry } from './types';
+import { PERIODS } from './stats';
+import type { ChartPoint } from './chart';
 import { formatCm, formatSignedCm } from '../utils/numbers';
 
 const NONE: MeasurementValues = { chestCm: null, bellyCm: null, waistCm: null, bicepsCm: null, thighCm: null, calfCm: null };
@@ -181,5 +190,47 @@ describe('Formatage en cm (couleur neutre ailleurs, ici le texte seul)', () => {
     expect(formatSignedCm(-27)).toBe('−27 cm');
     expect(formatSignedCm(-1.5)).toBe('−1,5 cm');
     expect(formatSignedCm(0)).toBe('0 cm');
+  });
+});
+
+describe('Graphique (V1.6.0) : périodes propres, série dans l’URL, axe non ancré à zéro', () => {
+  const pts = (values: number[]): ChartPoint[] => values.map((value, i) => ({ t: i, value, workoutId: String(i), date: String(i) }));
+
+  it('périodes 3M · 6M · 1A · Tout, sans 1M ; PERIODS de la progression inchangé', () => {
+    expect(MEASUREMENT_PERIODS).toEqual(['3M', '6M', '1A', 'all']);
+    expect(PERIODS).toEqual(['1M', '3M', '6M', '1A', 'all']);
+  });
+
+  it('?zone= : nom de la zone ou « total » ; inconnu → Ventre (défaut)', () => {
+    expect(seriesSlug('chestCm')).toBe('poitrine');
+    expect(seriesSlug('total')).toBe('total');
+    expect(seriesFromSlug('mollet')).toBe('calfCm');
+    expect(seriesFromSlug('total')).toBe('total');
+    expect(seriesFromSlug(null)).toBe('bellyCm');
+    expect(seriesFromSlug('genou')).toBe('bellyCm');
+  });
+
+  it.each([
+    ['zone', 'bellyCm', [92, 92.5], MIN_ZONE_SPAN_CM],
+    ['zone, écart large', 'thighCm', [52, 61], 9 * 1.25],
+    ['Total', 'total', [417.5, 418], MIN_TOTAL_SPAN_CM],
+  ] as const)('axe (%s) : amplitude minimale, marges ≥ 10 %%, jamais ancré à zéro', (_l, key, values, minSpan) => {
+    const { domain, ticks } = measurementValueAxis(key)(pts([...values]));
+    const [low, high] = domain;
+    const span = high - low;
+    expect(span).toBeGreaterThanOrEqual(minSpan);
+    expect(low).toBeGreaterThan(0);
+    expect(Math.min(...values) - low).toBeGreaterThanOrEqual(0.1 * span);
+    expect(high - Math.max(...values)).toBeGreaterThanOrEqual(0.1 * span);
+    expect(ticks.length).toBeGreaterThanOrEqual(4);
+    expect(ticks.length).toBeLessThanOrEqual(6);
+    expect(MIN_ZONE_SPAN_CM).toBe(4);
+    expect(MIN_TOTAL_SPAN_CM).toBe(10);
+  });
+
+  it('valeur précédente d’une série (écart d’un point), par date', () => {
+    const entries = [entry('2026-08-01', { bellyCm: 95 }), entry('2026-09-01', FULL)];
+    expect(previousPoint(entries, 'bellyCm', '2026-09-01')).toEqual({ date: '2026-08-01', value: 95 });
+    expect(previousPoint(entries, 'total', '2026-09-01')).toBeNull();
   });
 });
