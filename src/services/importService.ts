@@ -63,9 +63,12 @@ export async function restoreBackup(data: HistoryExport, now: Date = new Date())
     await Promise.all([db.programs.clear(), db.workouts.clear(), db.settings.clear(), db.metadata.clear(), db.weights.clear()]);
     await db.metadata.put({ key: 'preRestoreBackup', savedAt: stamp, data: current });
 
-    const programs: StoredProgram[] = data.programs.map((program) => ({
+    // Ordre d'origine (V1.3.2) : la sauvegarde liste les programmes par date d'import croissante
+    // (`toHistoryExport`). On rend cet ordre par des `importedAt` croissants, une seconde d'écart,
+    // le dernier à l'heure de la restauration : le format de sauvegarde ne change pas.
+    const programs: StoredProgram[] = data.programs.map((program, index) => ({
       ...program,
-      importedAt: stamp,
+      importedAt: toLocalIsoString(new Date(now.getTime() - (data.programs.length - 1 - index) * 1000)),
       archivedAt: program.programId === data.activeProgramId ? null : stamp,
     }));
     await db.programs.bulkPut(programs);
