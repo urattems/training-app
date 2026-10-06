@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1.4.1 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI)** → **https://urattems.github.io/training-app/**
+> **État : V1.5.0 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations : données, sauvegarde et archive, sans écran pour l'instant)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
@@ -135,6 +135,7 @@ Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runn
   - Aucune donnée n'est touchée.
   - Sur iPhone, l'app installée et Safari ont des données séparées : le cas ne se présente qu'entre plusieurs onglets Safari.
 - **Supprimer une séance et archive Drive** : la séance n'est jamais effacée du Drive (seulement notée supprimée). La sauvegarde suivante a une séance de moins : le script la refuse et l'app demande une fois « Remplacer quand même » (DECISIONS V1.3.3).
+- **Mensurations (V1.5.0, données seulement)** : base, sauvegarde (format 1.2) et archive Drive prêtes ; l'écran viendra ensuite. Une sauvegarde 1.2 ne peut pas être restaurée par une version plus ancienne de l'app. Tant que le script Drive n'est pas mis à jour (`sync-3`), les mensurations ne sont pas protégées contre une réinstallation par le refus de régression (DECISIONS V1.5.0).
 - **Remplacer un exercice** (limites assumées, DECISIONS V1.3.2) :
   - remplacer par le nom d'un autre exercice du programme crée une courbe distincte de la sienne ;
   - la ponctuation est ignorée dans la comparaison des noms (« Squat +10 kg » = « Squat 10 kg ») ;

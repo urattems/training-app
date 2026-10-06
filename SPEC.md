@@ -100,6 +100,14 @@ Les textes UI sont centralisés (fichier de chaînes simple), sans système i18n
 ### 5.2 Tables Dexie (indicatif)
 `programs` · `workouts` (séance + exercices + cardio, document-oriented) · `settings` · `metadata`. `DB_VERSION = 1` avec mécanisme de migration. Ne pas sur-normaliser.
 
+**Complément V1.5.0 — Mensurations** (données seulement ; l'écran viendra dans un jalon suivant) :
+- table `measurements` (Dexie version 3), clé primaire = `date` (`YYYY-MM-DD`, date locale) : **une seule prise par date** ;
+- une **prise** = `{ date, chestCm, bellyCm, waistCm, bicepsCm, thighCm, calfCm, recordedAt }` ; 6 zones, dans cet ordre : Poitrine (au niveau des tétons), Ventre (au niveau du nombril), Taille (au niveau de la ceinture), Biceps (milieu du biceps, bras plié si besoin mais sans contracter, même côté à chaque mesure), Cuisse (milieu de la cuisse, un seul côté, idéalement toujours le même), Mollet (milieu du mollet, un seul côté, idéalement toujours le même) ;
+- chaque mesure : nombre en cm **ou `null`** (champ présent, `null` = absente, **jamais 0**) ; > 0, fini, au plus 1 décimale, au plus 300 cm ; au moins une mesure par prise ; jamais de date future ; le côté mesuré n'est pas stocké ;
+- **prise complète** = les 6 mesures ; **Total des mensurations** = somme des 6, arrondie à 1 décimale, uniquement pour une prise complète (jamais un « score ») ;
+- **Départ** d'une zone = sa plus ancienne valeur **par date** ; Départ du Total = plus ancienne prise complète ; calculés sur toutes les prises, indépendamment de la période affichée ;
+- une date déjà prise est refusée à l'ajout (il faut modifier la prise) ; la date d'une prise ne se modifie pas (supprimer puis recréer).
+
 ### 5.3 Snapshot d'objectifs (essentiel)
 Au démarrage d'une séance, l'app **copie** dans le workout les objectifs de chaque exercice (`targetSets`, `restSec`, nom, `programId`, `programExerciseId`). L'historique ne dépend jamais du programme courant.
 
@@ -342,12 +350,13 @@ Chaque **document JSON** porte son propre `schemaVersion`, indépendant des autr
 | Élément | `type` | Version produite | Versions acceptées en lecture |
 |---|---|---|---|
 | Programme du coach | `training_program` | `1.0` | `1.0` |
-| Historique / sauvegarde | `training_history_export` | `1.1` (V1.2 : pesées) | `1.0` (migrée en `1.1` : `weightEntries: []`) et `1.1` |
+| Historique / sauvegarde | `training_history_export` | `1.2` (V1.5.0 : mensurations ; `1.1` en V1.2 : pesées) | `1.0` et `1.1` (migrées en `1.2`) et `1.2` |
 | Export pour le coach | `training_coach_export` | `1.1` (V1.2 : pesées) | `1.0` (migrée en `1.1` : `weightEntries: []`, `weightWindow: null`) et `1.1` |
 | Pesée / journal des pesées (archive Drive) | `weight_entry`, `weight_log` | `1.0` | `1.0` |
-| Base IndexedDB (Dexie) | — | version `2` (V1.2 : store `weights`) | mise à jour automatique `1 → 2` à l'ouverture, sans réécrire de données |
+| Base IndexedDB (Dexie) | — | version `3` (V1.5.0 : store `measurements` ; `2` en V1.2 : store `weights`) | mises à jour automatiques `1 → 2 → 3` à l'ouverture, sans réécrire de données ; une version plus ancienne de l'app rouvre une base `3` sans la vider (elle ignore `measurements`) |
 
-- **Migrations réellement supportées** : historique `1.0 → 1.1` et export coach `1.0 → 1.1`. Il n'en existe aucune autre (pas de migration de programme).
+- **Migrations réellement supportées** : historique `1.0 → 1.1` (`weightEntries: []`) puis `1.1 → 1.2` (`measurementEntries: []`), appliquées en chaîne ; export coach `1.0 → 1.1`. Il n'en existe aucune autre (pas de migration de programme).
+- Une sauvegarde `1.2` est **refusée** par une app V1.4.x ou plus ancienne (version inconnue pour elle).
 - **Toute version inconnue** (future, ancienne non listée, ou absente) est **refusée en bloc**, avec un message clair (« ce fichier utilise la version de schéma « … », non prise en charge »). Rien n'est écrit.
 - La version de l'app (Paramètres → Informations) est distincte de toutes ces versions.
 
@@ -357,7 +366,9 @@ En plus de la validation Zod, le fichier est **refusé en bloc** (message clair,
 - `activeProgramId` est non-null mais ne correspond à aucun `programId` de `programs[]` ;
 - une séance référence un `programId` absent de `programs[]` ;
 - des `id` de séance ou de programme sont en doublon ;
-- une séance `completed` n'a pas de `completedAt` (ou une `in_progress` en a un).
+- une séance `completed` n'a pas de `completedAt` (ou une `in_progress` en a un) ;
+- (V1.2) deux pesées portent la même date, ou une pesée est datée dans le futur ;
+- (V1.5.0) deux prises de mensurations portent la même date, ou une prise est datée dans le futur. Le schéma refuse aussi une prise sans aucune mesure, une mesure à 0, négative, non finie, à plus d'1 décimale ou au-delà de 300 cm, et une zone absente du fichier (elle doit être présente, éventuellement `null`).
 
 **Formes tolérées (V1.3.2, non refusées)** : elles peuvent venir d'éditions manuelles d'un fichier, et l'affichage doit les présenter sans ambiguïté.
 - `executionOrder` **peut être incomplet** : un exercice qui a des séries saisies peut ne pas y figurer. Seuls sont refusés un doublon dans `executionOrder` ou un exercice absent de la séance.
@@ -482,7 +493,7 @@ Muscu/
 - **Séance** : un `training_coach_export` (version 1.1) contenant **cette seule séance**, le programme concerné (objet complet), `weightEntries: []`, `weightWindow: null`, `selection` cohérent (`mode: "manual"`, `sessionCount: 1`). Mêmes règles d'exportabilité que l'export coach (jamais de séance en cours ni de séance vide).
 - **Pesée du jour** : `{ "schemaVersion": "1.0", "type": "weight_entry", "date", "weightKg", "recordedAt" }`.
 - **Pesées regroupées** : `{ "schemaVersion": "1.0", "type": "weight_log", "exportedAt", "count", "entries": [ { "date", "weightKg", "recordedAt" } ] }` (croissant par date).
-- **Sauvegarde** : exactement le `training_history_export` 1.1 de « Exporter mes données » (même fabrique, même contrôle avant remise). `meta.counts = { sessions, weights, programs }`.
+- **Sauvegarde** : exactement le `training_history_export` de « Exporter mes données » (1.2 depuis la V1.5.0 ; même fabrique, même contrôle avant remise). `meta.counts = { sessions, weights, programs, measurements }` (`measurements` depuis la V1.5.0 ; le script `sync-2` ne compare que `sessions` et `weights`).
 - `meta` des autres fichiers : séance `{ kind: "session", sessionId, date, sessionName, status, programId, weekLabel }` ; pesée `{ kind: "weight", date, weightKg }` ; regroupement `{ kind: "weights_all", count }` ; sauvegardes `{ kind: "backup_latest" | "backup_weekly", counts, exportedAt }`.
 
 #### 10.7.6 File d'attente
@@ -505,6 +516,7 @@ Muscu/
 | Séance supprimée dans l'app | `session_deleted` (si déjà envoyée), `backup_latest` |
 | Pesée ajoutée ou modifiée | `weight`, `weights_all`, `backup_latest` |
 | Pesée supprimée | `weight_deleted`, `weights_all`, `backup_latest` |
+| Mensuration ajoutée, modifiée ou supprimée (V1.5.0) | `backup_latest` seul (aucun fichier par prise) |
 | Ouverture de l'app, dernière copie hebdomadaire confirmée vieille de 7 jours ou plus (ou jamais) | `backup_weekly` |
 
 Le fichier de la séance **n'est jamais supprimé de Drive** : `session_deleted` envoie `mark_deleted` (le script note la suppression dans `_INDEX.json`). Idem pour `weight_deleted`.
@@ -577,6 +589,14 @@ Les champs non pertinents sont `null`, jamais absents.
   - les pesées sont remplacées dans la même transaction unique ; la copie interne (`preRestoreBackup`) et l'export de sécurité les contiennent ;
   - le résumé indique le nombre de pesées du fichier ;
   - si le fichier n'en contient aucune alors que l'app en a, un avertissement visible le signale.
+
+**Complément V1.5.0 — `training_history_export` en `schemaVersion: "1.2"`** :
+- racine : **`measurementEntries[]`** (obligatoire, peut être vide), trié par date croissante à l'export ; chaque prise : `{ date, chestCm, bellyCm, waistCm, bicepsCm, thighCm, calfCm, recordedAt }` ;
+- **`null` = mesure absente** : le champ est toujours présent ; une mesure n'est **jamais 0** (§5.2, complément V1.5.0) ;
+- **Migration 1.1 → 1.2** : ajoute `measurementEntries: []` (après `1.0 → 1.1`) ; l'app n'exporte plus qu'en 1.2 ;
+- **Restauration** : les mensurations sont remplacées dans la même transaction ; la copie interne (`preRestoreBackup`, en 1.2) et l'export de sécurité les contiennent ; le résumé indique leur nombre ; un fichier sans mensuration alors que l'app en a déclenche l'avertissement « Cette sauvegarde ne contient aucune mensuration : tes N mensurations actuelles seront remplacées (une copie de sécurité est conservée). » ;
+- une prise enregistrée depuis le dernier export compte pour le rappel d'export, comme une pesée ;
+- l'export pour le coach **ne contient pas** les mensurations (format coach inchangé, 1.1).
 
 **Complément V1.3 — types de l'archive Drive** (`schemaVersion: "1.0"`, écrits par l'app via le script, jamais relus par elle ; §10.7) :
 - **`weight_entry`** (`Pesees/AAAA-MM-JJ.json`) : `{ schemaVersion, type: "weight_entry", date, weightKg, recordedAt }`, mêmes règles qu'une pesée de `weightEntries`.

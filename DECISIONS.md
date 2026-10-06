@@ -1801,3 +1801,97 @@ Suite complète lancée 6 fois d'affilée. Toutes les passes sont sorties en cod
 
 ### Contrôles
 - Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 733 en V1.4.0, **737** en V1.4.1.
+
+---
+
+## V1.5.0 — Mensurations : données, sauvegarde et archive Drive (jalons 1 à 3 ; aucune interface visible)
+
+Les jalons 1 à 3 de l'audit « Mensurations » sont livrés sur une seule branche, `v1.5.0`. **Aucun écran ne change**, à une exception près : le résumé de restauration affiche aussi le nombre de mensurations et l'avertissement correspondant. La page Mensurations et les sous-onglets viendront aux jalons 4 et 5.
+
+### Décisions verrouillées (avec l'utilisateur)
+- **6 zones, dans cet ordre**, avec une constante unique `MEASUREMENT_ZONES` (`domain/measurements.ts`) qui porte la clé, le libellé et la consigne. Les textes eux-mêmes sont dans `strings.ts`, comme le reste de l'app.
+  - Poitrine : au niveau des tétons.
+  - Ventre : au niveau du nombril.
+  - Taille : au niveau de la ceinture.
+  - Biceps : milieu du biceps, bras plié si besoin mais sans contracter, même côté à chaque mesure.
+  - Cuisse : milieu de la cuisse, un seul côté, idéalement toujours le même.
+  - Mollet : milieu du mollet, un seul côté, idéalement toujours le même.
+- **Une prise** = `{ date, chestCm, bellyCm, waistCm, bicepsCm, thighCm, calfCm, recordedAt }`. Chaque mesure est un nombre ou `null` : le champ est présent, `null` signifie « absente », et la mesure n'est **jamais 0**.
+- **Règles de valeur** :
+  - > 0, fini, au plus 1 décimale, au plus 300 cm ;
+  - au moins une mesure par prise ;
+  - pas de date future ;
+  - une seule prise par date.
+- **Prise complète** = les 6 mesures. Le **Total des mensurations** (arrondi à 1 décimale) n'existe que pour une prise complète. Ce n'est jamais un « score ».
+- **Départ** d'une zone = sa plus ancienne valeur **par date** (jamais l'ordre de saisie). Départ du Total = plus ancienne prise complète. Les deux sont calculés sur toutes les prises, indépendamment de la période affichée.
+- Le **côté mesuré n'est pas stocké**.
+- **Dates** : uniquement des dates métier `YYYY-MM-DD` (`toLocalDateString`, `validateWeightDate`), jamais `new Date('YYYY-MM-DD')`.
+
+### Jalon 1 — base, domaine, schéma, service
+- **Dexie version 3** : `STORES_V3_ADDED = { measurements: '&date' }`, sans `upgrade()`, et les versions 1 et 2 restent déclarées telles quelles. La clé primaire est la date : c'est la base elle-même qui garantit une prise par date.
+- **Retour en arrière vérifié par un vrai test.** Un ancien code (versions 1 et 2 seulement) ouvre une base v3 : Dexie rattrape `VersionError` et ouvre à la version installée. Les données sont lisibles, une pesée peut y être écrite, et les mensurations sont intactes quand la nouvelle version rouvre la base.
+- **Domaine** (`domain/measurements.ts`, fonctions pures) : règles de valeur, prise complète, Total, dernière prise complète, Départ, dernière valeur, variation (`null` s'il n'y a pas deux valeurs à des dates différentes), séries et statistiques par période (min, max, nombre), et aides pour la restauration et le rappel d'export.
+- **Schéma** (`schemas/measurement.schema.ts`) : 6 zones présentes et nullables, au moins une mesure.
+- **Service** (`services/measurementService.ts`) :
+  - l'ajout sur une date existante est **refusé** par une erreur explicite (« Une prise de mensurations existe déjà le … : modifie-la plutôt. »), et rien n'est écrasé ;
+  - la modification ne change jamais la date ;
+  - la suppression demande une confirmation explicite dans l'interface (jalon 4) ;
+  - revalidation complète avant toute écriture ;
+  - aucun champ parasite n'est stocké.
+- **Liste unique des tables lues par `readStoredData`** (`storedDataTables()`, `exportService.ts`). Elle est utilisée par l'export, l'export coach, les 3 lectures Drive et la restauration (avec `metadata`). Une table oubliée ferait échouer ces chemins (« table non incluse dans la transaction »).
+- `dumpDatabase` (tests) couvre désormais `weights` et `measurements`.
+- **Écart signalé** : `StoredData.measurements` est **facultatif** dans le type, parce que deux tests construisent un `StoredData` à la main. `readStoredData` le fournit toujours, et l'export utilise `?? []`.
+
+### Jalon 2 — sauvegarde et restauration 1.2
+- `training_history_export` passe en **1.2** avec `measurementEntries` (tableau éventuellement vide), trié par date croissante. La migration **1.1 → 1.2** ajoute `measurementEntries: []`, et la chaîne 1.0 → 1.1 → 1.2 s'applique. Une version inconnue (par exemple 1.3) est refusée avec le message habituel.
+- **Invariants** (`checkMeasurementEntries`) : une seule prise par date, pas de date future. Les règles de valeur et « au moins une mesure » sont portées par le schéma.
+- **Restauration** :
+  - les mensurations sont remplacées dans la transaction unique ;
+  - `preRestoreBackup` est écrit en 1.2 ;
+  - le résumé affiche « Mensurations » ;
+  - avertissement « Cette sauvegarde ne contient aucune mensuration : tes N mensurations actuelles seront remplacées (une copie de sécurité est conservée). » (`measurementsLostByRestore`, exactement le mécanisme des pesées) ;
+  - `nothingToSave` compte les mensurations.
+- **Rappel d'export** : une prise enregistrée depuis le dernier export compte (`measurementsRecordedSince`).
+- **Nouvelle fixture** `examples/history-measurements-example.json` (1.2). Elle reprend les séances et pesées de `history-weights-example.json` et ajoute 5 prises : complètes, incomplètes, une seule zone, et une prise de novembre 2025. Son empreinte est figée. Les 7 fixtures existantes sont intactes, et leurs empreintes sont revérifiées dans le même test.
+
+### Jalon 3 — archive Drive côté app (compatible `sync-2`)
+- Une mensuration ajoutée, modifiée ou supprimée met en file **`backup_latest` seul** (`DRIVE_TRIGGERS.measurementChanged`), dans la même transaction que la donnée. Il n'y a **aucun fichier par prise** et **aucune nouvelle action** : pas de `note_deletion`, le protocole est inchangé.
+- `meta.counts.measurements` est ajouté. La « base vide » compte les mensurations : une base qui n'en contient que des mensurations est sauvegardée.
+- **Réponse `regression`** : lecture tolérante, un compteur absent ou illisible est ignoré (jamais `NaN`). Le message cite les mensurations quand le script les renvoie, et reste mot pour mot celui d'avant sinon.
+- **Testé avec le faux script `sync-2`** en HTTP réel :
+  - seulement des `put` ;
+  - aucun fichier en plus de `sauvegarde-derniere.json` ;
+  - une suppression de prise est **acceptée**, car `sync-2` ne compare que séances et pesées.
+
+### Limites connues
+- **Les sauvegardes 1.2 sont illisibles par une V1.4.x** (« version de schéma « 1.2 », non prise en charge »). Un retour en arrière de l'app après la V1.5.0 ne pourra pas restaurer les sauvegardes récentes. La base, elle, reste lisible : voir le test de retour en arrière.
+- **Sans script `sync-3`, les mensurations ne sont pas protégées contre une réinstallation.** Le script ne compare que séances et pesées : une app réinstallée sans mensurations remplacerait `sauvegarde-derniere.json` sans être arrêtée par le refus de régression. Les copies hebdomadaires, jamais écrasées, restent un filet. La correction est le jalon 6 (script `sync-3`), qui n'est pas commencé.
+- L'export pour le coach ne contient pas les mensurations (format coach inchangé, 1.1). L'option « décochée par défaut » est prévue plus tard.
+
+### Tests existants adaptés (signalé, aucune vérification affaiblie)
+- **Version de base 2 → 3** :
+  - `db/migration.test.ts` : version courante et liste des tables, avec `measurements` ;
+  - `db/connection.test.tsx` : `verno` attendu = `DB_VERSION`. La « version future » du test `superseded` passe de l'IDB 30, codée en dur et devenue la version courante, à `(DB_VERSION + 1) × 10`.
+- **Littéraux « base vide »** : `weights: []` et `measurements: []` ajoutés (5 littéraux dans `App.test.tsx`, `services.test.ts`, `PasteImport.test.tsx`), conséquence de `dumpDatabase` étendu. La vérification est renforcée.
+- **Version produite 1.1 → 1.2** : 3 assertions, dans `weights.test.ts` (2) et `services.test.ts` (1).
+- **Compteurs exacts de la sauvegarde** : `measurements: 0` ajouté dans `driveBackups.test.ts`.
+
+### Contrôles
+- Typecheck, lint, tests et build verts à la fin de **chaque** jalon :
+
+| Jalon | Tests |
+|---|---|
+| Base V1.4.1 | 737 |
+| Jalon 1 | 773 |
+| Jalon 2 | 794 |
+| Jalon 3 | **802** |
+
+- Passes façon CI à la fin. Toutes sont sorties en code 0, avec 802/802 tests, sans erreur non gérée :
+
+| Passe | Réglages | Durée |
+|---|---|---|
+| 1 | `--maxWorkers=1` | 168 s |
+| 2 | `--maxWorkers=1` | 165 s |
+| 3 | `TZ=UTC` | 29 s |
+
+- Aucun minuteur ajouté.
