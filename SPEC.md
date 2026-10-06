@@ -157,6 +157,15 @@ Répond à : « Qu'est-ce que je dois faire aujourd'hui ? »
 - **Prochaine séance** : nom, nombre d'exercices, durée estimée, **gros bouton « Commencer la séance »**.
 - Si séance en cours : carte **« Séance X en cours — Reprendre / Abandonner »** prioritaire.
 - **Dernière séance** : nom, date, durée, statut (lien vers l'historique).
+- **Activité (V1.4.0)** : carte secondaire, après « Dernière séance », masquée tant qu'aucune séance n'a été terminée. Calendrier **binaire** style GitHub :
+  - 12 colonnes (semaines, du lundi au dimanche ; la semaine en cours à droite) × 7 lignes (jours), sans défilement ni choix de période ;
+  - une case est **remplie** (couleur d'accent, une seule couleur) si au moins une séance **terminée** a eu lieu ce jour-là (champ `date`, date locale). Les séances abandonnées et en cours ne comptent pas ; plusieurs séances le même jour = une seule case ;
+  - aucune intensité, aucun score, aucune série de jours consécutifs, aucun message culpabilisant. Les jours à venir de la semaine sont plus discrets qu'un jour vide passé ; aujourd'hui a un contour discret ;
+  - initiales des jours (L M M J V S D) à gauche, noms de mois au-dessus ; tient sans défilement horizontal à 320 et 390 px ;
+  - une phrase neutre sous la grille : « N séances terminées sur les 12 dernières semaines » ;
+  - toucher une case affiche, **sous la grille**, la date en toutes lettres puis les séances terminées du jour (nom, durée), chacune menant au détail d'historique, ou « Pas de séance ce jour-là ». Une seule case sélectionnée à la fois ;
+  - chaque case est un bouton accessible (« mardi 6 octobre : 1 séance ») ; la sélection et « aujourd'hui » se voient autrement que par la couleur ;
+  - tout est dérivé des séances (aucun stockage) et se met à jour quand une séance se termine ou est supprimée.
 - **Progression récente** : 2-3 variations factuelles (ex. « Chest Press +2,5 kg »).
 - États vides : voir §7.9.
 

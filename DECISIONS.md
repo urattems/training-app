@@ -1685,3 +1685,66 @@ Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient i
 
 ### Contrôles
 - Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 693 en V1.3.2, **714** en V1.3.3.
+
+---
+
+## V1.4.0 — Calendrier d'activité sur l'accueil (aucun stockage, aucun changement de format, de schéma Zod ni de version Dexie)
+
+### Choix
+- **Binaire.** Une case est remplie (accent, une seule couleur) si au moins une séance **terminée** a eu lieu ce jour-là. Il n'y a ni intensité, ni niveaux, ni score, ni « streak », ni message : c'est un repère, pas de la gamification. Plusieurs séances le même jour donnent une case, mais le résumé et l'étiquette comptent les **séances** (« 3 séances terminées sur les 12 dernières semaines », « mardi 6 octobre : 2 séances »).
+- **Seulement les séances terminées.** Une séance abandonnée ou en cours ne remplit rien. Le détail du jour ne liste que les séances terminées.
+- **12 semaines fixes, lundi en premier**, semaine en cours à droite. Il n'y a ni défilement ni sélecteur de période. Les jours à venir sont en pointillés, plus discrets qu'un jour vide passé, pour ne pas faire « raté ».
+- **Dérivé, sans stockage.**
+  - La fonction pure `buildActivityCalendar(sessions, today, weeks = 12)` (`domain/activity.ts`) part des séances et d'une date du jour **injectée**.
+  - Elle s'appuie sur le champ `date` (date locale `YYYY-MM-DD`, comme le reste de l'app) et sur l'arithmétique de dates métier (`addDaysToLocalDate`, en UTC pur). Il n'y a pas de `new Date()` brut sur ces dates, donc aucun décalage ni doublon aux changements d'heure (testé fin mars et fin octobre, et à 23:59 / 00:01).
+  - La date du jour vient du hook existant `useToday` (`toLocalDateString(new Date())`, recalculé à chaque rendu), déjà utilisé par Progression, Poids et l'export coach. Il est réutilisé tel quel.
+- **Placement** : carte secondaire après « Dernière séance ». Le bouton principal reste en tête : à 320 × 568, son bas est à 267 px, visible sans défiler. La carte est **masquée** tant qu'aucune séance n'a jamais été terminée, ce qui évite une grille vide inquiétante pour un débutant. Si des séances existent mais aucune dans les 12 semaines, la grille vide s'affiche avec « Aucune séance terminée sur les 12 dernières semaines ».
+- **Mise à jour** : la carte reçoit les séances de la même lecture réactive (`useWorkouts`) que le reste de l'accueil. Terminer ou supprimer une séance la met à jour sans rechargement (testé).
+- **Interface** :
+  - HTML/CSS simple, sans dépendance. Une grille CSS : initiales des jours, puis 12 colonnes.
+  - Chaque case est un `button` qui occupe **toute sa case de grille**. La zone tactile est donc la plus grande possible sans chevaucher les voisines (≈ 20 px à 320 px, ≈ 25,5 px à 390 px). Le carré visible est dessiné à l'intérieur (`::before`, 2 px de retrait).
+  - Les cases font moins de 44 px. C'est assumé par la consigne : on ne pouvait pas les agrandir davantage sans chevauchement.
+  - Ce qui ne dépend pas de la couleur seule :
+    - aujourd'hui : contour épais ;
+    - sélection : anneau autour de la case ;
+    - jour rempli et jour vide : fond plein contre fond clair bordé ;
+    - jour à venir : bordure en pointillés.
+- **Étiquettes de mois** : sur la colonne qui contient le 1er du mois, ainsi que sur la première colonne. Elles sont omises à moins de 3 colonnes de la précédente : le 1er du mois l'emporte sur un mois à peine entamé en première colonne.
+- **Accessibilité** :
+  - la grille est un groupe nommé (« Activité des 12 dernières semaines… ») ;
+  - les boutons suivent l'ordre chronologique dans le DOM, et chacun porte une étiquette (« mardi 6 octobre (aujourd'hui) : 1 séance », « … : aucune séance », « … : à venir ») ;
+  - `aria-pressed` marque la sélection et `aria-current="date"` aujourd'hui ;
+  - le détail du jour est une région annoncée (`aria-live`) ;
+  - les initiales et les mois sont décoratifs (`aria-hidden`).
+
+### Écarts et doutes
+- **Thème sombre** : l'app n'en a pas. Il n'y a qu'un jeu de tokens clairs, le thème sombre étant « prévu au J8, facultatif » (README). La carte n'utilise que des tokens (accent, surfaces, bordures, textes), donc un futur thème sombre s'y appliquera, mais il n'a pas pu être vérifié.
+- **Taille des cases à 320 px** : la carte n'offre qu'environ 255 px utiles (marges latérales réduites à 16 px pour cette carte). Les carrés **visibles** font environ 16 px à 320 px et environ 21 px à 390 px, avec une zone tactile de 20 et 25,5 px. C'est en dessous des 20 à 24 px visés à 320 px. Les cases restent lisibles et tout tient sans défilement horizontal (vérifié en navigateur réel).
+- **Jour à venir touché** : la case reste un bouton (consigne « chaque case est un bouton »). Son détail affiche « Jour à venir » plutôt que « Pas de séance ce jour-là ».
+
+### Tests
+- `domain/activity.test.ts` (11) :
+  - 12 × 7 exactement, lundi en premier, semaine en cours à droite, 84 dates distinctes ;
+  - aujourd'hui marqué, jours à venir marqués et jamais remplis ;
+  - aucune séance ;
+  - séances abandonnées et en cours ignorées ;
+  - deux séances le même jour = une case ;
+  - 23:59 / 00:01 ;
+  - heure d'été et heure d'hiver ;
+  - séance plus ancienne que 12 semaines absente ;
+  - « aujourd'hui » injecté ;
+  - étiquettes de mois.
+- `features/home/ActivityCard.test.tsx` (8) :
+  - 84 boutons dans un groupe nommé, résumé, pas de score ni de série ;
+  - étiquettes accessibles ;
+  - toucher une case : détail sous la grille (date, nom, durée, liens vers l'historique) ;
+  - jour vide, jour à venir ;
+  - une seule sélection (et désélection) ;
+  - période sans séance ;
+  - accueil : carte absente sans séance terminée, placée après le bouton principal, apparition puis disparition automatiques.
+- **Aucun test existant modifié.**
+- **Navigateur réel** (Edge headless, tactile, production) : 12/12 à 320 × 568 et 390 × 844.
+  - Contrôles : pas de défilement horizontal ; bouton principal visible sans défiler ; 84 cases carrées sans chevauchement ; détail sous la grille ; lien vers l'historique ; aucune erreur console.
+
+### Contrôles
+- Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 714 en V1.3.3, **733** en V1.4.0.
