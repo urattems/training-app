@@ -65,6 +65,8 @@ export const strings = {
   values: {
     reps: 'répétitions (nombre entier positif ou nul)',
     weight: 'charge (nombre positif ou nul)',
+    setWeight: 'charge (au plus 2 décimales et 999,99 kg)',
+    setReps: 'répétitions (nombre entier, 999 au maximum)',
     duration: 'durée (nombre positif ou nul)',
     speed: 'vitesse (nombre positif ou nul)',
     incline: 'inclinaison (entre 0 et 100 %)',
@@ -146,6 +148,9 @@ export const strings = {
     addSet: '+ Série',
     invalidNumber: 'Valeur invalide : chiffres uniquement (ex. 47,5).',
     invalidInteger: 'Valeur invalide : nombre entier (ex. 12).',
+    weightTooPrecise: 'Au plus 2 décimales (ex. 47,55).',
+    weightTooLarge: 'Charge trop élevée : 999,99 kg au maximum.',
+    repsTooLarge: 'Trop de répétitions : 999 au maximum.',
     sensation: 'Sensation',
     comment: 'Commentaire',
     commentPlaceholder: 'Facultatif',

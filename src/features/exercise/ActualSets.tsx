@@ -4,12 +4,20 @@ import { Button } from '../../components/Button';
 import { NumberField } from '../../components/NumberField';
 import { addExtraSet, applyAsPlanned, asPlannedValues, canFillAsPlanned, isRangeTarget, setActualValues } from '../../domain/workout';
 import type { ActualSet, ProgramSet, WorkoutExercise } from '../../domain/types';
+import { setRepsError, setWeightError } from '../../domain/values';
 import type { WorkoutAutosave } from '../../hooks/useWorkoutAutosave';
 import { strings } from '../../i18n/strings';
 import { formatDecimal } from '../../utils/numbers';
 import styles from './ActualSets.module.css';
 
 const t = strings.exercise;
+
+/** Garde-fous de saisie (V1.3.2) : message précis, dans le style du poids corporel. */
+const repsCheck = (value: number): string | null => (setRepsError(value) === 'too_large' ? t.repsTooLarge : null);
+const weightCheck = (value: number): string | null => {
+  const error = setWeightError(value);
+  return error === 'too_precise' ? t.weightTooPrecise : error === 'too_large' ? t.weightTooLarge : null;
+};
 
 /** Placeholder = objectif, en gris dans le champ vide. Jamais une valeur (SPEC §6). */
 const repsPlaceholder = (target: ProgramSet | undefined): string =>
@@ -105,6 +113,7 @@ function SetRow({ exerciseId, setNumber, target, actual, autosave }: SetRowProps
           value={reps}
           placeholder={repsPlaceholder(target)}
           invalidMessage={t.invalidInteger}
+          check={repsCheck}
           onInvalidInput={() => {
             autosave.cancel(`${exerciseId}:${setNumber}:reps`);
           }}
@@ -122,6 +131,7 @@ function SetRow({ exerciseId, setNumber, target, actual, autosave }: SetRowProps
           value={weight}
           placeholder={weightPlaceholder(target)}
           invalidMessage={t.invalidNumber}
+          check={weightCheck}
           onInvalidInput={() => {
             autosave.cancel(`${exerciseId}:${setNumber}:kg`);
           }}

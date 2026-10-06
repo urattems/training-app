@@ -22,9 +22,9 @@ import {
   isValidDurationSec,
   isValidInclinePct,
   isValidLocalDate,
-  isValidReps,
   isValidSpeedKmh,
-  isValidWeightKg,
+  setRepsError,
+  setWeightError,
 } from './values';
 
 const t = strings.workout;
@@ -108,12 +108,31 @@ export interface ActualValuesPatch {
   actualWeightKg?: number | null;
 }
 
+/** Garde-fous de saisie (V1.3.2) : reps entières ≤ 999, charge ≤ 999,99 kg à 2 décimales au plus. */
 function assertActualValues(patch: ActualValuesPatch): void {
-  if (patch.actualReps !== undefined && !isValidReps(patch.actualReps)) {
-    throw new DomainError(t.invalidValue(strings.values.reps));
+  if (patch.actualReps !== undefined && setRepsError(patch.actualReps) !== null) {
+    throw new DomainError(t.invalidValue(strings.values.setReps));
   }
-  if (patch.actualWeightKg !== undefined && !isValidWeightKg(patch.actualWeightKg)) {
-    throw new DomainError(t.invalidValue(strings.values.weight));
+  if (patch.actualWeightKg !== undefined && setWeightError(patch.actualWeightKg) !== null) {
+    throw new DomainError(t.invalidValue(strings.values.setWeight));
+  }
+}
+
+/**
+ * Garde-fous côté enregistrement (V1.3.2) : toute valeur de série NOUVELLE ou MODIFIÉE par
+ * rapport à la version enregistrée doit les respecter. Une valeur ancienne inchangée (ex. restaurée
+ * d'une vieille sauvegarde, 47,555 kg) reste acceptée : on ne bloque jamais une séance existante.
+ */
+export function assertChangedSetValues(previous: WorkoutSession, next: WorkoutSession): void {
+  for (const record of next.exerciseRecords) {
+    const before = previous.exerciseRecords.find((r) => r.programExerciseId === record.programExerciseId);
+    for (const set of record.actualSets) {
+      const old = before?.actualSets.find((s) => s.setNumber === set.setNumber);
+      assertActualValues({
+        ...(set.actualReps !== old?.actualReps && { actualReps: set.actualReps }),
+        ...(set.actualWeightKg !== old?.actualWeightKg && { actualWeightKg: set.actualWeightKg }),
+      });
+    }
   }
 }
 

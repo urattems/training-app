@@ -2,7 +2,7 @@ import { db } from '../db/database';
 import { DomainError } from '../domain/errors';
 import { getNextSession } from '../domain/rotation';
 import type { ProgramSession, WorkoutSession } from '../domain/types';
-import { abandonWorkout as abandon, createWorkout, finishWorkout as finish, isWorkoutEmpty, sanitizeWorkoutTexts } from '../domain/workout';
+import { abandonWorkout as abandon, assertChangedSetValues, createWorkout, finishWorkout as finish, isWorkoutEmpty, sanitizeWorkoutTexts } from '../domain/workout';
 import { strings } from '../i18n/strings';
 import { workoutSessionSchema } from '../schemas/history.schema';
 import { createId } from '../utils/ids';
@@ -55,6 +55,8 @@ export async function updateWorkout(id: string, update: (workout: WorkoutSession
     const next = workoutSessionSchema.parse(sanitizeWorkoutTexts(update(current)));
     if (next.id !== current.id) throw new DomainError(t.notFound);
     if (next.status === 'in_progress' && current.status !== 'in_progress') throw new DomainError(t.notInProgress);
+    // Garde-fous de saisie (V1.3.2) sur les seules valeurs nouvelles ou modifiées.
+    assertChangedSetValues(current, next);
     await db.workouts.put(next);
     // Archive Drive (V1.3) : séance terminée, abandonnée avec données ou corrigée (§7) → séance +
     // sauvegarde en file, dans la même transaction (sans effet si l'envoi n'est pas activé).

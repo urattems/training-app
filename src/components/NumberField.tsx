@@ -14,6 +14,8 @@ interface NumberFieldProps {
   unit?: string;
   max?: number;
   invalidMessage: string;
+  /** Garde-fou supplémentaire : message d'erreur précis pour une valeur lisible mais refusée. */
+  check?: (value: number) => string | null;
   /** Valeur valide à persister : `immediate` au blur, sinon après le debounce. */
   onValueChange: (value: number | null, immediate: boolean) => void;
   /** La saisie est devenue invalide : l'écriture en attente d'une valeur intermédiaire doit être annulée. */
@@ -33,12 +35,13 @@ const isIncomplete = (text: string): boolean => /^\d*[.,]$/.test(text.trim());
  *   et l'écriture en attente d'une valeur intermédiaire est annulée ;
  * - champ vidé → `null` (série non faite).
  */
-export function NumberField({ ref, label, value, placeholder, mode, unit, max, invalidMessage, onValueChange, onInvalidInput }: NumberFieldProps) {
+export function NumberField({ ref, label, value, placeholder, mode, unit, max, invalidMessage, check, onValueChange, onInvalidInput }: NumberFieldProps) {
   const errorId = useId();
   const [draft, setDraft] = useState(() => toText(value));
   const [lastValue, setLastValue] = useState(value);
   const [focused, setFocused] = useState(false);
   const [invalid, setInvalid] = useState(false);
+  const [message, setMessage] = useState(invalidMessage);
 
   // Changement venu de la base (ex. « Comme prévu ») : appliqué seulement hors saisie.
   // On suit les changements de `value`, jamais l'écart avec le brouillon : après un blur,
@@ -49,9 +52,21 @@ export function NumberField({ ref, label, value, placeholder, mode, unit, max, i
     if (!focused && !invalid) setDraft(toText(value));
   }
 
+  /** Message d'erreur de la saisie, `null` si elle est valide (vide compris). */
+  const errorOf = (parsed: ParsedNumber): string | null => {
+    if (!parsed.ok) return invalidMessage;
+    if (parsed.value === null) return null;
+    if (max !== undefined && parsed.value > max) return invalidMessage;
+    return check?.(parsed.value) ?? null;
+  };
+
   const parse = (text: string): ParsedNumber => {
     const parsed = mode === 'integer' ? parseIntegerInput(text) : parseDecimalInput(text);
-    if (parsed.ok && parsed.value !== null && max !== undefined && parsed.value > max) return { ok: false };
+    const error = errorOf(parsed);
+    if (error !== null) {
+      setMessage(error);
+      return { ok: false };
+    }
     return parsed;
   };
 
@@ -119,7 +134,7 @@ export function NumberField({ ref, label, value, placeholder, mode, unit, max, i
       </div>
       {invalid && (
         <p id={errorId} className={styles.error} role="alert">
-          {invalidMessage}
+          {message}
         </p>
       )}
     </div>

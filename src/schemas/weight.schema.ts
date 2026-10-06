@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { isValidLocalDate } from '../domain/values';
+import { hasAtMostTwoDecimals, isValidLocalDate } from '../domain/values';
 import { dateTimeSchema } from './common';
 
-/** Au plus 2 décimales (tolérance de représentation binaire, jamais d'arrondi silencieux). */
-export const hasAtMostTwoDecimals = (value: number): boolean => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+// Déplacé dans `domain/values` (V1.3.2, partagé avec les garde-fous de saisie des séries).
+export { hasAtMostTwoDecimals };
 
 /** Poids corporel en kg : nombre fini, strictement positif, au plus 2 décimales. */
 export const bodyWeightKgSchema = z
