@@ -140,6 +140,33 @@ export function measurementStats(entries: readonly MeasurementEntry[], key: Meas
   return { min, max, count: points.length };
 }
 
+// --- Avertissement doux (« C'est bien ça ? ») -------------------------------------------
+
+/** Écart (cm) au-delà duquel une valeur saisie déclenche « C'est bien ça ? » (jamais bloquant). */
+export const MEASUREMENT_SANITY_CM = 10;
+
+/** Valeur d'une zone la plus proche DANS LE PASSÉ (par date, strictement avant `date`), sinon `null`. */
+export function previousZoneValue(entries: readonly MeasurementEntry[], zone: MeasurementZoneKey, date: string): MeasurementPoint | null {
+  return measurementPoints(entries, zone).filter((p) => p.date < date).at(-1) ?? null;
+}
+
+export interface MeasurementWarning {
+  zone: MeasurementZoneKey;
+  value: number;
+  previous: MeasurementPoint;
+}
+
+/** Zones saisies qui diffèrent de plus de 10 cm de leur valeur la plus proche dans le passé. */
+export function measurementWarnings(entries: readonly MeasurementEntry[], date: string, values: MeasurementValues): MeasurementWarning[] {
+  const warnings: MeasurementWarning[] = [];
+  for (const zone of MEASUREMENT_ZONE_KEYS) {
+    const value = values[zone];
+    const previous = value === null ? null : previousZoneValue(entries, zone, date);
+    if (value !== null && previous && Math.abs(value - previous.value) > MEASUREMENT_SANITY_CM) warnings.push({ zone, value, previous });
+  }
+  return warnings;
+}
+
 // --- Sauvegarde ---------------------------------------------------------------------
 
 /** Une restauration sans mensurations remplacerait celles de l'app : nombre perdu, sinon `null`. */

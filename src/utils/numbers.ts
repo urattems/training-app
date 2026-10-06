@@ -34,3 +34,14 @@ export function formatDecimal(value: number): string {
 export function formatKg(value: number): string {
   return `${formatDecimal(value)} kg`;
 }
+
+/** Affichage d'une mensuration (`98,5 cm`). */
+export function formatCm(value: number): string {
+  return `${formatDecimal(value)} cm`;
+}
+
+/** Écart signé en cm, vrai signe moins : « +1,5 cm », « −27 cm », « 0 cm ». */
+export function formatSignedCm(delta: number): string {
+  const sign = delta > 0 ? '+' : delta < 0 ? '−' : '';
+  return `${sign}${formatDecimal(Math.abs(delta))} cm`;
+}

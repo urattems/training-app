@@ -21,6 +21,7 @@ import { Shell } from './Shell';
 // Progression et Poids (et Recharts, partagé) chargés à la demande : hors du bundle initial.
 const ProgressPage = lazy(() => import('../features/progress/ProgressPage'));
 const WeightPage = lazy(() => import('../features/weight/WeightPage'));
+const MeasurementsPage = lazy(() => import('../features/weight/MeasurementsPage'));
 
 const progress = (
   <Suspense fallback={<LoadingState />}>
@@ -31,6 +32,11 @@ const progress = (
 const weight = (
   <Suspense fallback={<LoadingState />}>
     <WeightPage />
+  </Suspense>
+);
+const measurements = (
+  <Suspense fallback={<LoadingState />}>
+    <MeasurementsPage />
   </Suspense>
 );
 
@@ -48,6 +54,7 @@ export function AppRoutes() {
           <Route path="progress" element={progress} />
           <Route path="progress/:exerciseId" element={progress} />
           <Route path="weight" element={weight} />
+          <Route path="weight/mensurations" element={measurements} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="history/:workoutId" element={<HistoryDetailPage />} />
           <Route path="settings" element={<SettingsPage />} />

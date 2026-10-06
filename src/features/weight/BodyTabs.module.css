@@ -1,0 +1,29 @@
+/* Sous-onglets segmentés, style iOS : fond crème, onglet actif sur carte blanche. */
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-pressed);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+
+/* Vue active : carte blanche + texte en gras (pas seulement une couleur). */
+.active {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}

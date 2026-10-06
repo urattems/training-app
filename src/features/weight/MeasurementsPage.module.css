@@ -1,0 +1,113 @@
+/* Page Mensurations (V1.6.0) : mêmes cartes et listes que l'écran Poids, aucune couleur de jugement. */
+
+.existing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-strong);
+}
+
+/* « Comment mesurer ? » : replié par défaut, une ligne quand il est fermé. */
+.howTo {
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  padding: 0 var(--space-3);
+}
+
+.howTo summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  color: var(--color-accent-strong);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.howTo dl {
+  margin: 0 0 var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.howTo dt {
+  font-weight: var(--font-weight-semibold);
+}
+
+.howTo dd {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Historique : 6 valeurs sur 3 colonnes (tient à 320 px). */
+.historyRow {
+  align-items: start;
+  padding-block: var(--space-3);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+}
+
+.values dt {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+}
+
+.values dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowTotal {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Dernière mensuration : une ligne par zone, puis le Total (secondaire). */
+.latestList {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.latestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  border-top: 1px solid var(--color-border);
+}
+
+.latestRow:first-child {
+  border-top: 0;
+}
+
+.latestValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+.totalRow {
+  color: var(--color-text-secondary);
+}
+
+.totalNote {
+  margin-top: var(--space-1);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+}

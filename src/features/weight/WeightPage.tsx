@@ -33,6 +33,8 @@ import { formatDayLong, formatDayShort } from '../../utils/format';
 import { formatDecimal, formatKg } from '../../utils/numbers';
 import { ProgressChart } from '../progress/ProgressChart';
 import progressStyles from '../progress/ProgressPage.module.css';
+import { BodyTabs } from './BodyTabs';
+import { DecimalInput } from './DecimalInput';
 import styles from './WeightPage.module.css';
 
 const t = strings.weight;
@@ -184,6 +186,7 @@ export default function WeightPage() {
         </IconButton>
       }
     >
+      <BodyTabs />
       {entries === undefined ? (
         <LoadingState />
       ) : (
@@ -426,41 +429,6 @@ function WeightContent({ entries, notice, onNotice, onEdit, adding, onCloseAdd, 
   );
 }
 
-/** Champ décimal du poids (17 px, clavier décimal, unité « kg »). */
-function WeightInput({ id, label, value, placeholder, invalid, describedBy, onChange }: {
-  id: string;
-  label: string;
-  value: string;
-  placeholder?: string;
-  invalid: boolean;
-  describedBy?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <span className={fieldStyles.control}>
-      <input
-        id={id}
-        className={`${fieldStyles.input ?? ''} ${styles.weightInput ?? ''}`}
-        type="text"
-        inputMode="decimal"
-        enterKeyHint="done"
-        autoComplete="off"
-        aria-label={label}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-      <span className={fieldStyles.unit} aria-hidden>
-        {t.unit}
-      </span>
-    </span>
-  );
-}
-
 /** Carte « Nouvelle pesée » : le dernier poids est un PLACEHOLDER gris, jamais une valeur préremplie. */
 function TodayCard({ today, placeholder, busy, onSubmit }: { today: string; placeholder: string; busy: boolean; onSubmit: (weightKg: number, reset: () => void) => void }) {
   const [text, setText] = useState('');
@@ -486,7 +454,9 @@ function TodayCard({ today, placeholder, busy, onSubmit }: { today: string; plac
       <form className={styles.form} onSubmit={submit} noValidate>
         <Eyebrow id="new-weight-title">{t.newEntry}</Eyebrow>
         <div className={styles.inline}>
-          <WeightInput
+          <DecimalInput
+            unit={t.unit}
+            className={styles.weightInput}
             id={inputId}
             label={t.todayLabel}
             value={text}
@@ -588,7 +558,9 @@ function WeightFormSheet({ mode, today, entry, busy, onClose, onSubmit }: {
           <label className={styles.fieldLabel} htmlFor={weightId}>
             {t.weightLabel}
           </label>
-          <WeightInput
+          <DecimalInput
+            unit={t.unit}
+            className={styles.weightInput}
             id={weightId}
             label={t.weightLabel}
             value={text}

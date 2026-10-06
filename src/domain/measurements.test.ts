@@ -14,10 +14,13 @@ import {
   measurementStats,
   measurementTotal,
   measurementValueError,
+  measurementWarnings,
+  previousZoneValue,
   variation,
   type MeasurementValues,
 } from './measurements';
 import type { MeasurementEntry } from './types';
+import { formatCm, formatSignedCm } from '../utils/numbers';
 
 const NONE: MeasurementValues = { chestCm: null, bellyCm: null, waistCm: null, bicepsCm: null, thighCm: null, calfCm: null };
 const FULL: MeasurementValues = { chestCm: 104.5, bellyCm: 92, waistCm: 88.3, bicepsCm: 36.1, thighCm: 58.2, calfCm: 38.4 };
@@ -143,5 +146,40 @@ describe('Sauvegarde : restauration et rappel d’export', () => {
     const entries = [entry('2026-09-01', FULL, '2026-09-01T08:00:00+02:00'), entry('2026-10-01', FULL, '2026-10-01T08:00:00+02:00')];
     expect(measurementsRecordedSince(entries, null)).toBe(2);
     expect(measurementsRecordedSince(entries, '2026-09-15T10:00:00+02:00')).toBe(1);
+  });
+});
+
+describe('Avertissement doux des 10 cm (valeur la plus proche DANS LE PASSÉ, par date)', () => {
+  const entries = [
+    entry('2026-08-01', { bellyCm: 95 }),
+    entry('2026-09-01', { bellyCm: 92, chestCm: 104 }),
+    entry('2026-10-10', { bellyCm: 80 }), // postérieure : jamais comparée pour une prise du 2 octobre
+  ];
+
+  it('valeur passée la plus proche par date, jamais une valeur postérieure ni du même jour', () => {
+    expect(previousZoneValue(entries, 'bellyCm', '2026-10-02')).toEqual({ date: '2026-09-01', value: 92 });
+    expect(previousZoneValue(entries, 'bellyCm', '2026-09-01')).toEqual({ date: '2026-08-01', value: 95 });
+    expect(previousZoneValue(entries, 'calfCm', '2026-10-02')).toBeNull();
+  });
+
+  it('écart > 10 cm signalé (avec les deux valeurs) ; 10 cm pile ou zone sans passé : rien', () => {
+    // Ventre : 102,1 − 92 = 10,1 → signalé ; Poitrine : 114 − 104 = 10 pile → rien ; Mollet : aucun passé → rien.
+    expect(measurementWarnings(entries, '2026-10-02', { ...NONE, bellyCm: 102.1, chestCm: 114, calfCm: 50 })).toEqual([
+      { zone: 'bellyCm', value: 102.1, previous: { date: '2026-09-01', value: 92 } },
+    ]);
+    expect(measurementWarnings(entries, '2026-10-02', { ...NONE, bellyCm: 82 })).toEqual([]);
+    expect(measurementWarnings(entries, '2026-10-02', { ...NONE, chestCm: 93.9 })).toEqual([
+      { zone: 'chestCm', value: 93.9, previous: { date: '2026-09-01', value: 104 } },
+    ]);
+  });
+});
+
+describe('Formatage en cm (couleur neutre ailleurs, ici le texte seul)', () => {
+  it('valeur et écart signé avec le vrai signe moins', () => {
+    expect(formatCm(98.5)).toBe('98,5 cm');
+    expect(formatSignedCm(30)).toBe('+30 cm');
+    expect(formatSignedCm(-27)).toBe('−27 cm');
+    expect(formatSignedCm(-1.5)).toBe('−1,5 cm');
+    expect(formatSignedCm(0)).toBe('0 cm');
   });
 });
