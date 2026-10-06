@@ -220,6 +220,16 @@ export const strings = {
     deleteText: (name: string, date: string) =>
       `« ${name} » du ${date} sera définitivement supprimée, avec toutes ses séries. Les statistiques seront recalculées.`,
     deleteConfirm: 'Supprimer définitivement',
+    // V1.3.3 : suppression d'une séance ABANDONNÉE (balayage dans la liste, ou bouton du détail).
+    deleteAbandoned: 'Supprimer cette séance',
+    deleteAbandonedTitle: 'Supprimer cette séance abandonnée ?',
+    deleteAbandonedSummary: (name: string, date: string, sets: number) =>
+      `« ${name} » du ${date} : ${sets === 0 ? 'aucune série saisie' : `${sets} série${sets > 1 ? 's' : ''} saisie${sets > 1 ? 's' : ''}`}.`,
+    deleteAbandonedText: 'La suppression est définitive : la séance et ses saisies disparaissent de l’historique, des statistiques et des prochains exports.',
+    deleteAbandonedConfirm: 'Supprimer',
+    notAbandoned: 'Seule une séance abandonnée peut être supprimée ainsi. Elle est conservée.',
+    swipeAction: 'Supprimer',
+    swipeActionLabel: (name: string, date: string) => `Supprimer la séance abandonnée « ${name} » du ${date}`,
     resume: 'Reprendre la séance',
     actualSet: (n: number) => `Série ${n}`,
     extra: 'en plus',

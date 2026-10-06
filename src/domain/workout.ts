@@ -267,6 +267,10 @@ export function findIncompleteSets(record: WorkoutExercise): IncompleteSets {
   return result;
 }
 
+/** Séries saisies (au moins une valeur réelle : répétitions ou charge), séries en plus comprises. */
+export const countEnteredSets = (workout: WorkoutSession): number =>
+  workout.exerciseRecords.reduce((n, r) => n + r.actualSets.filter((s) => s.actualReps !== null || s.actualWeightKg !== null).length, 0);
+
 /**
  * Séance vide : rien n'a été saisi (aucune valeur de série, aucun cardio, ni sensation,
  * ni commentaire, ni note). Seule une séance vide peut être supprimée à l'abandon.

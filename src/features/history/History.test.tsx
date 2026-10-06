@@ -211,18 +211,20 @@ describe('Historique — détail', () => {
     });
   });
 
+  // V1.3.3 (adaptation signalée) : w-0003 est ABANDONNÉE, elle a désormais le bouton et la confirmation
+  // des séances abandonnées ; mêmes vérifications qu'avant.
   it('suppression : confirmation explicite, puis stats recalculées', async () => {
     const user = renderAt('#/history/w-0003');
     await screen.findByRole('heading', { name: 'Séance A', level: 1 });
 
-    await user.click(screen.getByRole('button', { name: 'Supprimer la séance' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Supprimer cette séance ?' });
-    expect(dialog).toHaveTextContent('sera définitivement supprimée');
+    await user.click(screen.getByRole('button', { name: 'Supprimer cette séance' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Supprimer cette séance abandonnée ?' });
+    expect(dialog).toHaveTextContent('La suppression est définitive');
     await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
     expect(await getWorkout('w-0003')).not.toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'Supprimer la séance' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Supprimer définitivement' }));
+    await user.click(screen.getByRole('button', { name: 'Supprimer cette séance' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Supprimer' }));
     await waitFor(() => {
       expect(window.location.hash).toBe('#/history');
     });

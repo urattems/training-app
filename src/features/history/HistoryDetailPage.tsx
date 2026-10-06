@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router';
 import { Badge } from '../../components/Badge';
 import { Button, ButtonLink } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
-import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorDetails } from '../../components/ErrorDetails';
 import { LoadingState } from '../../components/LoadingState';
@@ -18,7 +17,6 @@ import { setComment, setSensation, setWorkoutDate } from '../../domain/workout';
 import { useProgram, useWorkout } from '../../hooks/useData';
 import { useWorkoutAutosave, type WorkoutAutosave } from '../../hooks/useWorkoutAutosave';
 import { strings } from '../../i18n/strings';
-import { deleteWorkout } from '../../services/historyService';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { formatDecimal } from '../../utils/numbers';
 import { ActualSets } from '../exercise/ActualSets';
@@ -27,6 +25,7 @@ import { SensationPicker } from '../exercise/SensationPicker';
 import { TargetSets } from '../workout/TargetSets';
 import { ErrorSheet, toError, workoutPath } from '../workout/WorkoutActions';
 import type { DisplayError } from '../../utils/errors';
+import { DeleteWorkoutSheet, removeWorkout } from './DeleteWorkoutSheet';
 import { STATUS_TONES } from './HistoryPage';
 import fieldStyles from '../../components/Field.module.css';
 import styles from './HistoryDetailPage.module.css';
@@ -72,7 +71,7 @@ function WorkoutDetail({ workout }: { workout: WorkoutSession }) {
     setDeleting(true);
     try {
       await autosave.flush();
-      await deleteWorkout(workout.id);
+      await removeWorkout(workout);
       void navigate('/history', { replace: true });
     } catch (e) {
       setConfirmDelete(false);
@@ -207,22 +206,18 @@ function WorkoutDetail({ workout }: { workout: WorkoutSession }) {
           setConfirmDelete(true);
         }}
       >
-        {t.delete}
+        {workout.status === 'abandoned' ? t.deleteAbandoned : t.delete}
       </Button>
 
       {confirmDelete && (
-        <ConfirmSheet
-          title={t.deleteTitle}
-          confirmLabel={t.deleteConfirm}
-          confirmVariant="danger"
+        <DeleteWorkoutSheet
+          workout={workout}
           busy={deleting}
           onConfirm={() => void remove()}
           onCancel={() => {
             setConfirmDelete(false);
           }}
-        >
-          <p>{t.deleteText(workout.sessionName, formatDayLong(workout.date))}</p>
-        </ConfirmSheet>
+        />
       )}
       {error !== null && (
         <ErrorSheet
