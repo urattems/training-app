@@ -1554,6 +1554,7 @@ Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient i
   - **Saisie invalide ou hors bornes** (« 4,7,5 », « 47,555 », « 4747 ») : la valeur invalide n'est jamais écrite. Les préfixes valides (« 4,7 », « 474 ») sont désormais déjà en base au moment où la saisie devient invalide. Le champ est alors **rétabli tel qu'il était en base juste avant la saisie** : la série est remise à l'identique (`restoreActualSet`), ou **retirée** si elle n'existait pas.
   - Une « saisie » va de la première modification au blur valide. Une valeur venue d'ailleurs (« Comme prévu ») ouvre une nouvelle saisie. Sans ce rétablissement, « 4747 » laisserait 474 en base, une valeur plausible mais fausse.
   - Le test existant « 47, abandonné au blur… jamais écrite » l'exige (série 2 absente) et passe **sans modification**.
+  - Le rétablissement est complet : si l'exercice n'avait pas été commencé avant la saisie, il est aussi retiré de `executionOrder` (la valeur intermédiaire l'y avait inscrit). Une saisie abandonnée ne laisse donc aucune trace.
 - **Archive Drive** : vérifiée, aucun envoi en plus.
   - Pendant une séance en cours, aucune intention n'est écrite (`isCoachExportable` exige une séance terminée ou abandonnée).
   - Lors d'une correction depuis l'historique, chaque écriture met à jour, dans la même transaction, LA tâche `session:<id>`, dédupliquée par (type, clé) : la révision augmente, et `nextAttemptAt` est repoussé à 2 s après la DERNIÈRE écriture. Le planificateur reste temporisé, et l'envoi part 2 s après la dernière frappe.

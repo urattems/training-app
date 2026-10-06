@@ -189,8 +189,10 @@ describe('Garde-fous inchangés', () => {
     type(kg(2), '4,7');
     await until((w) => set(w, 2)?.actualWeightKg === 4.7, workout.id);
     type(kg(2), '4,7,5');
-    await until((w) => set(w, 2) === undefined, workout.id);
+    const restored = await until((w) => set(w, 2) === undefined, workout.id);
     expect(kg(2)).toHaveValue('4,7,5');
+    // L'exercice n'avait pas été commencé : il ne reste pas inscrit dans l'ordre d'exécution.
+    expect(restored.executionOrder).toEqual([]);
   });
 
   it('valide (validée au blur) puis invalide : la valeur validée reste, l’invalide n’est jamais écrite', async () => {
@@ -213,7 +215,9 @@ describe('Garde-fous inchangés', () => {
     render(<Harness workout={workout} />);
     for (const text of ['4', '47', '474', '4747']) type(reps(1), text);
     await idle();
-    expect(set((await getWorkout(workout.id)) ?? workout, 1)).toBeUndefined();
+    const saved = (await getWorkout(workout.id)) ?? workout;
+    expect(set(saved, 1)).toBeUndefined();
+    expect(saved.executionOrder).toEqual([]);
   });
 
   it('un simple passage dans un champ vide n’écrit rien (pas de série vide)', async () => {

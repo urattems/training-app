@@ -165,11 +165,17 @@ export function setActualValues(
  * valeurs, ou ABSENTE si elle n'existait pas (jamais de série vide créée par une saisie abandonnée).
  */
 export function restoreActualSet(workout: WorkoutSession, before: WorkoutSession, programExerciseId: string, setNumber: number): WorkoutSession {
-  const original = before.exerciseRecords.find((r) => r.programExerciseId === programExerciseId)?.actualSets.find((s) => s.setNumber === setNumber);
-  return updateRecord(workout, programExerciseId, (record) => {
+  const beforeRecord = before.exerciseRecords.find((r) => r.programExerciseId === programExerciseId);
+  const original = beforeRecord?.actualSets.find((s) => s.setNumber === setNumber);
+  const restored = updateRecord(workout, programExerciseId, (record) => {
     const others = record.actualSets.filter((s) => s.setNumber !== setNumber);
     return { ...record, actualSets: sortBySetNumber(original ? [...others, original] : others) };
   });
+  // L'exercice redevient exactement ce qu'il était et n'avait pas été commencé : il sort aussi de
+  // l'ordre d'exécution (la valeur intermédiaire l'y avait inscrit).
+  const record = findRecord(restored, programExerciseId);
+  const untouched = !before.executionOrder.includes(programExerciseId) && JSON.stringify(record) === JSON.stringify(beforeRecord);
+  return untouched ? { ...restored, executionOrder: restored.executionOrder.filter((id) => id !== programExerciseId) } : restored;
 }
 
 /**
