@@ -35,6 +35,33 @@ describe('Dossier de semaine', () => {
     expect(cleanFolderName('   ')).toBe('Sans semaine');
   });
 
+  it('V1.3.2 : coupe par points de code — un emoji pile à la limite n’est jamais coupé en deux', () => {
+    const emoji = String.fromCodePoint(0x1f4aa); // 2 unités UTF-16, 1 point de code
+    // Une moitié de paire isolée fait échouer encodeURIComponent (URIError).
+    const wellFormed = (text: string) => {
+      expect(() => encodeURIComponent(text)).not.toThrow();
+    };
+    // 119 caractères + emoji = 120 points de code (121 unités UTF-16) : gardé entier.
+    const atLimit = `${'x'.repeat(119)}${emoji}`;
+    expect(cleanFolderName(atLimit)).toBe(atLimit);
+    // Un caractère de plus : l'emoji (121e point de code) est retiré EN ENTIER.
+    expect(cleanFolderName(`${'x'.repeat(120)}${emoji}`)).toBe('x'.repeat(120));
+    // Emoji à cheval sur la limite en UTF-16 : l'ancienne coupe laissait une moitié de paire.
+    const straddle = cleanFolderName(`${'x'.repeat(119)}${emoji}yy`);
+    expect(straddle).toBe(atLimit);
+    wellFormed(straddle);
+    expect(Array.from(cleanFolderName(emoji.repeat(200)))).toHaveLength(120);
+    // Le suffixe de doublon compte aussi en points de code : total de 120 points de code.
+    const programs = [
+      program('prog-old', emoji.repeat(130), '2026-09-01T08:00:00+02:00'),
+      program('prog-new', emoji.repeat(130), '2026-10-01T08:00:00+02:00'),
+    ];
+    const name = weekFolderName(programs, 'prog-new');
+    expect(name.endsWith(' (prog-new)')).toBe(true);
+    expect(Array.from(name)).toHaveLength(120);
+    wellFormed(name);
+  });
+
   it('libellés en double : tous sauf le plus ancien (createdAt puis programId) reçoivent « (programId complet) »', () => {
     const programs = [
       program('prog-b7c2-w40', 'Semaine 40', '2026-10-01T08:00:00+02:00'),

@@ -15,9 +15,16 @@ const FALLBACK_SESSION = 'Seance';
 /** Nettoyage du script : interdits et caractères de contrôle → `-`, espaces réduits. */
 const cleanText = (text: string): string => text.replace(FORBIDDEN, '-').replace(/\s+/g, ' ').trim();
 
-/** Libellé nettoyé pour un nom de dossier : interdits → `-`, espaces réduits, 120 caractères max. */
+/** Longueur en points de code (un emoji = 1, jamais coupé en deux moitiés de paire UTF-16). */
+const codePointLength = (text: string): number => Array.from(text).length;
+
+/**
+ * Libellé nettoyé pour un nom de dossier : interdits → `-`, espaces réduits, 120 caractères max.
+ * V1.3.2 : la coupe se fait par points de code, pas par unités UTF-16 (un emoji à la limite
+ * n'est plus coupé en une moitié de paire, invalide).
+ */
 export function cleanFolderName(label: string, maxLength: number = MAX_FOLDER_LENGTH): string {
-  const cleaned = cleanText(label).slice(0, Math.max(0, maxLength)).trim();
+  const cleaned = Array.from(cleanText(label)).slice(0, Math.max(0, maxLength)).join('').trim();
   return cleaned === '' ? FALLBACK_FOLDER : cleaned;
 }
 
@@ -48,7 +55,7 @@ export function weekFolderName(programs: readonly ProgramLike[], programId: stri
   const oldest = programs.filter((p) => labelKey(p.week.label) === labelKey(program.week.label)).sort(byAge)[0];
   if (oldest === undefined || oldest.programId === program.programId) return cleanFolderName(program.week.label);
   const suffix = ` (${cleanText(program.programId)})`;
-  return `${cleanFolderName(program.week.label, MAX_FOLDER_LENGTH - suffix.length)}${suffix}`;
+  return `${cleanFolderName(program.week.label, MAX_FOLDER_LENGTH - codePointLength(suffix))}${suffix}`;
 }
 
 /** Programmes existants qui partagent le libellé de semaine d'un programme (alerte d'import). */
