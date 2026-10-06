@@ -444,6 +444,30 @@ export const strings = {
       too_precise: 'Au plus 2 décimales (ex. 78,45).',
     },
   },
+  measurements: {
+    // V1.5.0 : les 6 zones, dans l'ordre (libellé + consigne de mesure).
+    zones: {
+      chest: { label: 'Poitrine', instruction: 'Au niveau des tétons.' },
+      belly: { label: 'Ventre', instruction: 'Au niveau du nombril.' },
+      waist: { label: 'Taille', instruction: 'Au niveau de la ceinture.' },
+      biceps: { label: 'Biceps', instruction: 'Milieu du biceps, bras plié si besoin pour placer le mètre mais sans contracter, même côté à chaque mesure.' },
+      thigh: { label: 'Cuisse', instruction: 'Milieu de la cuisse, un seul côté, idéalement toujours le même.' },
+      calf: { label: 'Mollet', instruction: 'Milieu du mollet, un seul côté, idéalement toujours le même.' },
+    },
+    help: 'Mensurations prises relâchées, idéalement dans les mêmes conditions à chaque mesure.',
+    total: 'Total des mensurations',
+    invalidDate: 'Date invalide.',
+    futureDate: 'La date ne peut pas être dans le futur.',
+    exists: (date: string) => `Une prise de mensurations existe déjà le ${date} : modifie-la plutôt.`,
+    notFound: 'Cette prise de mensurations n’existe plus.',
+    empty: 'Indique au moins une mesure.',
+    valueErrors: {
+      invalid: (zone: string) => `${zone} : valeur invalide (ex. 98,5).`,
+      not_positive: (zone: string) => `${zone} : la mesure doit être supérieure à 0.`,
+      too_precise: (zone: string) => `${zone} : au plus 1 décimale (ex. 98,5).`,
+      too_large: (zone: string) => `${zone} : 300 cm au maximum.`,
+    },
+  },
   drive: {
     title: 'Archive Drive',
     entry: 'Archive Drive',

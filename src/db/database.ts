@@ -2,15 +2,16 @@ import { Dexie, type EntityTable, type Table } from 'dexie';
 import { DB_NAME } from '../config';
 import { watchConnection } from './connectionStatus';
 import type { DriveNames, DriveOutboxState } from '../domain/driveOutbox';
-import type { HistoryExport, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
+import type { HistoryExport, MeasurementEntry, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
 
 /**
  * Version du schéma IndexedDB. Chaque évolution ajoute un `this.version(n)` ; les versions
  * précédentes restent déclarées pour que Dexie sache mettre à jour une base ancienne.
  * - 1 (V1) : programmes, séances, réglages, métadonnées ;
  * - 2 (V1.2) : + `weights` (pesées). Aucun store existant n'est modifié, aucune donnée réécrite.
+ * - 3 (V1.5.0) : + `measurements` (mensurations). Même principe : création d'un store vide.
  */
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 /** Stores de la version 1 : figés, ne jamais les modifier (base des mises à jour). */
 export const STORES_V1 = {
@@ -24,6 +25,11 @@ export const STORES_V1 = {
 /** Version 2 : ajoute SEULEMENT les pesées, clé primaire = date locale (une pesée par jour). */
 export const STORES_V2_ADDED = {
   weights: '&date',
+} as const;
+
+/** Version 3 : ajoute SEULEMENT les mensurations, clé primaire = date locale (une prise par jour). */
+export const STORES_V3_ADDED = {
+  measurements: '&date',
 } as const;
 
 /** Réglages persistés. Le programme actif n'est défini qu'ici (DECISIONS.md). */
@@ -88,12 +94,15 @@ export class TrainingDatabase extends Dexie {
   settings!: Table<SettingRecord, SettingKey>;
   metadata!: Table<MetadataRecord, MetadataRecord['key']>;
   weights!: EntityTable<WeightEntry, 'date'>;
+  measurements!: EntityTable<MeasurementEntry, 'date'>;
 
   constructor(name: string = DB_NAME) {
     super(name);
     this.version(1).stores(STORES_V1);
     // Mise à jour 1 → 2 : création du store `weights` (vide), sans `upgrade()` : rien à réécrire.
-    this.version(DB_VERSION).stores(STORES_V2_ADDED);
+    this.version(2).stores(STORES_V2_ADDED);
+    // Mise à jour 2 → 3 : création du store `measurements` (vide), sans `upgrade()`.
+    this.version(DB_VERSION).stores(STORES_V3_ADDED);
     // Autre onglet sur une autre version : message clair au lieu d'une attente ou d'une erreur obscure.
     watchConnection(this);
   }

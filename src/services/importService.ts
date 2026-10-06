@@ -5,7 +5,7 @@ import { importFailure, type DocumentKind, type ImportFailure } from '../schemas
 import { parseHistoryJson, sourceSchemaVersion } from '../schemas/parse';
 import { toLocalIsoString } from '../utils/dates';
 import { err, ok, type Result } from '../utils/result';
-import { readStoredData, toHistoryExport } from './exportService';
+import { readStoredData, storedDataTables, toHistoryExport } from './exportService';
 import { DEVICE_SETTING_KEYS } from '../db/database';
 
 /** Lecture d'un fichier choisi par l'utilisateur. */
@@ -54,7 +54,8 @@ export const countWeights = (): Promise<number> => db.weights.count();
  */
 export async function restoreBackup(data: HistoryExport, now: Date = new Date()): Promise<void> {
   const stamp = toLocalIsoString(now);
-  await db.transaction('rw', [db.programs, db.workouts, db.settings, db.metadata, db.weights], async () => {
+  // Lecture de l'existant (`readStoredData`) et écriture dans la même transaction : liste unique + metadata.
+  await db.transaction('rw', [...storedDataTables(), db.metadata], async () => {
     const current = toHistoryExport(await readStoredData(), stamp);
     // Réglages de l'appareil (dates d'export, archive Drive : URL, secret, file, noms gelés) :
     // relus avant le vidage puis réécrits tels quels. Ils ne viennent jamais du fichier.

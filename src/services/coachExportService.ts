@@ -5,7 +5,7 @@ import { COACH_EXPORT_TYPE, type CoachExport, type CoachSelectionMode, type Weig
 import { parseCoachExportJson } from '../schemas/parse';
 import { canonicalJson } from '../utils/canonicalJson';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
-import { browserDownload, deliverFile, ExportIntegrityError, readStoredData, type DeliveryEnv, type DeliveryOutcome, type StoredData } from './exportService';
+import { browserDownload, deliverFile, ExportIntegrityError, readStoredData, storedDataTables, type DeliveryEnv, type DeliveryOutcome, type StoredData } from './exportService';
 import { toTrainingProgram } from './programService';
 import { setLastCoachExportAt } from './settingsService';
 
@@ -96,7 +96,7 @@ export interface PreparedCoachExport {
  * des deux textes, `File`) : au toucher, `share` ou `writeText` part sans attente.
  */
 export async function prepareCoachExport(request: CoachSelectionRequest, now: Date = new Date()): Promise<PreparedCoachExport> {
-  const stored = await db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
+  const stored = await db.transaction('r', storedDataTables(), readStoredData);
   const data = toCoachExport(stored, request, toLocalIsoString(now));
   const json = serializeCoachExport(data);
   const compactJson = compactCoachExport(data);

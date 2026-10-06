@@ -8,7 +8,7 @@ import { getActiveProgramId } from '../../services/settingsService';
 import { dumpDatabase, fixtureObject, readFixture, resetDatabase } from '../../test/fixtures';
 
 const program = readFixture('program-example.json');
-const EMPTY_DB = { programs: [], workouts: [], settings: [], metadata: [] };
+const EMPTY_DB = { programs: [], workouts: [], settings: [], metadata: [], weights: [], measurements: [] };
 
 function renderAt(hash: string) {
   window.location.hash = hash;

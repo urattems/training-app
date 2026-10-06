@@ -102,7 +102,7 @@ describe('Import d\'un programme valide', () => {
     const preview = await screen.findByRole('dialog', { name: 'Importer ce programme ?' });
     await user.click(within(preview).getByRole('button', { name: 'Annuler' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [] });
+    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [], weights: [], measurements: [] });
   });
 
   it('depuis les Paramètres, un second programme annonce l\'archivage de l\'actuel', async () => {
@@ -137,7 +137,7 @@ describe('Import invalide refusé proprement', () => {
     expect(within(dialog).getByRole('list')).toHaveTextContent('sessions.0.exercises.1.id');
 
     await user.click(within(dialog).getByRole('button', { name: 'Fermer' }));
-    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [] });
+    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [], weights: [], measurements: [] });
     expect(screen.getByRole('heading', { name: 'Bienvenue' })).toBeInTheDocument();
   });
 
@@ -156,7 +156,7 @@ describe('Import invalide refusé proprement', () => {
     await uploadProgram(user, readFixture('history-example.json'));
     const dialog = await screen.findByRole('dialog', { name: 'Fichier refusé' });
     expect(within(dialog).getByRole('alert')).toHaveTextContent("ce fichier n'est pas un programme");
-    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [] });
+    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [], weights: [], measurements: [] });
   });
 });
 

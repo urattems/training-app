@@ -1,5 +1,5 @@
 import { db } from '../db/database';
-import type { HistoryExport, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
+import type { HistoryExport, MeasurementEntry, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
 import { sortWeights } from '../domain/weight';
 import { HISTORY_SCHEMA_VERSION } from '../schemas/common';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
@@ -15,18 +15,28 @@ export interface StoredData {
   activeProgramId: string | null;
   preferences: UserPreferences;
   weights: WeightEntry[];
+  /** V1.5.0 : toujours fourni par `readStoredData` (facultatif pour les données construites à la main). */
+  measurements?: MeasurementEntry[];
 }
 
-/** Lit toutes les données (à appeler dans une transaction pour un instantané cohérent). */
+/**
+ * Tables lues par `readStoredData` : LISTE UNIQUE pour toutes les transactions qui l'appellent
+ * (export, sauvegarde Drive, export coach, restauration). Une table oubliée dans une portée de
+ * transaction ferait échouer la lecture (« table non incluse dans la transaction »).
+ */
+export const storedDataTables = () => [db.programs, db.workouts, db.settings, db.weights, db.measurements];
+
+/** Lit toutes les données (à appeler dans une transaction `storedDataTables()` pour un instantané cohérent). */
 export async function readStoredData(): Promise<StoredData> {
-  const [programs, workouts, activeProgramId, preferences, weights] = await Promise.all([
+  const [programs, workouts, activeProgramId, preferences, weights, measurements] = await Promise.all([
     db.programs.toArray(),
     db.workouts.toArray(),
     getActiveProgramId(),
     getPreferences(),
     db.weights.toArray(),
+    db.measurements.toArray(),
   ]);
-  return { programs, workouts, activeProgramId, preferences, weights };
+  return { programs, workouts, activeProgramId, preferences, weights, measurements };
 }
 
 /**
@@ -52,7 +62,7 @@ export function toHistoryExport(data: StoredData, exportedAt: string): HistoryEx
 }
 
 export async function buildHistoryExport(now: Date = new Date()): Promise<HistoryExport> {
-  const data = await db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
+  const data = await db.transaction('r', storedDataTables(), readStoredData);
   return toHistoryExport(data, toLocalIsoString(now));
 }
 

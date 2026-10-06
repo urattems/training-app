@@ -32,11 +32,13 @@ export async function resetDatabase(): Promise<void> {
 
 /** Contenu complet de la base, pour vérifier qu'une opération n'a rien modifié. */
 export async function dumpDatabase() {
-  const [programs, workouts, settings, metadata] = await Promise.all([
+  const [programs, workouts, settings, metadata, weights, measurements] = await Promise.all([
     db.programs.toArray(),
     db.workouts.toArray(),
     db.settings.toArray(),
     db.metadata.toArray(),
+    db.weights.toArray(),
+    db.measurements.toArray(),
   ]);
-  return { programs, workouts, settings, metadata };
+  return { programs, workouts, settings, metadata, weights, measurements };
 }

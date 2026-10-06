@@ -98,9 +98,11 @@ describe('Migration IndexedDB v1 → v2 (première vraie migration, données ré
 
     const v2 = new TrainingDatabase(NAME);
     await v2.open();
-    expect(DB_VERSION).toBe(2);
-    expect(v2.verno).toBe(2);
-    expect(v2.tables.map((t) => t.name).sort()).toEqual(['metadata', 'programs', 'settings', 'weights', 'workouts']);
+    // V1.5.0 (adaptation signalée) : le code courant monte jusqu'en v3 (store `measurements` en plus) ;
+    // la migration v2 → v3 a ses propres tests (migrationV3.test.ts).
+    expect(DB_VERSION).toBe(3);
+    expect(v2.verno).toBe(3);
+    expect(v2.tables.map((t) => t.name).sort()).toEqual(['measurements', 'metadata', 'programs', 'settings', 'weights', 'workouts']);
 
     const after = await dump(v2);
     expect(after.programs).toEqual(byKey(data.programs, (p) => p.programId));
@@ -137,7 +139,7 @@ describe('Migration IndexedDB v1 → v2 (première vraie migration, données ré
   it('une base neuve est créée directement en v2', async () => {
     const fresh = new TrainingDatabase(NAME);
     await fresh.open();
-    expect(fresh.verno).toBe(2);
+    expect(fresh.verno).toBe(DB_VERSION); // V1.5.0 : version courante (3)
     expect(await fresh.weights.count()).toBe(0);
     fresh.close();
   });

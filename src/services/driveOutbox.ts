@@ -35,7 +35,7 @@ import { technicalDetails } from '../utils/errors';
 import { createDriveClient, type DriveClient, type DriveConfig, type DriveResult } from './driveClient';
 import { buildBackupFile, buildSessionArchive, buildWeightFile, buildWeightsAllFile, DRIVE_PATHS, type DriveFile } from './driveContent';
 import { getDriveSync, isDriveActive } from './driveSettings';
-import { readStoredData } from './exportService';
+import { readStoredData, storedDataTables } from './exportService';
 import { getLastWeeklyBackupAt, setLastAutoBackupAt, setLastWeeklyBackupAt } from './settingsService';
 import { redact } from '../domain/driveNames';
 
@@ -191,7 +191,7 @@ export async function resolveDriveRegression(choice: 'replace' | 'ignore'): Prom
 export async function resendWholeArchive(now: Date = new Date()): Promise<number> {
   const config = await getDriveSync();
   if (!isDriveActive(config)) return 0;
-  const stored = await db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
+  const stored = await db.transaction('r', storedDataTables(), readStoredData);
   const items = [
     ...stored.workouts.filter(isCoachExportable).sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt)).map((w) => ({ type: 'session' as const, key: w.id })),
     ...stored.weights.map((w) => ({ type: 'weight' as const, key: w.date })),
@@ -270,7 +270,7 @@ async function sendTask(task: DriveTask, config: DriveConfig, now: () => Date): 
   };
   const put = async (file: DriveFile, force = false) =>
     client.put(config, { folder: file.folder, name: file.name, content: file.content, meta: file.meta, ...(force && { force: true }) });
-  const readStored = () => db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
+  const readStored = () => db.transaction('r', storedDataTables(), readStoredData);
 
   if (task.type === 'weight' || task.type === 'weights_all') {
     let file: DriveFile | null;
@@ -328,7 +328,7 @@ async function sendTask(task: DriveTask, config: DriveConfig, now: () => Date): 
   }
 
   if (task.type === 'session') {
-    const stored = await db.transaction('r', [db.programs, db.workouts, db.settings, db.weights], readStoredData);
+    const stored = await db.transaction('r', storedDataTables(), readStoredData);
     const session = stored.workouts.find((w) => w.id === task.key);
     let archive;
     try {

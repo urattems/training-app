@@ -4,7 +4,7 @@ import { Dexie } from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConnectionNotice } from '../app/ConnectionNotice';
 import { getConnectionIssue, setConnectionIssue } from './connectionStatus';
-import { TrainingDatabase } from './database';
+import { DB_VERSION, TrainingDatabase } from './database';
 
 const NAME = 'connection-test-db';
 
@@ -75,7 +75,7 @@ describe('Ancienne version ouverte dans un autre onglet pendant la montée en v2
       await opening;
     });
     expect(opened).toBe(true);
-    expect(v2.verno).toBe(2);
+    expect(v2.verno).toBe(DB_VERSION); // V1.5.0 : la montée va jusqu'à la version courante
     expect(getConnectionIssue()).toBeNull();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(await v2.workouts.get('w-1')).toEqual(WORKOUT);
@@ -90,7 +90,7 @@ describe('Ancienne version ouverte dans un autre onglet pendant la montée en v2
     await oldTab.open();
     const v2 = new TrainingDatabase(NAME);
     await v2.open();
-    expect(v2.verno).toBe(2);
+    expect(v2.verno).toBe(DB_VERSION); // V1.5.0 : la montée va jusqu'à la version courante
     expect(getConnectionIssue()).toBeNull();
     expect(oldTab.isOpen()).toBe(false);
     expect(await v2.workouts.get('w-1')).toEqual(WORKOUT);
@@ -106,8 +106,10 @@ describe('Version plus récente ouverte ailleurs (versionchange reçu par cet on
     await thisTab.weights.put({ date: '2026-10-02', weightKg: 80.4, recordedAt: '2026-10-02T07:00:00+02:00' });
     render(<ConnectionNotice />);
 
-    // Un futur code (version IDB 30 = Dexie 3) ouvre la même base dans un autre onglet.
-    const newer = await openStubbornConnection(30);
+    // Un futur code ouvre la même base dans un autre onglet. V1.5.0 (adaptation signalée) : la
+    // version courante est désormais 3 (IDB 30) ; le « futur » est donc la version suivante.
+    const FUTURE_IDB_VERSION = (DB_VERSION + 1) * 10;
+    const newer = await openStubbornConnection(FUTURE_IDB_VERSION);
     await act(nextTick);
     expect(getConnectionIssue()).toBe('superseded');
     expect(screen.getByRole('alertdialog', { name: 'Nouvelle version ouverte ailleurs' })).toBeInTheDocument();
@@ -115,7 +117,7 @@ describe('Version plus récente ouverte ailleurs (versionchange reçu par cet on
     expect(thisTab.isOpen()).toBe(false);
 
     // Rien n'a été perdu pendant la montée de version.
-    expect(newer.version).toBe(30);
+    expect(newer.version).toBe(FUTURE_IDB_VERSION);
     const count = await new Promise<number>((resolve) => {
       const request = newer.transaction('weights').objectStore('weights').count();
       request.onsuccess = () => {

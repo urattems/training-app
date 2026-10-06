@@ -88,7 +88,7 @@ describe('Import de programme', () => {
   it('un JSON invalide est refusé : rien n\'est écrit', async () => {
     expect(previewProgram('{ pas du json').ok).toBe(false);
     expect(previewProgram(JSON.stringify({ ...fixtureObject('program-example.json'), sessions: [] })).ok).toBe(false);
-    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [] });
+    expect(await dumpDatabase()).toEqual({ programs: [], workouts: [], settings: [], metadata: [], weights: [], measurements: [] });
   });
 
   it('lit un fichier, ou signale un fichier illisible', async () => {
