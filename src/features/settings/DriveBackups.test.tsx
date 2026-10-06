@@ -200,7 +200,7 @@ describe('« Renvoyer toute l’archive »', () => {
     });
 
     reply = () => new Response('{"ok":true}');
-    await user.click(screen.getByRole('button', { name: 'Renvoyer toute l’archive' }));
+    await user.click(await screen.findByRole('button', { name: 'Renvoyer toute l’archive' }));
     expect(await screen.findByText('Archive renvoyée : 15 fichiers.', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText('15/15')).toBeInTheDocument();
   });

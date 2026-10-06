@@ -1478,3 +1478,7 @@ Crayon de 44 × 44 px à droite du titre ; feuille (champ prérempli et sélecti
 
 ### Reste instable (non modifié, hors de la consigne « ne rien changer d'autre »)
 - `DriveBackups.test.tsx`, « Renvoyer toute l'archive » → « progression « n/15 », annulation, relance sans doublon ; noms accessibles » : **1 échec sur 25** exécutions isolées après la correction (et 1 sur 12 avant). Même famille : après « Renvoi annulé… » et la file vide, `screen.getByRole('button', { name: 'Renvoyer toute l’archive' })` (ligne 203) est lu de façon synchrone, avant que l'écran ait réaffiché le bouton. Une attente (`await screen.findByRole(…)`) corrigerait de la même manière.
+
+### fix-test (suite) — « Renvoyer toute l'archive » stabilisé
+- Le test restant (voir ci-dessus) est corrigé comme prévu : `await user.click(await screen.findByRole('button', { name: 'Renvoyer toute l’archive' }))` à la place du `getByRole` synchrone (ligne 203). Même bouton, même clic, même suite d'assertions ; l'attente porte seulement sur l'affichage du bouton après « Renvoi annulé ». **Seconde adaptation d'un test existant, justifiée par la même course de lecture** (écran lu avant la lecture réactive), sans aucun affaiblissement.
+- Mesure : **1 échec sur 20** avant (exécutions isolées), **0 sur 25** après. Suite complète : 656/656 à chaque passe (deux passes normales, une avec `TZ=UTC`), typecheck et lint verts.
