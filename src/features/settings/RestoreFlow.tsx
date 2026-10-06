@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { Button } from '../../components/Button';
 import { ErrorDetails } from '../../components/ErrorDetails';
 import { Sheet } from '../../components/Sheet';
+import { measurementsLostByRestore } from '../../domain/measurements';
 import { weightsLostByRestore } from '../../domain/weight';
 import type { PreparedExportState } from '../../hooks/usePreparedExport';
 import { strings } from '../../i18n/strings';
@@ -39,7 +40,9 @@ export function RestoreFlow({ currentExport }: { currentExport: PreparedExportSt
   const current = currentExport?.ok ? currentExport.prepared : null;
   // Rien à perdre si la base est vide (ex. nouvel iPhone) : l'export de sécurité n'est pas exigé.
   // Des pesées seules sont des données à sauvegarder (V1.2).
-  const nothingToSave = current !== null && current.programCount === 0 && current.sessionCount === 0 && current.weightCount === 0;
+  // Des mensurations seules aussi (V1.5.0).
+  const nothingToSave =
+    current !== null && current.programCount === 0 && current.sessionCount === 0 && current.weightCount === 0 && current.measurementCount === 0;
   const canRestore = safetyExported || nothingToSave;
 
   const close = () => {
@@ -165,9 +168,14 @@ export function RestoreFlow({ currentExport }: { currentExport: PreparedExportSt
               <dt>{t.weights}</dt>
               <dd>{state.preview.weightCount}</dd>
             </div>
+            <div>
+              <dt>{t.measurements}</dt>
+              <dd>{state.preview.measurementCount}</dd>
+            </div>
           </dl>
           <p className={styles.warning}>{t.warning}</p>
           {current !== null && <MissingWeightsWarning fileCount={state.preview.weightCount} currentCount={current.weightCount} />}
+          {current !== null && <MissingMeasurementsWarning fileCount={state.preview.measurementCount} currentCount={current.measurementCount} />}
 
           <div className={styles.step}>
             <p className={styles.stepTitle}>{t.step1}</p>
@@ -224,6 +232,17 @@ export function RestoreFlow({ currentExport }: { currentExport: PreparedExportSt
 }
 
 /** Fichier sans pesée alors que l'app en contient : avertissement visible avant confirmation (V1.2). */
+/** Même mécanisme que les pesées : un fichier sans mensurations remplacerait celles de l'app (V1.5.0). */
+function MissingMeasurementsWarning({ fileCount, currentCount }: { fileCount: number; currentCount: number }) {
+  const lost = measurementsLostByRestore(fileCount, currentCount);
+  if (lost === null) return null;
+  return (
+    <p role="alert" className={styles.warning}>
+      <TriangleAlert aria-hidden className={styles.inlineIcon} /> {t.noMeasurements(lost)}
+    </p>
+  );
+}
+
 function MissingWeightsWarning({ fileCount, currentCount }: { fileCount: number; currentCount: number }) {
   const lost = weightsLostByRestore(fileCount, currentCount);
   if (lost === null) return null;

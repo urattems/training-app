@@ -103,7 +103,7 @@ describe('Sauvegarde 1.1 : pesées comprises', () => {
     await addWeight({ date: '2026-10-02', weightKg: 80.4, now: new Date(2026, 9, 2, 7) });
     await addWeight({ date: '2026-09-20', weightKg: 81.05, now: new Date(2026, 8, 20, 7) });
     const exported = await buildHistoryExport(NOW);
-    expect(exported.schemaVersion).toBe('1.1');
+    expect(exported.schemaVersion).toBe('1.2'); // V1.5.0 (adaptation signalée) : version produite 1.2, pesées inchangées
     expect(exported.weightEntries).toEqual([
       { date: '2026-09-20', weightKg: 81.05, recordedAt: '2026-09-20T07:00:00+02:00' },
       { date: '2026-10-02', weightKg: 80.4, recordedAt: '2026-10-02T07:00:00+02:00' },
@@ -125,7 +125,7 @@ describe('Sauvegarde 1.1 : pesées comprises', () => {
 
   it('fichier 1.0 (history-example.json) accepté via la migration : weightEntries vide', () => {
     const parsed = parseHistoryJson(readFixture('history-example.json'));
-    expect(parsed.ok && parsed.value.schemaVersion).toBe('1.1');
+    expect(parsed.ok && parsed.value.schemaVersion).toBe('1.2'); // V1.5.0 (adaptation signalée) : chaîne 1.0 → 1.1 → 1.2
     expect(parsed.ok && parsed.value.weightEntries).toEqual([]);
     const preview = previewRestore(readFixture('history-example.json'));
     expect(preview.ok && { version: preview.value.schemaVersion, weights: preview.value.weightCount }).toEqual({ version: '1.0', weights: 0 });

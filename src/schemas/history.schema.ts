@@ -13,6 +13,7 @@ import {
 } from './common';
 import { programSetListSchema, trainingProgramSchema } from './program.schema';
 import { weightEntrySchema } from './weight.schema';
+import { measurementEntrySchema } from './measurement.schema';
 
 export const SENSATIONS = ['very_easy', 'easy', 'good', 'hard', 'very_hard'] as const;
 export const WORKOUT_STATUSES = ['in_progress', 'completed', 'abandoned'] as const;
@@ -125,6 +126,8 @@ export const historyExportSchema = z.object({
   sessions: z.array(workoutSessionSchema),
   /** 1.1 : pesées, obligatoire (peut être vide), triées par date croissante à l'export. */
   weightEntries: z.array(weightEntrySchema),
+  /** 1.2 (V1.5.0) : mensurations, obligatoire (peut être vide), triées par date croissante à l'export. */
+  measurementEntries: z.array(measurementEntrySchema),
 });
 
 export type Sensation = z.infer<typeof sensationSchema>;

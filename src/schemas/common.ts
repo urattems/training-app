@@ -3,7 +3,7 @@ import { z } from 'zod';
 /** Version du format programme (`training_program`) : inchangée depuis la V1. */
 export const SCHEMA_VERSION = '1.0';
 /** Version courante de la sauvegarde (`training_history_export`) : 1.1 = pesées (V1.2). */
-export const HISTORY_SCHEMA_VERSION = '1.1';
+export const HISTORY_SCHEMA_VERSION = '1.2';
 /** Version courante de l'export pour le coach (`training_coach_export`) : 1.1 = pesées (V1.2). */
 export const COACH_SCHEMA_VERSION = '1.1';
 

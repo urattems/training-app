@@ -16,7 +16,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { DriveRegressionNotice } from '../settings/DriveRegressionNotice';
 import { getLastAutoBackupAt, latestInstant } from '../../services/settingsService';
 import { sessionDriveStatus, useDriveState, type SessionDriveStatus } from '../../hooks/useDrive';
-import { useActiveProgram, useInProgressWorkout, useLastExportAt, useNextSession, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
+import { useActiveProgram, useInProgressWorkout, useLastExportAt, useMeasurements, useNextSession, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { historyDetailPath } from '../history/paths';
@@ -161,10 +161,11 @@ function ExportReminderBanner({ workouts }: { workouts: WorkoutSession[] }) {
   const lastExportAt = useLastExportAt();
   const lastAutoBackupAt = useLiveQuery(getLastAutoBackupAt, []);
   const weights = useWeights();
-  if (lastExportAt === undefined || lastAutoBackupAt === undefined || weights === undefined) return null;
+  const measurements = useMeasurements();
+  if (lastExportAt === undefined || lastAutoBackupAt === undefined || weights === undefined || measurements === undefined) return null;
   // Une pesée enregistrée après le dernier export est aussi une donnée non sauvegardée (V1.2).
   // V1.3b : une sauvegarde Drive CONFIRMÉE compte comme export (le plus récent des deux).
-  const reminder = getExportReminder(workouts, latestInstant(lastExportAt, lastAutoBackupAt), new Date(), weights);
+  const reminder = getExportReminder(workouts, latestInstant(lastExportAt, lastAutoBackupAt), new Date(), weights, measurements);
   if (!reminder) return null;
   return (
     <div className={styles.reminder} role="note">

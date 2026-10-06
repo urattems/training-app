@@ -41,6 +41,9 @@ export const strings = {
     coachDatesMismatch: 'les dates de la sélection ne correspondent pas à la première et à la dernière séance.',
     duplicateWeightDate: (date: string) => `deux pesées portent la même date (${date}) ; une seule pesée par jour est autorisée.`,
     futureWeightDate: (date: string) => `la pesée du ${date} est datée dans le futur.`,
+    duplicateMeasurementDate: (date: string) =>
+      `deux prises de mensurations portent la même date (${date}) ; une seule prise par jour est autorisée.`,
+    futureMeasurementDate: (date: string) => `la prise de mensurations du ${date} est datée dans le futur.`,
     coachWeightsWithoutWindow: 'des pesées sont jointes alors que les pesées sont désactivées (weightWindow vaut null).',
     coachWeightWindowReversed: 'la fenêtre des pesées se termine avant de commencer.',
     coachWeightCountMismatch: (declared: number, actual: number) =>
@@ -646,6 +649,11 @@ export const strings = {
     programs: 'Programmes',
     sessions: 'Séances',
     weights: 'Pesées',
+    measurements: 'Mensurations',
+    noMeasurements: (n: number) =>
+      n > 1
+        ? `Cette sauvegarde ne contient aucune mensuration : tes ${String(n)} mensurations actuelles seront remplacées (une copie de sécurité est conservée).`
+        : 'Cette sauvegarde ne contient aucune mensuration : ta mensuration actuelle sera remplacée (une copie de sécurité est conservée).',
     noWeights: (n: number) =>
       n > 1
         ? `Cette sauvegarde ne contient aucune pesée : tes ${n} pesées actuelles seront remplacées (une copie de sécurité est conservée).`

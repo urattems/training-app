@@ -15,9 +15,13 @@ export interface SchemaMigration {
  */
 export const SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [];
 
-/** Sauvegarde : 1.0 → 1.1 ajoute les pesées (`weightEntries`, vide pour un ancien fichier). */
+/**
+ * Sauvegarde : 1.0 → 1.1 ajoute les pesées (`weightEntries`, vide pour un ancien fichier) ;
+ * 1.1 → 1.2 (V1.5.0) ajoute les mensurations (`measurementEntries`, vide). Chaîne : 1.0 → 1.1 → 1.2.
+ */
 export const HISTORY_MIGRATIONS: readonly SchemaMigration[] = [
   { from: '1.0', to: '1.1', migrate: (document) => ({ ...document, weightEntries: [] }) },
+  { from: '1.1', to: '1.2', migrate: (document) => ({ ...document, measurementEntries: [] }) },
 ];
 
 /** Export pour le coach : 1.0 → 1.1 ajoute les pesées (aucune) et leur fenêtre (`null`). */

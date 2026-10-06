@@ -1,4 +1,5 @@
-import type { WeightEntry, WorkoutSession } from './types';
+import { measurementsRecordedSince } from './measurements';
+import type { MeasurementEntry, WeightEntry, WorkoutSession } from './types';
 import { weightsRecordedSince } from './weight';
 
 /** Délai au-delà duquel un rappel d'export est proposé (SPEC §7.10). */
@@ -25,13 +26,15 @@ export function getExportReminder(
   lastExportAt: string | null,
   now: Date,
   weights: readonly Pick<WeightEntry, 'recordedAt'>[] = [],
+  measurements: readonly Pick<MeasurementEntry, 'recordedAt'>[] = [],
 ): ExportReminder | null {
   if (workouts.some((w) => w.status === 'in_progress')) return null;
   const lastExport = lastExportAt === null ? null : Date.parse(lastExportAt);
   const completedSince = workouts.filter(
     (w) => w.status === 'completed' && w.completedAt !== null && (lastExport === null || Date.parse(w.completedAt) > lastExport),
   ).length;
-  if (completedSince === 0 && weightsRecordedSince(weights, lastExportAt) === 0) return null;
+  // Pesées (V1.2) et mensurations (V1.5.0) enregistrées depuis le dernier export : données non sauvegardées.
+  if (completedSince === 0 && weightsRecordedSince(weights, lastExportAt) === 0 && measurementsRecordedSince(measurements, lastExportAt) === 0) return null;
   if (lastExport === null) return { daysSinceExport: null, completedSince };
   const days = Math.floor((now.getTime() - lastExport) / DAY_MS);
   return days > EXPORT_REMINDER_DAYS ? { daysSinceExport: days, completedSince } : null;

@@ -26,6 +26,8 @@ export interface RestorePreview {
   sessionCount: number;
   /** Pesées du fichier (0 pour une sauvegarde 1.0). */
   weightCount: number;
+  /** Mensurations du fichier (0 pour une sauvegarde 1.0 ou 1.1). */
+  measurementCount: number;
 }
 
 /** Valide une sauvegarde et prépare le résumé avant confirmation (SPEC §10.3). Rien n'est écrit. */
@@ -40,6 +42,7 @@ export function previewRestore(text: string): Result<RestorePreview, ImportFailu
     programCount: data.programs.length,
     sessionCount: data.sessions.length,
     weightCount: data.weightEntries.length,
+    measurementCount: data.measurementEntries.length,
   });
 }
 
@@ -61,7 +64,7 @@ export async function restoreBackup(data: HistoryExport, now: Date = new Date())
     // relus avant le vidage puis réécrits tels quels. Ils ne viennent jamais du fichier.
     const deviceSettings = (await db.settings.bulkGet([...DEVICE_SETTING_KEYS])).filter((r) => r !== undefined);
 
-    await Promise.all([db.programs.clear(), db.workouts.clear(), db.settings.clear(), db.metadata.clear(), db.weights.clear()]);
+    await Promise.all([db.programs.clear(), db.workouts.clear(), db.settings.clear(), db.metadata.clear(), db.weights.clear(), db.measurements.clear()]);
     await db.metadata.put({ key: 'preRestoreBackup', savedAt: stamp, data: current });
 
     // Ordre d'origine (V1.3.2) : la sauvegarde liste les programmes par date d'import croissante
@@ -75,6 +78,7 @@ export async function restoreBackup(data: HistoryExport, now: Date = new Date())
     await db.programs.bulkPut(programs);
     await db.workouts.bulkPut(data.sessions);
     await db.weights.bulkPut(data.weightEntries);
+    await db.measurements.bulkPut(data.measurementEntries);
     await db.settings.bulkPut([
       { key: 'activeProgramId', value: data.activeProgramId },
       { key: 'preferences', value: data.preferences },

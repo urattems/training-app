@@ -1,5 +1,6 @@
 import { db } from '../db/database';
 import type { HistoryExport, MeasurementEntry, StoredProgram, UserPreferences, WeightEntry, WorkoutSession } from '../domain/types';
+import { sortMeasurements, valuesOf } from '../domain/measurements';
 import { sortWeights } from '../domain/weight';
 import { HISTORY_SCHEMA_VERSION } from '../schemas/common';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
@@ -58,6 +59,8 @@ export function toHistoryExport(data: StoredData, exportedAt: string): HistoryEx
     sessions: [...data.workouts].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt)),
     // 1.1 : pesées complètes (date, poids, recordedAt), par date croissante.
     weightEntries: sortWeights(data.weights).map((w) => ({ date: w.date, weightKg: w.weightKg, recordedAt: w.recordedAt })),
+    // 1.2 : mensurations (6 zones, null = absente), par date croissante.
+    measurementEntries: sortMeasurements(data.measurements ?? []).map((m) => ({ date: m.date, ...valuesOf(m), recordedAt: m.recordedAt })),
   };
 }
 
@@ -135,6 +138,7 @@ export interface PreparedExport {
   programCount: number;
   sessionCount: number;
   weightCount: number;
+  measurementCount: number;
 }
 
 /** Le fichier généré ne repasse pas la validation : il n'est jamais remis à l'utilisateur. */
@@ -173,6 +177,7 @@ export async function prepareExport(now: Date = new Date()): Promise<PreparedExp
     programCount: data.programs.length,
     sessionCount: data.sessions.length,
     weightCount: data.weightEntries.length,
+    measurementCount: data.measurementEntries.length,
   };
 }
 

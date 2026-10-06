@@ -14,6 +14,17 @@ const findDuplicates = (values: readonly string[]): string[] => {
 };
 
 /**
+ * Mensurations (V1.5.0) : une seule prise par date, jamais dans le futur. Les règles de valeur
+ * (> 0, 1 décimale, ≤ 300 cm) et « au moins une mesure » sont portées par le schéma.
+ */
+export function checkMeasurementEntries(entries: readonly { date: string }[], today: string): string[] {
+  const t = strings.invariants;
+  const violations = findDuplicates(entries.map((e) => e.date)).map(t.duplicateMeasurementDate);
+  for (const entry of entries) if (entry.date > today) violations.push(t.futureMeasurementDate(entry.date));
+  return violations;
+}
+
+/**
  * Pesées (V1.2) : une par jour (dates uniques), jamais datée après aujourd'hui (date locale
  * de l'appareil). Format de date, poids et `recordedAt` sont déjà vérifiés par Zod.
  */
@@ -30,7 +41,7 @@ export function checkWeightEntries(entries: readonly { date: string }[], today: 
  */
 export function checkHistoryInvariants(data: HistoryExport, today: string = toLocalDateString(new Date())): string[] {
   const t = strings.invariants;
-  const violations = checkWeightEntries(data.weightEntries, today);
+  const violations = [...checkWeightEntries(data.weightEntries, today), ...checkMeasurementEntries(data.measurementEntries, today)];
 
   const programIds = data.programs.map((p) => p.programId);
   for (const id of findDuplicates(programIds)) violations.push(t.duplicateProgramId(id));
