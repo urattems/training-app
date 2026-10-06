@@ -1584,10 +1584,37 @@ Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient i
   - Le test de rechargement réel dans un navigateur reste à faire séparément (pas de Playwright ajouté).
 - **Cas limite** : si une série contient une ANCIENNE valeur hors bornes (restaurée, ex. 47,555), qu'on la modifie puis que la saisie devient invalide, son rétablissement est refusé par le garde-fou du service, puisque la valeur change par rapport à la base. Un message d'erreur d'enregistrement s'affiche et la base garde la dernière valeur valide. C'est un cas très rare, que je n'ai pas traité.
 
+### 7. Documentation : versionnage, autosave, formes tolérées à la restauration
+- **SPEC §10.4 réécrite** : un tableau distingue le programme (`1.0`), l'historique / sauvegarde (`1.1`, lit `1.0`), l'export coach (`1.1`, lit `1.0`), les pesées de l'archive (`weight_entry`, `weight_log` en `1.0`) et la base IndexedDB (version Dexie `2`).
+  - Seules les migrations réellement présentes dans le code sont listées (`HISTORY_MIGRATIONS` et `COACH_MIGRATIONS` : `1.0 → 1.1`).
+  - Toute version inconnue est refusée.
+  - Les mentions fausses « `1.0 → 1.1 → 2.0` » et « `1.0` obligatoire dans tout fichier » sont supprimées.
+- **SPEC §7.5** : la sauvegarde est décrite comme immédiate, avec ses filets de sécurité (voir § 6 ci-dessus).
+- **SPEC §10.5 : formes tolérées à la restauration, sans durcir le code.** Elles peuvent venir d'éditions manuelles d'un fichier :
+  - `executionOrder` peut être incomplet (seuls un doublon ou un exercice absent de la séance sont refusés, par `history.schema`) ;
+  - `isExtra` n'est pas recoupé avec les séries prescrites.
+- **Comportement constaté de l'interface sur ces formes (signalé, NON corrigé)** :
+  - **`executionOrder` incomplet** : le détail d'historique affiche l'« Ordre d'exécution » avec les seuls exercices inscrits, sans mention des autres. Un exercice qui a des séries saisies mais n'est pas inscrit semble donc « non fait » dans cette liste, alors que ses séries s'affichent plus bas. C'est ambigu.
+    - Si on corrige ensuite la séance en mode « Modifier », toucher cet exercice l'ajoute **à la fin** de l'ordre (`updateRecord`). L'ordre affiché devient alors celui de la correction, pas celui de la séance.
+    - Statistiques, graphiques, export : non concernés, car `executionOrder` n'y est pas utilisé.
+  - **`isExtra: true` sur un `setNumber` prescrit** :
+    - l'écran exercice affiche sur la même ligne le badge « en plus », le placeholder de l'objectif et « Comme prévu » ;
+    - l'écran séance la compte en « série en plus » et non dans « n / N séries saisies » ;
+    - l'avertissement de validation (`findIncompleteSets`) la traite comme prescrite.
+
+    Trois lectures différentes de la même série : ambigu.
+  - **`isExtra: false` sans série prescrite** (ex. série 4 sur 3 prescrites) :
+    - l'écran séance peut afficher « 4 / 3 séries saisies » ;
+    - l'écran exercice et l'historique l'affichent sans badge, comme une série normale.
+
+    Ambigu.
+  - Statistiques, records et graphiques ne dépendent pas d'`isExtra` (toutes les séries réelles comptent) : non concernés.
+  - Correctifs possibles, plus tard : afficher les exercices non inscrits après l'ordre (« sans ordre connu ») ; dériver « en plus » de l'absence de série prescrite plutôt que du drapeau.
+
 ### Limites assumées (documentées, non corrigées)
 - **(a) Remplacer par un nom déjà présent ailleurs dans le programme crée deux courbes distinctes.** Si la séance A contient « Leg Press » (`leg-press-machine`) et qu'en séance B on remplace un exercice par « Leg Press », le remplaçant reçoit `sub-leg-press`, différent de l'id du programme. Ce sont donc deux courbes. Seul un doublon **dans la même séance** est refusé (V1.3.1). Les fusionner demanderait de rattacher un nom libre à un exercice du programme, ce qui est hors du périmètre d'un correctif.
 - **(b) Les noms 100 % non latins sont refusés** (« Le nom doit contenir au moins une lettre ou un chiffre. »). La clé ne garde que `a-z0-9` après retrait des accents : un nom entièrement en cyrillique, grec, japonais… donnerait un slug vide. Les noms latins accentués et les ligatures (œ, æ, ß) sont acceptés.
 - **(c) Une sauvegarde qui échoue pendant le démontage de l'écran ne signale l'erreur qu'en console.** L'enregistrement de secours (sortie de l'écran exercice : `pagehide`, démontage) n'a plus d'interface pour afficher un message, donc l'erreur n'est que journalisée. En usage normal, l'écriture a déjà eu lieu au blur ou au délai de 350 ms.
 
 ### Contrôles
-- Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 656 en V1.3.1, **679** en V1.3.2.
+- Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 656 en V1.3.1, 679 après les correctifs 1 à 5, **693** avec l'autosave immédiat (§ 6).

@@ -207,7 +207,7 @@ Objectif et réalisé ne doivent **jamais** pouvoir être confondus visuellement
 - Reps : `inputmode="numeric"`. Poids/vitesse/inclinaison : `inputmode="decimal"`. Durée : numérique.
 - Champs ≥ 48 px de haut, saisie à une main, sélection du contenu au focus.
 - Autofocus/passage au champ suivant : seulement si **fiable sur iOS PWA**, sinon s'abstenir.
-- Sauvegarde **à chaque modification** (debounce court + sauvegarde au blur et à `visibilitychange`).
+- Sauvegarde **à chaque modification**, **immédiate** (V1.3.2) : chaque frappe valide part tout de suite en base, sans délai, dans une file d'écritures sérialisée (dans l'ordre des frappes ; la dernière valeur d'un champ gagne). Le blur, le passage en arrière-plan (`visibilitychange`), la fermeture (`pagehide`) et la sortie de l'écran restent des filets de sécurité. Le texte affiché reste un brouillon local, jamais réécrit pendant la frappe (« 52, » reste « 52, »). Rien n'est écrit si la valeur ne change pas (un simple passage dans un champ vide ne crée pas de série). Une saisie invalide ou hors bornes n'est jamais écrite : la base revient à la valeur d'avant la saisie.
 
 ### 7.6 Cardio
 Section en fin de séance, simple et flexible. Champs : type (`treadmill`, `bike`, `elliptical`, `rower`, `other`), nom libre, durée (min), vitesse (km/h), inclinaison (%), notes. Tous optionnels sauf le type ; aucune supposition vitesse + inclinaison systématique.
@@ -320,7 +320,19 @@ JSON `training_history_export`. **Ce format unique sert à la fois d'export pour
 Sélection du fichier → validation → résumé (date d'export, version du schéma, nb de programmes, nb de séances) → confirmation explicite → **export automatique des données actuelles avant remplacement** → restauration. Jamais de suppression silencieuse.
 
 ### 10.4 Versionnage
-`schemaVersion: "1.0"` obligatoire dans tout fichier. Le code contient une chaîne de migrations (`1.0 → 1.1 → 2.0`) ; une version future non supportée est refusée proprement avec un message clair.
+Chaque **document JSON** porte son propre `schemaVersion`, indépendant des autres. La **base locale** (IndexedDB) a sa propre version, qui n'apparaît dans aucun fichier.
+
+| Élément | `type` | Version produite | Versions acceptées en lecture |
+|---|---|---|---|
+| Programme du coach | `training_program` | `1.0` | `1.0` |
+| Historique / sauvegarde | `training_history_export` | `1.1` (V1.2 : pesées) | `1.0` (migrée en `1.1` : `weightEntries: []`) et `1.1` |
+| Export pour le coach | `training_coach_export` | `1.1` (V1.2 : pesées) | `1.0` (migrée en `1.1` : `weightEntries: []`, `weightWindow: null`) et `1.1` |
+| Pesée / journal des pesées (archive Drive) | `weight_entry`, `weight_log` | `1.0` | `1.0` |
+| Base IndexedDB (Dexie) | — | version `2` (V1.2 : store `weights`) | mise à jour automatique `1 → 2` à l'ouverture, sans réécrire de données |
+
+- **Migrations réellement supportées** : historique `1.0 → 1.1` et export coach `1.0 → 1.1`. Il n'en existe aucune autre (pas de migration de programme).
+- **Toute version inconnue** (future, ancienne non listée, ou absente) est **refusée en bloc**, avec un message clair (« ce fichier utilise la version de schéma « … », non prise en charge »). Rien n'est écrit.
+- La version de l'app (Paramètres → Informations) est distincte de toutes ces versions.
 
 ### 10.5 Invariants vérifiés à l'import et à la restauration
 En plus de la validation Zod, le fichier est **refusé en bloc** (message clair, rien d'écrit) si :
@@ -329,6 +341,10 @@ En plus de la validation Zod, le fichier est **refusé en bloc** (message clair,
 - une séance référence un `programId` absent de `programs[]` ;
 - des `id` de séance ou de programme sont en doublon ;
 - une séance `completed` n'a pas de `completedAt` (ou une `in_progress` en a un).
+
+**Formes tolérées (V1.3.2, non refusées)** : elles peuvent venir d'éditions manuelles d'un fichier, et l'affichage doit les présenter sans ambiguïté.
+- `executionOrder` **peut être incomplet** : un exercice qui a des séries saisies peut ne pas y figurer. Seuls sont refusés un doublon dans `executionOrder` ou un exercice absent de la séance.
+- `isExtra` **n'est pas recoupé avec les séries prescrites** : une série `isExtra: true` peut porter le `setNumber` d'une série prescrite, et une série `isExtra: false` peut ne correspondre à aucune série prescrite.
 
 ### 10.6 Export pour le coach (amendement V1.1b)
 Export **partiel**, distinct de la sauvegarde (§10.2) : il sert uniquement à envoyer une sélection de séances au coach.
