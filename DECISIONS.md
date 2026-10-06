@@ -1541,6 +1541,48 @@ Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient i
 - Test : emoji pile à la limite (gardé), un de plus (retiré en entier), à cheval (plus de moitié de paire), suffixe de doublon. Il échoue sans le correctif.
 - Le script Apps Script n'est pas dans le dépôt et n'a pas été touché.
 
+### 6. Autosave immédiat : plus de fenêtre de perte (second audit)
+- **Constat** (test réel en navigateur) : taper puis recharger ou fermer la page dans les 350 ms environ, sans blur, perdait la dernière frappe. Mesures : rechargement à 0, 100 et 300 ms → valeur perdue ; à 1,5 s → valeur enregistrée.
+- **Cause** : `useWorkoutAutosave` attendait 350 ms (debounce). Les filets (`pagehide`, `visibilitychange`, démontage) lançaient les écritures en attente sans pouvoir les attendre : à la fermeture, une écriture lancée si tard n'est pas garantie.
+- **Correctif** : chaque modification réelle part **tout de suite** dans une **file d'écritures sérialisée**, propre à l'écran (une transaction IndexedDB à la fois, dans l'ordre des frappes).
+  - Champs concernés : répétitions, charge, commentaire, nom, durée, vitesse, inclinaison et notes du cardio, sur l'écran exercice, l'écran séance et l'écran de correction depuis l'historique. Ils passent tous par ce hook. Il n'existe aucun champ « notes de séance » modifiable dans l'interface : `workout.notes` n'est qu'affiché dans l'historique.
+  - **La dernière frappe gagne** : si une écriture d'un champ attend encore son tour, une nouvelle valeur du même champ la remplace sur place. Une frappe plus ancienne ne peut donc jamais écraser une plus récente. Les actions explicites (« Comme prévu », « + Série », sensation, ajout ou suppression d'un cardio) ne sont jamais fusionnées, et passent après les saisies déjà en file.
+  - Le blur, `visibilitychange`, `pagehide` et le démontage restent des **filets** : ils attendent la fin de la file. Le délai `AUTOSAVE_DELAY_MS` est supprimé.
+- **Frappe non perturbée** : le texte affiché reste un brouillon local (`NumberField`, `TextField`), comme avant. Une valeur venue de la base n'est appliquée qu'en dehors de la saisie. « 52, » reste « 52, » (52 est en base), un champ vidé reste vide (`null` en base), et le curseur n'est pas touché.
+- **Garde-fous** :
+  - **Rien d'écrit si la valeur ne change pas.** La comparaison se fait avec la dernière valeur écrite par la saisie en cours, et non avec la valeur affichée, qui peut avoir un rendu de retard. Un simple passage dans un champ vide n'écrit rien : pas de série vide, et l'exercice n'est pas marqué comme commencé.
+  - **Saisie invalide ou hors bornes** (« 4,7,5 », « 47,555 », « 4747 ») : la valeur invalide n'est jamais écrite. Les préfixes valides (« 4,7 », « 474 ») sont désormais déjà en base au moment où la saisie devient invalide. Le champ est alors **rétabli tel qu'il était en base juste avant la saisie** : la série est remise à l'identique (`restoreActualSet`), ou **retirée** si elle n'existait pas.
+  - Une « saisie » va de la première modification au blur valide. Une valeur venue d'ailleurs (« Comme prévu ») ouvre une nouvelle saisie. Sans ce rétablissement, « 4747 » laisserait 474 en base, une valeur plausible mais fausse.
+  - Le test existant « 47, abandonné au blur… jamais écrite » l'exige (série 2 absente) et passe **sans modification**.
+- **Archive Drive** : vérifiée, aucun envoi en plus.
+  - Pendant une séance en cours, aucune intention n'est écrite (`isCoachExportable` exige une séance terminée ou abandonnée).
+  - Lors d'une correction depuis l'historique, chaque écriture met à jour, dans la même transaction, LA tâche `session:<id>`, dédupliquée par (type, clé) : la révision augmente, et `nextAttemptAt` est repoussé à 2 s après la DERNIÈRE écriture. Le planificateur reste temporisé, et l'envoi part 2 s après la dernière frappe.
+  - Test : 6 frappes donnent une seule tâche et un seul envoi.
+  - Seul cas de renvoi : une frappe pendant un envoi déjà en cours. La révision change, donc la séance est renvoyée. C'était déjà le cas avec le debounce, dès qu'une pause dépassait 350 ms.
+- **Coût mesuré** : 2 000 frappes successives dans un commentaire (fake-indexeddb + jsdom) ont donné 1 696 écritures, environ 1,2 ms par frappe en tout, et le texte final est complet.
+  - Chaque écriture relit la séance, la valide (Zod), puis l'écrit : le coût grandit avec la taille de la séance, pas avec la longueur du commentaire seule.
+  - Sur un appareil plus lent, la fusion des écritures en attente s'adapte d'elle-même : au plus une écriture en cours et une en attente par champ. Le nombre de transactions baisse alors au lieu de s'accumuler.
+  - Doute raisonnable : pas de souci attendu pour un commentaire de quelques centaines de caractères. Un collage géant ne fait qu'une seule écriture.
+- **Tests** (`hooks/useWorkoutAutosave.test.tsx`, 14 tests) :
+  - Méthode : les timers sont simulés et jamais avancés. On vérifie que l'écriture est **lancée pendant l'événement de saisie**, puis qu'elle est en base une fois les écritures terminées.
+  - Scénarios :
+    - répétitions ;
+    - commentaire en frappes rapides ;
+    - ordre entre champs ;
+    - « 52, » ;
+    - démontage immédiat ;
+    - `pagehide` ;
+    - champ vidé ;
+    - valide puis invalide (sans blur, et après un blur) ;
+    - « 4747 » ;
+    - simple passage dans un champ ;
+    - valeur identique ;
+    - champs du cardio ;
+    - archive Drive.
+  - **Vérification par mutation** (debounce de 350 ms et ancienne annulation remis en place) : 11 tests sur 14 échouent. Les 3 qui passent encore vérifient des garde-fous que l'ancien code respectait aussi (aucun préfixe de « 4747 » en base, simple passage sans écriture, valeur identique sans écriture). Ce sont des tests de non-régression, ils ne peuvent pas échouer avec l'ancien code.
+  - Le test de rechargement réel dans un navigateur reste à faire séparément (pas de Playwright ajouté).
+- **Cas limite** : si une série contient une ANCIENNE valeur hors bornes (restaurée, ex. 47,555), qu'on la modifie puis que la saisie devient invalide, son rétablissement est refusé par le garde-fou du service, puisque la valeur change par rapport à la base. Un message d'erreur d'enregistrement s'affiche et la base garde la dernière valeur valide. C'est un cas très rare, que je n'ai pas traité.
+
 ### Limites assumées (documentées, non corrigées)
 - **(a) Remplacer par un nom déjà présent ailleurs dans le programme crée deux courbes distinctes.** Si la séance A contient « Leg Press » (`leg-press-machine`) et qu'en séance B on remplace un exercice par « Leg Press », le remplaçant reçoit `sub-leg-press`, différent de l'id du programme. Ce sont donc deux courbes. Seul un doublon **dans la même séance** est refusé (V1.3.1). Les fusionner demanderait de rattacher un nom libre à un exercice du programme, ce qui est hors du périmètre d'un correctif.
 - **(b) Les noms 100 % non latins sont refusés** (« Le nom doit contenir au moins une lettre ou un chiffre. »). La clé ne garde que `a-z0-9` après retrait des accents : un nom entièrement en cyrillique, grec, japonais… donnerait un slug vide. Les noms latins accentués et les ligatures (œ, æ, ß) sont acceptés.

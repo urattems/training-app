@@ -161,6 +161,18 @@ export function setActualValues(
 }
 
 /**
+ * Rétablit une série telle qu'elle était dans `before` (saisie devenue invalide, V1.3.2) : mêmes
+ * valeurs, ou ABSENTE si elle n'existait pas (jamais de série vide créée par une saisie abandonnée).
+ */
+export function restoreActualSet(workout: WorkoutSession, before: WorkoutSession, programExerciseId: string, setNumber: number): WorkoutSession {
+  const original = before.exerciseRecords.find((r) => r.programExerciseId === programExerciseId)?.actualSets.find((s) => s.setNumber === setNumber);
+  return updateRecord(workout, programExerciseId, (record) => {
+    const others = record.actualSets.filter((s) => s.setNumber !== setNumber);
+    return { ...record, actualSets: sortBySetNumber(original ? [...others, original] : others) };
+  });
+}
+
+/**
  * Valeurs que « Comme prévu » peut remplir : uniquement les cibles exactes
  * (SPEC §6). Une plage de reps ou une charge `null` ne remplit rien.
  */

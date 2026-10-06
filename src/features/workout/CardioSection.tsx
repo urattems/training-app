@@ -126,7 +126,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
         placeholder={t.namePlaceholder}
         value={entry.name}
         onValueChange={(text, immediate) => {
-          autosave.save(key('name'), entry.name, text.trim(), immediate, update({ name: text }));
+          autosave.save(key('name'), entry.name, text.trim(), immediate, (name) => update({ name }));
         }}
       />
 
@@ -142,7 +142,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
               autosave.cancel(key('duration'));
             }}
             onValueChange={(value, immediate) => {
-              autosave.save(key('duration'), minutes, value, immediate, update({ durationSec: minutesToSeconds(value) }));
+              autosave.save(key('duration'), minutes, value, immediate, (v) => update({ durationSec: minutesToSeconds(v) }));
             }}
           />
         </LabelledNumber>
@@ -157,7 +157,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
               autosave.cancel(key('speed'));
             }}
             onValueChange={(value, immediate) => {
-              autosave.save(key('speed'), entry.speedKmh, value, immediate, update({ speedKmh: value }));
+              autosave.save(key('speed'), entry.speedKmh, value, immediate, (speedKmh) => update({ speedKmh }));
             }}
           />
         </LabelledNumber>
@@ -173,7 +173,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
               autosave.cancel(key('incline'));
             }}
             onValueChange={(value, immediate) => {
-              autosave.save(key('incline'), entry.inclinePct, value, immediate, update({ inclinePct: value }));
+              autosave.save(key('incline'), entry.inclinePct, value, immediate, (inclinePct) => update({ inclinePct }));
             }}
           />
         </LabelledNumber>
@@ -186,7 +186,7 @@ function CardioEntryEditor({ entry, index, autosave }: { entry: CardioEntry; ind
         value={entry.notes ?? ''}
         onValueChange={(text, immediate) => {
           const notes = normalizeText(text);
-          autosave.save(key('notes'), entry.notes, notes, immediate, update({ notes }));
+          autosave.save(key('notes'), entry.notes, notes, immediate, (v) => update({ notes: v }));
         }}
       />
 

@@ -16,9 +16,9 @@ interface NumberFieldProps {
   invalidMessage: string;
   /** Garde-fou supplémentaire : message d'erreur précis pour une valeur lisible mais refusée. */
   check?: (value: number) => string | null;
-  /** Valeur valide à persister : `immediate` au blur, sinon après le debounce. */
+  /** Valeur valide à persister, à chaque modification (`immediate` au blur : fin de saisie). */
   onValueChange: (value: number | null, immediate: boolean) => void;
-  /** La saisie est devenue invalide : l'écriture en attente d'une valeur intermédiaire doit être annulée. */
+  /** La saisie est devenue invalide : la valeur d'avant la saisie doit être rétablie en base. */
   onInvalidInput: () => void;
 }
 
@@ -30,9 +30,9 @@ const isIncomplete = (text: string): boolean => /^\d*[.,]$/.test(text.trim());
 /**
  * Champ numérique à brouillon local (SPEC §7.5) :
  * - le texte tapé n'est jamais réécrit pendant la saisie (« 47, » reste « 47, ») ;
- * - chaque valeur valide est persistée (debounce), puis tout de suite au blur ;
+ * - chaque valeur valide est persistée tout de suite (V1.3.2), et encore au blur ;
  * - une valeur invalide n'est jamais persistée ni effacée : le champ la garde et la signale,
- *   et l'écriture en attente d'une valeur intermédiaire est annulée ;
+ *   et la base revient à la valeur d'avant la saisie (pas de valeur intermédiaire, « 474 » pour « 4747 ») ;
  * - champ vidé → `null` (série non faite).
  */
 export function NumberField({ ref, label, value, placeholder, mode, unit, max, invalidMessage, check, onValueChange, onInvalidInput }: NumberFieldProps) {

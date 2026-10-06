@@ -222,7 +222,7 @@ function ExerciseEditor({ workout, exerciseId, workouts }: { workout: WorkoutSes
         onValueChange={(text, immediate) => {
           // Comparaison sur la valeur enregistrée (trim) : un espace final ne déclenche pas d'écriture.
           const normalized = text.trim();
-          autosave.save(`${exerciseId}:comment`, record.comment ?? '', normalized, immediate, (w) => setComment(w, exerciseId, text));
+          autosave.save(`${exerciseId}:comment`, record.comment ?? '', normalized, immediate, (v) => (w) => setComment(w, exerciseId, v));
         }}
       />
 

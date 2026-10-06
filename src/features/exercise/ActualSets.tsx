@@ -2,7 +2,7 @@ import { useId, useRef } from 'react';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { NumberField } from '../../components/NumberField';
-import { addExtraSet, applyAsPlanned, asPlannedValues, canFillAsPlanned, isRangeTarget, setActualValues } from '../../domain/workout';
+import { addExtraSet, applyAsPlanned, asPlannedValues, canFillAsPlanned, isRangeTarget, restoreActualSet, setActualValues } from '../../domain/workout';
 import type { ActualSet, ProgramSet, WorkoutExercise } from '../../domain/types';
 import { setRepsError, setWeightError } from '../../domain/values';
 import type { WorkoutAutosave } from '../../hooks/useWorkoutAutosave';
@@ -118,8 +118,13 @@ function SetRow({ exerciseId, setNumber, target, actual, autosave }: SetRowProps
             autosave.cancel(`${exerciseId}:${setNumber}:reps`);
           }}
           onValueChange={(value, immediate) => {
-            autosave.save(`${exerciseId}:${setNumber}:reps`, reps, value, immediate, (w) =>
-              setActualValues(w, exerciseId, setNumber, { actualReps: value }),
+            autosave.save(
+              `${exerciseId}:${setNumber}:reps`,
+              reps,
+              value,
+              immediate,
+              (v) => (w) => setActualValues(w, exerciseId, setNumber, { actualReps: v }),
+              (before) => (w) => restoreActualSet(w, before, exerciseId, setNumber),
             );
           }}
         />
@@ -136,8 +141,13 @@ function SetRow({ exerciseId, setNumber, target, actual, autosave }: SetRowProps
             autosave.cancel(`${exerciseId}:${setNumber}:kg`);
           }}
           onValueChange={(value, immediate) => {
-            autosave.save(`${exerciseId}:${setNumber}:kg`, weight, value, immediate, (w) =>
-              setActualValues(w, exerciseId, setNumber, { actualWeightKg: value }),
+            autosave.save(
+              `${exerciseId}:${setNumber}:kg`,
+              weight,
+              value,
+              immediate,
+              (v) => (w) => setActualValues(w, exerciseId, setNumber, { actualWeightKg: v }),
+              (before) => (w) => restoreActualSet(w, before, exerciseId, setNumber),
             );
           }}
         />

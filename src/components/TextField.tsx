@@ -9,7 +9,7 @@ interface TextFieldProps {
   value: string;
   placeholder?: string;
   multiline?: boolean;
-  /** Texte à persister : `immediate` au blur, sinon après le debounce. */
+  /** Texte à persister, à chaque frappe (`immediate` au blur : fin de saisie). */
   onValueChange: (text: string, immediate: boolean) => void;
 }
 
