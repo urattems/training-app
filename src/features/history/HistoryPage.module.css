@@ -1,6 +1,8 @@
 .listCard {
   padding-top: var(--space-1);
   padding-bottom: var(--space-1);
+  /* Lignes balayables d'un bord à l'autre (V1.3.3) : rognées aux coins arrondis de la carte. */
+  overflow: hidden;
 }
 
 .list {
