@@ -22,6 +22,8 @@ import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { historyDetailPath } from '../history/paths';
 import { ImportPasteButton, ImportProgramButton } from '../import/ImportProgramFlow';
 import { AbandonWorkoutButton, StartWorkoutButton, workoutPath } from '../workout/WorkoutActions';
+import { useToday } from '../../hooks/useToday';
+import { ActivityCard } from './ActivityCard';
 import styles from './HomePage.module.css';
 
 const t = strings.home;
@@ -86,9 +88,22 @@ export function HomePage() {
 
       {!loading && lastWorkout && <LastWorkoutCard workout={lastWorkout} />}
 
+      {!loading && <Activity workouts={workouts} />}
+
       {!loading && <RecentProgress />}
     </Page>
   );
+}
+
+/**
+ * Activité (V1.4.0) : carte SECONDAIRE, après la dernière séance. Masquée tant qu'aucune séance
+ * n'a jamais été terminée (rien d'alarmant pour un débutant). Mise à jour par la même lecture
+ * réactive que le reste de l'accueil.
+ */
+function Activity({ workouts }: { workouts: WorkoutSession[] }) {
+  const today = useToday();
+  if (!workouts.some((w) => w.status === 'completed')) return null;
+  return <ActivityCard workouts={workouts} today={today} />;
 }
 
 function InProgressCard({ workout }: { workout: WorkoutSession }) {

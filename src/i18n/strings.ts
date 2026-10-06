@@ -109,6 +109,20 @@ export const strings = {
     lastSession: 'Dernière séance',
     recentProgress: 'Progression récente',
   },
+  activity: {
+    title: 'Activité',
+    gridLabel: 'Activité des 12 dernières semaines, un carré par jour du lundi au dimanche',
+    dayInitials: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+    summary: (n: number) =>
+      n === 0
+        ? 'Aucune séance terminée sur les 12 dernières semaines'
+        : `${String(n)} séance${n > 1 ? 's' : ''} terminée${n > 1 ? 's' : ''} sur les 12 dernières semaines`,
+    dayLabel: (date: string, count: number, future: boolean, today: boolean) =>
+      `${date}${today ? ' (aujourd’hui)' : ''} : ${future ? 'à venir' : count === 0 ? 'aucune séance' : `${String(count)} séance${count > 1 ? 's' : ''}`}`,
+    detailLabel: (date: string) => `Séances du ${date}`,
+    noSession: 'Pas de séance ce jour-là',
+    upcoming: 'Jour à venir',
+  },
   program: {
     title: 'Programme',
     emptyTitle: 'Aucun programme',

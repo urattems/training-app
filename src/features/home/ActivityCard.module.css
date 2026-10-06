@@ -1,0 +1,152 @@
+/* Carte « Activité » (V1.4.0) : grille binaire, tokens uniquement (suivra un futur thème sombre). */
+.card {
+  /* Un peu moins de marge latérale : la grille tient à 320 px sans défilement horizontal. */
+  padding-inline: var(--space-4);
+}
+
+.grid {
+  display: grid;
+  /* Initiales des jours + 12 semaines ; cases carrées de 26 px au plus. */
+  grid-template-columns: 0.875rem repeat(12, minmax(0, 1fr));
+  grid-template-rows: auto;
+  grid-auto-rows: auto;
+  column-gap: 0;
+  row-gap: 0;
+  max-width: calc(0.875rem + 12 * 26px);
+  margin-top: var(--space-3);
+}
+
+.month {
+  grid-row: 1;
+  padding-bottom: var(--space-1);
+  padding-left: 2px;
+  font-size: 0.6875rem;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.initial {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  font-size: 0.625rem;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+}
+
+/*
+ * Le bouton occupe toute sa case de grille (zone tactile maximale sans chevaucher les voisines) ;
+ * le carré visible est dessiné à l'intérieur (::before), la sélection autour (::after).
+ */
+.day {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.day::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 3px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-strong);
+}
+
+.filled::before {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Jours à venir : plus discrets qu'un jour vide passé (pas un « raté »). */
+.future::before {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+}
+
+/* Aujourd'hui : contour discret, plus épais et foncé (ne dépend pas de la couleur seule). */
+.today::before {
+  border: 2px solid var(--color-text-secondary);
+}
+
+.filled.today::before {
+  border-color: var(--color-accent-strong);
+  box-shadow: inset 0 0 0 1px var(--color-surface);
+}
+
+/* Sélection : anneau autour de la case. */
+.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  border: 2px solid var(--color-text);
+}
+
+.day:focus-visible {
+  outline: none;
+}
+
+.day:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  box-shadow: var(--focus-ring);
+}
+
+.summary {
+  margin-top: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.detail {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.detailDate {
+  font-weight: var(--font-weight-semibold);
+}
+
+.detailEmpty {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.detailList {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detailLink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 1rem;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+}
+
+.detailName {
+  font-weight: var(--font-weight-medium);
+}
+
+.detailMeta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.chevron {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-text-tertiary);
+}
