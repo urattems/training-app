@@ -5,11 +5,14 @@ import { DomainError } from './errors';
 import { getLastPerformance } from './display';
 import {
   MAX_EXERCISE_NAME_LENGTH,
+  MAX_REPLACEMENT_ID_LENGTH,
   MAX_SLUG_LENGTH,
   isReplaced,
+  nameHash,
   nameKey,
   plannedName,
   replacementExerciseId,
+  replacementIdFor,
   resolveExerciseName,
   slugify,
 } from './replacement';
@@ -61,14 +64,76 @@ describe('slug : « sub- » + nom normalisé', () => {
     expect(slug.endsWith('-')).toBe(false);
     // Coupe pile sur un tiret : le tiret final est retiré.
     expect(slugify(`${'a'.repeat(39)} b`)).toBe('a'.repeat(39));
-    expect(replacementExerciseId(long)).toBe(`sub-${slug}`);
-    expect(replacementExerciseId('x'.repeat(100))).toBe(`sub-${'x'.repeat(40)}`);
+    // V1.3.2 (adaptation signalée) : un slug TRONQUÉ reçoit le suffixe d'empreinte du nom complet.
+    expect(replacementExerciseId(long)).toBe(`sub-${slug}-${nameHash(nameKey(long))}`);
+    expect(replacementExerciseId('x'.repeat(100))).toBe(`sub-${'x'.repeat(40)}-${nameHash('x'.repeat(100))}`);
   });
 
   it('le même nom donne toujours le même identifiant (quels que soient casse, accents, espaces)', () => {
     const ids = ['Leg Press', 'leg press', ' LEG-PRESS ', 'Lég Press'].map(replacementExerciseId);
     expect(new Set(ids)).toEqual(new Set(['sub-leg-press']));
     expect(replacementExerciseId('Leg Press 2')).not.toBe(replacementExerciseId('Leg Press'));
+  });
+
+  it('V1.3.2 : deux noms longs distincts (mêmes 40 premiers caractères) → identifiants distincts', () => {
+    const a = 'Développé couché avec haltères sur banc incliné à trente degrés';
+    const b = 'Développé couché avec haltères sur banc incliné à quarante-cinq degrés';
+    expect(slugify(a)).toBe(slugify(b));
+    expect(replacementExerciseId(a)).not.toBe(replacementExerciseId(b));
+  });
+
+  it('V1.3.2 : même nom long (casse, accents, espaces) → même identifiant', () => {
+    const variants = [
+      'Développé couché avec haltères sur banc incliné à trente degrés',
+      'DEVELOPPE COUCHE AVEC HALTERES SUR BANC INCLINE A TRENTE DEGRES',
+      '  développé   couché avec haltères sur banc incliné à trente   degrés ',
+    ];
+    expect(new Set(variants.map(replacementExerciseId)).size).toBe(1);
+  });
+
+  it('V1.3.2 : un nom court garde exactement l’identifiant de la V1.3.1', () => {
+    expect(replacementExerciseId('Pec Deck')).toBe('sub-pec-deck');
+    expect(replacementExerciseId('Leg Press')).toBe('sub-leg-press');
+    // Pile 40 caractères de clé : pas tronqué, pas de suffixe.
+    expect(replacementExerciseId('a'.repeat(40))).toBe(`sub-${'a'.repeat(40)}`);
+    // 41 : tronqué, suffixe.
+    expect(replacementExerciseId('a'.repeat(41))).toMatch(/^sub-a{40}-[0-9a-z]{7}$/);
+  });
+
+  it('V1.3.2 : longueur maximale bornée (sub- + 40 + - + 7 = 52), empreinte stable', () => {
+    expect(MAX_REPLACEMENT_ID_LENGTH).toBe(52);
+    const longest = replacementExerciseId('Z'.repeat(MAX_EXERCISE_NAME_LENGTH));
+    expect(longest.length).toBe(MAX_REPLACEMENT_ID_LENGTH);
+    // FNV-1a 32 bits : valeur de référence figée (toute modification casserait les identifiants).
+    expect(nameHash('')).toBe((0x811c9dc5).toString(36).padStart(7, '0'));
+    expect(nameHash('a')).toBe((0xe40c292c).toString(36).padStart(7, '0'));
+  });
+
+  it('V1.3.2 : la ponctuation reste ignorée (limite assumée)', () => {
+    expect(replacementExerciseId('Squat +10 kg')).toBe(replacementExerciseId('Squat 10 kg'));
+  });
+
+  it('V1.3.2 : un nom long déjà utilisé en V1.3.1 garde son identifiant historique (courbe continue)', () => {
+    const name = 'Développé couché avec haltères sur banc incliné à trente degrés';
+    const legacy = { exerciseId: 'sub-developpe-couche-avec-halteres-sur-banc', exerciseName: name };
+    expect(replacementIdFor(name, [legacy])).toBe(legacy.exerciseId);
+    expect(replacementIdFor(name.toUpperCase(), [legacy])).toBe(legacy.exerciseId);
+    // Un autre nom long qui partage le même début n'hérite PAS de cet identifiant.
+    expect(replacementIdFor('Développé couché avec haltères sur banc incliné à 45 degrés', [legacy])).not.toBe(legacy.exerciseId);
+    // Un nom court ignore l'historique (son identifiant n'a jamais changé).
+    expect(replacementIdFor('Pec Deck', [{ exerciseId: 'sub-autre', exerciseName: 'Pec Deck' }])).toBe('sub-pec-deck');
+    // Un exercice du programme (pas « sub- ») n'est jamais réutilisé.
+    expect(replacementIdFor(name, [{ exerciseId: CHEST, exerciseName: name }])).toBe(replacementExerciseId(name));
+    // Sans historique : nouvel identifiant avec empreinte.
+    expect(replacementIdFor(name)).toBe(replacementExerciseId(name));
+  });
+
+  it('V1.3.2 : replaceExercise transmet l’historique (continuité de la courbe)', () => {
+    const name = 'Développé couché avec haltères sur banc incliné 30°';
+    const legacy = { exerciseId: 'sub-developpe-couche-avec-halteres-sur-banc', exerciseName: name };
+    const w = createWorkout(program, 'A', { id: 'w-h', now: new Date(2026, 8, 20, 18, 0) });
+    expect(findRecord(replaceExercise(w, CHEST, name, 'Chest Press', [legacy]), CHEST).exerciseId).toBe(legacy.exerciseId);
+    expect(findRecord(replaceExercise(w, CHEST, name, 'Chest Press'), CHEST).exerciseId).toBe(replacementExerciseId(name));
   });
 
   it('nameKey : clé de comparaison sans troncature', () => {

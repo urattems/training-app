@@ -6,7 +6,7 @@
 import { strings } from '../i18n/strings';
 import { daysBetween, secondsBetween, shiftIsoByDays, toLocalDateString, toLocalIsoString } from '../utils/dates';
 import { DomainError } from './errors';
-import { isReplaced, resolveExerciseName } from './replacement';
+import { isReplaced, resolveExerciseName, type HistoryRecord } from './replacement';
 import type {
   ActualSet,
   CardioEntry,
@@ -259,10 +259,11 @@ export function replaceExercise(
   programExerciseId: string,
   name: string,
   plannedName: string,
+  history: readonly HistoryRecord[] = [],
 ): WorkoutSession {
   const record = findRecord(workout, programExerciseId);
   const others = workout.exerciseRecords.filter((r) => r !== record);
-  const resolved = resolveExerciseName(name, { programExerciseId, plannedName, others });
+  const resolved = resolveExerciseName(name, { programExerciseId, plannedName, others, history });
   if (!resolved.ok) throw new DomainError(resolved.message);
   if (resolved.exerciseId === record.exerciseId && resolved.exerciseName === record.exerciseName) return workout;
   return updateRecord(workout, programExerciseId, (r) => ({

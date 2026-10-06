@@ -1,9 +1,10 @@
-import { useId, useState, type SyntheticEvent } from 'react';
+import { useId, useMemo, useState, type SyntheticEvent } from 'react';
 import { Pencil } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { scrollFieldIntoView } from '../../components/scrollFieldIntoView';
 import { Sheet } from '../../components/Sheet';
-import { isReplaced, resolveExerciseName } from '../../domain/replacement';
+import { isReplaced, resolveExerciseName, type HistoryRecord } from '../../domain/replacement';
+import { useWorkouts } from '../../hooks/useData';
 import type { WorkoutExercise } from '../../domain/types';
 import { replaceExercise, restorePlannedExercise } from '../../domain/workout';
 import type { WorkoutAutosave } from '../../hooks/useWorkoutAutosave';
@@ -32,6 +33,9 @@ interface ReplaceExerciseButtonProps {
 export function ReplaceExerciseButton({ record, siblings, plannedName, autosave }: ReplaceExerciseButtonProps) {
   const [open, setOpen] = useState(false);
   const id = record.programExerciseId;
+  // Historique : un nom long déjà utilisé garde son identifiant (continuité des courbes, V1.3.2).
+  const workouts = useWorkouts();
+  const history = useMemo(() => (workouts ?? []).flatMap((w) => w.exerciseRecords), [workouts]);
 
   /** Les saisies en attente partent d'abord : aucune perte, quel que soit le moment du tap. */
   const apply = async (update: Parameters<WorkoutAutosave['commit']>[0]) => {
@@ -56,7 +60,8 @@ export function ReplaceExerciseButton({ record, siblings, plannedName, autosave 
           record={record}
           others={siblings.filter((r) => r.programExerciseId !== id)}
           plannedName={plannedName}
-          onSave={(name) => apply((w) => replaceExercise(w, id, name, plannedName))}
+          history={history}
+          onSave={(name) => apply((w) => replaceExercise(w, id, name, plannedName, history))}
           onRestore={() => apply((w) => restorePlannedExercise(w, id, plannedName))}
           onClose={() => {
             setOpen(false);
@@ -70,6 +75,7 @@ export function ReplaceExerciseButton({ record, siblings, plannedName, autosave 
 interface ReplaceExerciseSheetProps {
   record: WorkoutExercise;
   others: readonly WorkoutExercise[];
+  history: readonly HistoryRecord[];
   plannedName: string;
   onSave: (name: string) => Promise<void>;
   onRestore: () => Promise<void>;
@@ -77,7 +83,7 @@ interface ReplaceExerciseSheetProps {
 }
 
 /** Feuille « Remplacer l'exercice » : prévu rappelé, champ « Exercice réalisé » prérempli et sélectionné au focus. */
-function ReplaceExerciseSheet({ record, others, plannedName, onSave, onRestore, onClose }: ReplaceExerciseSheetProps) {
+function ReplaceExerciseSheet({ record, others, history, plannedName, onSave, onRestore, onClose }: ReplaceExerciseSheetProps) {
   const [text, setText] = useState(record.exerciseName);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -94,7 +100,7 @@ function ReplaceExerciseSheet({ record, others, plannedName, onSave, onRestore, 
   const submit = (event?: SyntheticEvent) => {
     event?.preventDefault();
     if (busy) return;
-    const resolved = resolveExerciseName(text, { programExerciseId: record.programExerciseId, plannedName, others });
+    const resolved = resolveExerciseName(text, { programExerciseId: record.programExerciseId, plannedName, others, history });
     if (!resolved.ok) {
       setError(resolved.message);
       return;
