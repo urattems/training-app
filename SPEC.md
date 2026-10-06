@@ -133,6 +133,8 @@ Un seul programme actif. Importer un nouveau programme : **le nouveau devient ac
 | Texte de progression | Factuel uniquement (« +2,5 kg vs séance précédente »). **INTERDIT** : conseils (« augmente la charge »). |
 | Repos | Affiché (`Repos recommandé : 120 s`) si présent. Pas de timer. |
 
+> **V1.3.2 — garde-fous de saisie des séries** (ajout) : à la **saisie** et à l'**enregistrement** d'une série, la charge accepte au plus 2 décimales et 999,99 kg, les répétitions sont entières et au plus 999 (gainage : secondes). Un champ vidé reste vide (`null`, jamais 0). Ces bornes ne s'appliquent **pas à l'import** : une ancienne sauvegarde se restaure toujours, et une ancienne valeur hors bornes reste acceptée tant qu'elle n'est pas modifiée.
+
 ---
 
 ## 7. Écrans et UX

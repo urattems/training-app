@@ -1482,3 +1482,69 @@ Crayon de 44 × 44 px à droite du titre ; feuille (champ prérempli et sélecti
 ### fix-test (suite) — « Renvoyer toute l'archive » stabilisé
 - Le test restant (voir ci-dessus) est corrigé comme prévu : `await user.click(await screen.findByRole('button', { name: 'Renvoyer toute l’archive' }))` à la place du `getByRole` synchrone (ligne 203). Même bouton, même clic, même suite d'assertions ; l'attente porte seulement sur l'affichage du bouton après « Renvoi annulé ». **Seconde adaptation d'un test existant, justifiée par la même course de lecture** (écran lu avant la lecture réactive), sans aucun affaiblissement.
 - Mesure : **1 échec sur 20** avant (exécutions isolées), **0 sur 25** après. Suite complète : 656/656 à chaque passe (deux passes normales, une avec `TZ=UTC`), typecheck et lint verts.
+
+---
+
+## V1.3.2 — Correctifs (aucun changement de format de sauvegarde, de schéma Zod ni de version Dexie)
+
+Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient invalide ni ne change d'identifiant.
+
+### 1. Version 1.3.2
+- `package.json` et `package-lock.json` (racine et `packages[""]`) passent de 0.1.0 à **1.3.2**. Paramètres → Informations affiche `APP_VERSION`, injectée au build depuis `package.json` (`vite.config.ts`).
+- Test : la valeur affichée sous « Version » est exactement `package.json.version`, et le lockfile est aligné.
+
+### 2. Identifiant d'un exercice remplaçant : suffixe d'empreinte si le slug est tronqué
+- **Constat** : `sub-` + slug coupé à 40 caractères. Deux noms longs au même début (« … banc incliné à trente degrés » / « … à quarante-cinq degrés ») donnaient le même id, donc une seule courbe.
+- **Règle** : si la clé du nom (`nameKey`, sans accents ni casse) dépasse 40 caractères, l'id devient `sub-<slug 40>-<empreinte>`. L'empreinte est un FNV-1a 32 bits de la clé COMPLÈTE, en base 36, sur 7 caractères. Elle est déterministe et sans dépendance, et une valeur de référence est figée en test. Longueur maximale : 4 + 40 + 1 + 7 = **52**.
+- **Noms courts** (clé ≤ 40) : id **strictement identique** à la V1.3.1 (testé, y compris pile 40).
+- **Continuité V1.3.1 → V1.3.2** : un nom long déjà utilisé en V1.3.1 a un id sans empreinte dans l'historique. Si on le recalculait, sa courbe serait coupée en deux. Lors d'un remplacement par un nom long, l'app cherche donc d'abord dans l'historique (toutes les séances enregistrées) un exercice `sub-…` de même clé, et réutilise son id. Conséquences :
+  - les données existantes ne changent pas ;
+  - deux noms longs DÉJÀ fusionnés en V1.3.1 (même id historique) restent fusionnés, car le code ne réécrit pas l'historique ;
+  - un nom long neuf, lui, reçoit toujours l'empreinte.
+- **Ponctuation ignorée (limite assumée)** : la clé ne garde que `a-z0-9`. « Squat +10 kg » et « Squat 10 kg » sont le même exercice (testé). C'est voulu pour la tolérance de saisie, au prix de ce cas rare.
+- **Adaptation signalée d'un test existant** : `replacement.test.ts`, test « 40 caractères au maximum… ». Les deux assertions de l'id tronqué **sans** suffixe (`sub-${slug}`, `sub-${'x'.repeat(40)}`) attendent désormais `…-${nameHash(nameKey(nom))}`. C'est exactement le comportement demandé. Les assertions sur `slugify` (inchangé) restent telles quelles.
+
+### 3. Garde-fous de saisie des séries
+- **Bornes** :
+  - charge ≥ 0, **2 décimales au plus**, **999,99 kg au plus** ;
+  - répétitions entières, **999 au plus** (gainage : les répétitions sont des secondes, soit plus de 16 minutes) ;
+  - champ vide = `null`, valide, jamais 0.
+- **Arrondi ou refus ?** La consigne dit « arrondie à 2 décimales max » et « même style de message que pour le poids corporel ». Le poids corporel **refuse** une 3ᵉ décimale (« jamais arrondi silencieusement », SPEC §11). J'ai donc choisi le **refus avec message** (« Au plus 2 décimales (ex. 47,55). »), comme pour les pesées : la saisie reste visible, signalée, et rien n'est écrit. **Hésitation signalée** : si l'arrondi automatique était voulu, il suffit de l'appliquer dans `weightCheck`.
+- **Messages** :
+  - « Au plus 2 décimales (ex. 47,55). » ;
+  - « Charge trop élevée : 999,99 kg au maximum. » ;
+  - « Trop de répétitions : 999 au maximum. » ;
+  - texte illisible : messages existants inchangés.
+- **Où** :
+  - champ (`NumberField`, nouvelle prop `check` qui donne un message précis) ;
+  - domaine (`setActualValues`, utilisé aussi par « Comme prévu ») ;
+  - service (`updateWorkout` → `assertChangedSetValues`).
+- **Le service ne vérifie que les valeurs nouvelles ou modifiées** par rapport à la version enregistrée. Une valeur ancienne hors bornes (restaurée d'une vieille sauvegarde) ne bloque jamais l'enregistrement d'autre chose dans la même séance (testé).
+- **Import non durci** : `history.schema` est inchangé. Une sauvegarde à 4747 reps / 1234,567 kg se prévisualise toujours (testé). Les bornes sont des garde-fous de **saisie**, pas des règles de données. Ajout à SPEC §6, sous le tableau, puisque la règle « ne pas être restrictif sur les valeurs hautes » change pour la saisie.
+- `hasAtMostTwoDecimals` est déplacé dans `domain/values` (et réexporté par `weight.schema`), pour éviter un import circulaire.
+- **Cas limite non traité** : un programme dont une `targetWeightKg` aurait 3 décimales ou dépasserait 999,99 ferait refuser « Comme prévu » sur cette série. Le schéma de programme n'est pas modifié (consigne). Ce cas est jugé théorique.
+
+### 4. Ordre des programmes après restauration
+- **Information disponible** : la sauvegarde ne contient pas `importedAt`, mais `toHistoryExport` écrit les programmes **par `importedAt` croissant**. L'ordre du tableau EST donc l'information.
+- **Avant** : tous les programmes restaurés recevaient le même `importedAt`. L'ordre devenait celui de la clé primaire (alphabétique), et l'export suivant perdait l'ordre d'origine.
+- **Correctif** : `importedAt` croissants dans l'ordre du tableau, espacés d'une seconde (précision de l'horodatage), le dernier à l'heure de la restauration. `archivedAt` est inchangé. Le format de sauvegarde ne change pas.
+- Tests :
+  - aller-retour (restauration → export → restauration → export : même ordre, sur un ordre volontairement non alphabétique) ;
+  - ordre de la liste de l'app ;
+  - horodatages attendus.
+
+  Les deux tests échouent sans le correctif.
+
+### 5. `cleanFolderName` : coupe par points de code
+- `slice` sur une chaîne JS coupe en unités UTF-16. Un emoji à cheval sur la 120ᵉ position laissait une moitié de paire isolée, ce qui donnait un nom invalide. La coupe se fait maintenant sur `Array.from(texte)`, et le suffixe de doublon (fix-v1.3a) est compté de la même façon.
+- Les noms déjà **gelés** au premier envoi ne changent pas. Seuls les nouveaux dossiers sont concernés, et seulement pour des libellés de plus de 120 unités UTF-16 contenant des emojis.
+- Test : emoji pile à la limite (gardé), un de plus (retiré en entier), à cheval (plus de moitié de paire), suffixe de doublon. Il échoue sans le correctif.
+- Le script Apps Script n'est pas dans le dépôt et n'a pas été touché.
+
+### Limites assumées (documentées, non corrigées)
+- **(a) Remplacer par un nom déjà présent ailleurs dans le programme crée deux courbes distinctes.** Si la séance A contient « Leg Press » (`leg-press-machine`) et qu'en séance B on remplace un exercice par « Leg Press », le remplaçant reçoit `sub-leg-press`, différent de l'id du programme. Ce sont donc deux courbes. Seul un doublon **dans la même séance** est refusé (V1.3.1). Les fusionner demanderait de rattacher un nom libre à un exercice du programme, ce qui est hors du périmètre d'un correctif.
+- **(b) Les noms 100 % non latins sont refusés** (« Le nom doit contenir au moins une lettre ou un chiffre. »). La clé ne garde que `a-z0-9` après retrait des accents : un nom entièrement en cyrillique, grec, japonais… donnerait un slug vide. Les noms latins accentués et les ligatures (œ, æ, ß) sont acceptés.
+- **(c) Une sauvegarde qui échoue pendant le démontage de l'écran ne signale l'erreur qu'en console.** L'enregistrement de secours (sortie de l'écran exercice : `pagehide`, démontage) n'a plus d'interface pour afficher un message, donc l'erreur n'est que journalisée. En usage normal, l'écriture a déjà eu lieu au blur ou au délai de 350 ms.
+
+### Contrôles
+- Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 656 en V1.3.1, **679** en V1.3.2.

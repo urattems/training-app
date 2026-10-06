@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1.3.1 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice)** → **https://urattems.github.io/training-app/**
+> **État : V1.3.2 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
@@ -17,7 +17,7 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
 - **Séance** :
   - prochaine séance proposée par rotation (A → B → C) ;
   - exercices dans n'importe quel ordre ;
-  - saisie réelle, avec l'objectif en gris dans le champ et le bouton « Comme prévu » ;
+  - saisie réelle, avec l'objectif en gris dans le champ et le bouton « Comme prévu » (charge : 2 décimales et 999,99 kg au plus ; répétitions : 999 au plus) ;
   - séries en plus, sensation, commentaire, cardio ;
   - **remplacer un exercice pour la séance** (machine indisponible) : crayon à côté du titre, feuille « Remplacer l'exercice ». Le prévu reste visible (« Prévu : … »), le réalisé porte le nom choisi, les séries déjà saisies sont conservées, le programme du coach n'est jamais modifié et rien ne se propage aux séances futures. Le remplaçant a sa propre courbe de progression ; possible aussi en mode « Modifier » d'une séance terminée ;
   - chaque exercice s'ouvre tout en haut, clavier fermé (jamais de retour en haut pendant la saisie) ;
@@ -133,4 +133,8 @@ Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runn
   - L'app affiche alors « Ferme les autres onglets de l'app, puis rouvre-la », puis reprend d'elle-même.
   - Aucune donnée n'est touchée.
   - Sur iPhone, l'app installée et Safari ont des données séparées : le cas ne se présente qu'entre plusieurs onglets Safari.
+- **Remplacer un exercice** (limites assumées, DECISIONS V1.3.2) :
+  - remplacer par le nom d'un autre exercice du programme crée une courbe distincte de la sienne ;
+  - la ponctuation est ignorée dans la comparaison des noms (« Squat +10 kg » = « Squat 10 kg ») ;
+  - un nom sans aucune lettre ou chiffre latin (ex. 100 % cyrillique ou japonais) est refusé.
 - **Feuille de partage** : dépend de Safari. En cas d'échec, l'export bascule automatiquement sur le téléchargement.
