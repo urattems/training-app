@@ -1748,3 +1748,56 @@ Branche `v1.3.2`, un commit par correctif. Aucune donnée existante ne devient i
 
 ### Contrôles
 - Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 714 en V1.3.3, **733** en V1.4.0.
+
+---
+
+## V1.4.1 — Erreur non gérée en CI : minuteur après démontage (aucun changement de comportement de l'app)
+
+### Constat
+- Le workflow GitHub (ubuntu, 2 cœurs) a échoué sur `main` (V1.4.0) alors que **733/733 tests passaient**. Vitest est sorti en code 1 sur une **erreur non gérée** : « ReferenceError: document is not defined », dans `src/components/scrollFieldIntoView.ts:11`, déclenchée depuis `ExerciseScreen.test.tsx`.
+- **Cause** : `scrollFieldIntoView` programme un défilement 300 ms après le focus d'un champ, pour laisser le clavier iOS s'ouvrir. Sur une machine lente, ce minuteur se déclenchait **après le démontage de l'environnement jsdom** du fichier de test. `document` n'existait plus.
+- C'est une course de timing, non reproduite en local : 3 essais de l'ancien code sur ce fichier avec un seul worker, sans erreur. Elle est **sans impact sur l'app réelle**, où `document` existe toujours.
+
+### Correctif
+- Au déclenchement du minuteur, `scrollFieldIntoView` ne fait rien si `document` est absent (`typeof document === 'undefined'`) ou si le champ n'est plus dans le DOM (`!element.isConnected`). Sinon, le comportement est le même qu'avant : défilement doux, ou instantané avec `prefers-reduced-motion`, seulement si le champ est encore actif.
+- Le minuteur et son délai (300 ms) sont inchangés.
+- `matchMedia` est lu **avant** le minuteur, au moment du focus, quand l'environnement existe forcément. Ce n'est donc pas un risque. Dans le callback, `scrollIntoView` existe dans tous les navigateurs cibles, et les tests le fournissent (`src/test/setup.ts`).
+- Dans l'app réelle, les gardes ajoutées sont toujours vraies, sauf pour un champ retiré de l'écran. Or un champ retiré n'est jamais le champ actif : l'ancien code ne le faisait déjà pas défiler.
+
+### Même défaut ailleurs ? (revue de `src`, hors tests)
+Seul `scrollFieldIntoView` présentait le risque : un callback différé qui touche `document` ou `window` sans être annulé au démontage. Les autres minuteurs sont laissés tels quels :
+- `hooks/useDrive.ts` (`setInterval` d'une minute, heure courante) : annulé au démontage (`clearInterval`), et le callback n'utilise que `Date.now()`.
+- `hooks/usePreparedCoachExport.ts` (préparation de l'export après 250 ms) : annulé au démontage (`clearTimeout` + `cancelled`), et le callback ne touche pas au DOM.
+- `pwa/UpdateBanner.tsx` (vérification de mise à jour toutes les heures) : jamais annulé, mais il n'est créé que par `onRegisteredSW`. Le module PWA est remplacé par un bouchon dans les tests, donc ce code ne s'y exécute jamais. Dans l'app, la bannière est montée une seule fois. Il n'utilise que `navigator.onLine`.
+- `services/driveClient.ts` (délai maximal d'une requête) : annulé dans `finally`, et le callback ne fait que `controller.abort()`.
+- `services/driveScheduler.ts` (reprises des envois Drive) : annulé à l'arrêt du planificateur (démontage de `DriveSyncAgent`), et le callback ne touche pas au DOM. Toute exception est absorbée dans `run`.
+- `services/exportService.ts` (`URL.revokeObjectURL` 10 s après un téléchargement) : n'utilise que `URL`, qui existe aussi hors jsdom (Node).
+- `utils/screen.ts` (`resetScreen`) : appelé de façon synchrone dans un effet de mise en page, sans minuteur.
+- `SwipeRow`, `ActivityCard` et `useWorkoutAutosave` : aucun minuteur. Les écritures de l'autosave se terminent après le démontage, mais ne touchent qu'à IndexedDB et à l'état React.
+
+### Tests
+`components/scrollFieldIntoView.test.ts` (4 tests, minuteurs simulés) :
+- **Défaut reproduit** : `document` est retiré (`vi.stubGlobal`) avant l'échéance, puis les minuteurs sont avancés. Aucune exception, aucun défilement. Ce test **échoue avec l'ancien code** (vérifié).
+- Champ retiré du DOM avant l'échéance : aucune exception, aucun défilement. L'ancien code passait déjà ce test, qui sert de garde de non-régression.
+- Champ actif : défilement doux exactement à 300 ms, pas avant.
+- Champ qui n'est plus actif : aucun défilement.
+
+### Vérification façon CI
+Suite complète lancée 6 fois d'affilée. Toutes les passes sont sorties en code 0, avec 737/737 tests, sans erreur non gérée ni « document is not defined » :
+
+| Passe | Réglages | Durée |
+|---|---|---|
+| 1 | normal | — |
+| 2 | normal | — |
+| 3 | `--maxWorkers=1` | 222 s |
+| 4 | `--maxWorkers=1` | 214 s |
+| 5 | `TZ=UTC` | 44 s |
+| 6 | `TZ=UTC` + `--maxWorkers=1` | 216 s |
+
+### Leçon
+- **La CI est un second juge.** Une suite verte en local ne prouve pas l'absence de course de timing : une machine plus lente (2 cœurs) décale les minuteurs par rapport au démontage de l'environnement de test.
+- Désormais, tout callback différé qui touche le DOM doit soit être annulé au démontage, soit vérifier que l'environnement et l'élément existent encore.
+- Une erreur non gérée fait échouer la CI même quand tous les tests passent. Le résultat à surveiller est le **code de sortie**, pas seulement le compteur de tests.
+
+### Contrôles
+- Typecheck, lint, tests (fuseau des tests et `TZ=UTC`) et build verts. Nombre de tests : 733 en V1.4.0, **737** en V1.4.1.
