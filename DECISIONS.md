@@ -1895,3 +1895,82 @@ Les jalons 1 à 3 de l'audit « Mensurations » sont livrés sur une seule branc
 | 3 | `TZ=UTC` | 29 s |
 
 - Aucun minuteur ajouté.
+
+---
+
+## V1.6.0 — Mensurations : interface, graphiques et statistiques (jalons 4 et 5 ; aucun changement de données)
+
+Aucun changement de base, de format de sauvegarde, de schéma ni de protocole Drive : tout repose sur les jalons 1 à 3. Toute écriture passe par `measurementService`.
+
+### Choix
+- **Titre « Poids » gardé, pas de 5ᵉ onglet.**
+  - L'onglet de la barre et le titre restent « Poids », et des sous-onglets **[ Poids | Mensurations ]** séparent les deux vues (routes `/weight` et `/weight/mensurations`).
+  - « Balance » aurait été ambigu et faux pour un mètre ruban, et un titre différent de l'onglet trouble VoiceOver.
+- **Écran Poids inchangé.**
+  - Deux extraits partagés : `DecimalInput` (l'ancien `WeightInput`, DOM identique, unité et défilement au focus en paramètres, ce dernier désactivé pour le poids) et `BodyTabs`.
+  - L'axe Y du poids devient un cas de `paddedValueAxis(values, minSpan)` (`domain/chart.ts`), extrait tel quel avec une amplitude minimale de 10 kg.
+  - **Tous les tests de Poids passent sans aucune modification.**
+- **Un graphique à la fois, sélectionné par la carte.**
+  - Six graphiques plus le Total ne tiennent pas lisiblement à 320 px.
+  - Un seul graphique est affiché au-dessus de la carte « Dernière mensuration », dont chaque ligne est un bouton de sélection (`aria-pressed`, coche et gras : pas la couleur seule). Le Total est la dernière ligne, et Ventre est sélectionné par défaut.
+  - La rangée de 7 boutons, écartée, aurait pris deux lignes à 320 px.
+- **Périodes propres** : `MEASUREMENT_PERIODS` = 3M · 6M · 1A · Tout, défaut Tout, sans 1M.
+  - `PERIODS` (progression, poids) n'est pas modifié.
+  - `?periode=` est propre à la route : un « 1M » venu du poids est ignoré et l'on revient à Tout.
+  - `?zone=` (nom de la zone ou `total`) garde la sélection, et `?point=` le point touché.
+- **Axe Y** non ancré à zéro : amplitude minimale de **4 cm** pour une zone et de **10 cm** pour le Total, marges ≥ 10 %, graduations propres. Sans ce plancher, 0,5 cm occuperait toute la hauteur.
+- **Couleur neutre.**
+  - DÉPART, AUJOURD'HUI (avec la date de la prise dessous), VARIATION (signe, vrai moins, « — » s'il n'y a qu'une valeur) et l'écart d'un point sont en texte charbon sur fond crème : jamais de rouge ni de vert.
+  - Un test vérifie qu'aucune classe de jugement n'est rendue ; seule la poubelle porte la couleur des actions destructives.
+- **Départ et Aujourd'hui** sont calculés sur **toutes** les prises, indépendamment de la période. Min, max et nombre de prises suivent la période.
+- **Avertissement doux des 10 cm.**
+  - Il compare la valeur saisie à la valeur la plus proche **dans le passé, par date** (strictement avant la date de la prise), jamais à une prise postérieure.
+  - « Corriger » n'écrit rien. Exactement 10 cm ne déclenche rien.
+- **Règles de valeur** : **1 décimale** au plus et **plafond de 300 cm**, les mêmes que le service. Une 2ᵉ décimale est refusée avec un message, **jamais arrondie** en silence.
+- **Date déjà prise** : message et bouton « Modifier cette prise », qui ouvre la modification avec les **vraies** valeurs (édition explicite, la seule où un champ est prérempli). L'enregistrement d'une nouvelle prise est désactivé sur cette date, et le service la refuserait de toute façon.
+- **Aide** : une ligne, puis un seul `<details>` « Comment mesurer ? » fermé, qui reprend les consignes de la constante du domaine. Pas d'aide par champ.
+- **Clavier iPhone** : défilement au focus (`scrollFieldIntoView`, minuteur déjà protégé en V1.4.1). Le champ actif reste visible, vérifié en navigateur réel.
+
+### Écarts et précisions
+- Sous 360 px, les trois cartes DÉPART / AUJOURD'HUI / VARIATION sont compactées (libellé plus petit, sans espacement des lettres ; valeur en taille réduite). Sinon « AUJOURD'HUI » débordait de ~75 px (mesuré en navigateur réel). Vérifié avec les valeurs les plus longues (Total : « 431,2 cm », « −13,2 cm »).
+- La carte « Dernière mensuration » montre la dernière valeur **de chaque zone**, qui peut venir de prises différentes. Le Total, lui, vient toujours de la dernière prise **complète**, dont la date est affichée.
+- `?point=` est ajouté à l'URL pour garder le point touché.
+- Les placeholders utilisent la dernière valeur connue de chaque zone, toutes prises confondues.
+
+### Tests
+- `features/weight/Measurements.test.tsx` (20) :
+  - sous-onglets (`aria-current`, routes, onglet de la barre actif, pas de 5ᵉ onglet) ;
+  - état vide ;
+  - saisie avec virgule ; vide différent de 0 ; « Enregistrer » inactif sans valeur ;
+  - refus (2 décimales, 0, > 300, illisible) ;
+  - date future refusée ; date passée acceptée ;
+  - placeholder sans préremplissage ;
+  - date existante qui propose « Modifier cette prise » sans rien écraser ;
+  - modification ; avertissement des 10 cm (et 10 cm pile) ; suppression confirmée ;
+  - dernière mensuration ; historique ;
+  - absence de « score » et « points » ; noms accessibles.
+- `features/weight/MeasurementsCharts.test.tsx` (8) :
+  - Ventre par défaut ; sélection et `?zone=` ; Total ;
+  - Départ indépendant de la période ; paramètres propres (1M ignoré) ;
+  - détail au toucher d'un point ;
+  - aucune classe rouge ou verte (le test garantit qu'il ne passe pas à vide) ;
+  - période sans point avec lien vers Tout ; variation « — ».
+- `domain/measurements.test.ts` :
+  - avertissement (passé par date, 10 cm pile), formatage signé ;
+  - périodes propres et `PERIODS` inchangé ; `?zone=` ;
+  - axe (amplitude minimale, marges, jamais ancré à zéro) ; valeur précédente.
+- **Aucun test existant modifié.**
+- **Navigateur réel** (Edge headless, tactile, production) : **16/16** à 320 × 568 et 390 × 844.
+  - Contrôles : pas de défilement horizontal (page et feuille) ; sous-onglets, crayons et poubelles ≥ 44 px ; cartes DÉPART / AUJOURD'HUI / VARIATION qui tiennent ; graphique présent ; champ actif visible au-dessus du clavier ; aucune erreur console.
+
+### Contrôles
+- Typecheck, lint, tests et build verts à la fin de chaque jalon. Nombre de tests : 802 en V1.5.0, **825** après le jalon 4, **839** après le jalon 5.
+- Passes façon CI. Toutes sont sorties en code 0, avec 839/839 tests, sans erreur non gérée :
+
+| Passe | Réglages | Durée |
+|---|---|---|
+| 1 | `--maxWorkers=1` | 174 s |
+| 2 | `--maxWorkers=1` | 140 s |
+| 3 | `TZ=UTC` | 21 s |
+
+- Aucun nouveau minuteur. Le seul différé est le défilement au focus, via `scrollFieldIntoView`, déjà protégé en V1.4.1.

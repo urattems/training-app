@@ -301,6 +301,34 @@ L'app enregistre, affiche et calcule ; **aucun objectif, aucun conseil, aucune i
 - si une version plus récente s'ouvre ailleurs, le message invite à recharger la page ;
 - dans les deux cas, le message assure que les données ne sont pas perdues, et aucune donnée n'est touchée.
 
+### 7.12 Mensurations (amendement V1.6.0)
+Modèle de données et règles de valeur : §5.2, complément V1.5.0.
+
+**Navigation**
+- L'onglet de la barre reste « Poids » ; pas de 5ᵉ onglet. Le titre de page reste « Poids ».
+- Sous le titre : sous-onglets **[ Poids | Mensurations ]**, deux liens (`aria-current` sur la vue affichée, zone tactile ≥ 44 px). Routes `/weight` et `/weight/mensurations` ; l'onglet de la barre est actif sur les deux.
+- L'écran Poids est inchangé.
+
+**Saisie** (bouton « Nouvelle mensuration », feuille)
+- Date : aujourd'hui (date locale) par défaut, passé autorisé, futur interdit (`max` = aujourd'hui).
+- Les 6 zones dans l'ordre, en cm, clavier décimal, virgule acceptée, « OK » comme touche Entrée, défilement au focus pour rester au-dessus du clavier, aucun enchaînement automatique d'un champ à l'autre.
+- **Placeholder** gris = dernière valeur connue de la zone, **jamais de préremplissage**. Un champ vide = mesure absente (`null`), jamais 0.
+- Aide : « Mensurations prises relâchées, idéalement dans les mêmes conditions à chaque mesure. », puis un seul bloc repliable « Comment mesurer ? » (fermé par défaut) avec les 6 consignes. Pas d'aide repliable par champ.
+- « Enregistrer » n'est actif qu'avec au moins une valeur valide. Refus avec message précis, sans jamais arrondir : 2ᵉ décimale, 0 ou moins, plus de 300 cm, texte illisible.
+- **Avertissement doux** « C'est bien ça ? » (jamais bloquant) si une zone diffère de **plus de 10 cm** de sa valeur la plus proche dans le passé (par date), avec les deux valeurs ; « Corriger » n'écrit rien, « Oui, enregistrer » écrit.
+- **Date déjà prise** : « Une prise existe déjà le … » et le bouton « Modifier cette prise », qui ouvre la modification préremplie avec les **vraies** valeurs enregistrées. Jamais d'écrasement silencieux ; l'enregistrement d'une nouvelle prise est désactivé sur cette date.
+- **Modification** : date non modifiable (supprimer puis recréer). **Suppression** : confirmation explicite.
+
+**Affichage**
+- **Un seul graphique à la fois** (points reliés, détail au toucher d'un point : date, mesure, écart neutre avec la valeur précédente de la série, « Modifier »), au-dessus de la carte « Dernière mensuration ».
+- Périodes propres : **3M · 6M · 1A · Tout** (défaut Tout, pas de 1M), paramètre `?periode=` propre à la route ; `?zone=` garde la série choisie. Période sans point : « Aucune prise sur cette période » et un lien pour passer à Tout.
+- Axe Y **non ancré à zéro**, amplitude minimale 4 cm pour une zone et 10 cm pour le Total, marges ≥ 10 %, graduations propres. Chaque zone n'a que ses propres points ; le Total ne contient que les prises complètes.
+- Cartes **DÉPART / AUJOURD'HUI / VARIATION** de la série choisie, en **couleur neutre** (jamais rouge ni vert), calculées sur **toutes** les prises : Départ = plus ancienne valeur par date (Total : plus ancienne prise complète) ; « Aujourd'hui » = dernière valeur, avec sa date dessous ; Variation signée (« +30 cm », « −27 cm », vrai signe moins), « — » s'il n'y a qu'une valeur. Puis min, max et nombre de prises sur la période.
+- Carte **« Dernière mensuration »** : une ligne par zone (dernière valeur ou « — »), puis le **Total des mensurations** de la dernière prise complète, avec sa date (ou « — » et une phrase discrète). Chaque ligne est un bouton qui **sélectionne** la série affichée (`aria-pressed`, coche et texte en gras) ; le Total est la dernière ligne, secondaire ; Ventre par défaut.
+- **Historique** : une ligne par prise, du plus récent au plus ancien (date en toutes lettres, 6 valeurs ou tirets, « Total des mensurations » si la prise est complète, sinon « Prise incomplète »), crayon et poubelle (≥ 44 px).
+- État vide sobre. Tient à 320 et 390 px sans défilement horizontal.
+- Vocabulaire : « Total des mensurations », jamais « score » ni « points ». Aucun objectif, aucun conseil.
+
 ---
 
 ## 8. Design system
