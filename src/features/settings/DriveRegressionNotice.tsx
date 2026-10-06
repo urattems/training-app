@@ -29,7 +29,18 @@ export function DriveRegressionNotice({ regression }: { regression: RegressionIn
         <ShieldAlert aria-hidden className={styles.icon} />
         {t.regressionTitle}
       </p>
-      <p>{t.regressionText(current.sessions, current.weights, incoming.sessions, incoming.weights)}</p>
+      <p>
+        {current.measurements === undefined && incoming.measurements === undefined
+          ? t.regressionText(current.sessions, current.weights, incoming.sessions, incoming.weights)
+          : t.regressionTextWithMeasurements(
+              current.sessions,
+              current.weights,
+              current.measurements ?? 0,
+              incoming.sessions,
+              incoming.weights,
+              incoming.measurements ?? 0,
+            )}
+      </p>
       <div className={styles.actions}>
         <Button
           variant="primary"

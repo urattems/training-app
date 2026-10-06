@@ -535,6 +535,9 @@ export const strings = {
     regressionTitle: 'Sauvegarde Drive plus complète',
     regressionText: (x: number, y: number, a: number, b: number) =>
       `Ton Drive contient une sauvegarde plus complète (${x} séance${x > 1 ? 's' : ''}, ${y} pesée${y > 1 ? 's' : ''}) que cette app (${a}, ${b}). Rien n’a été écrasé.`,
+    /** V1.5.0 : quand le script renvoie aussi les mensurations. */
+    regressionTextWithMeasurements: (x: number, y: number, z: number, a: number, b: number, c: number) =>
+      `Ton Drive contient une sauvegarde plus complète (${x} séance${x > 1 ? 's' : ''}, ${y} pesée${y > 1 ? 's' : ''}, ${z} mensuration${z > 1 ? 's' : ''}) que cette app (${a}, ${b}, ${c}). Rien n’a été écrasé.`,
     regressionRestore: 'Restaurer depuis mon Drive',
     regressionReplace: 'Remplacer quand même',
     regressionIgnore: 'Ignorer',

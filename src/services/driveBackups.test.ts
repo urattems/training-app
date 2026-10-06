@@ -205,7 +205,8 @@ describe('Sauvegardes', () => {
     const backup = sent[0];
     expect(backup?.content).toBe((await prepareExport(NOW)).json);
     expect(parseHistoryJson(backup?.content ?? '').ok).toBe(true);
-    expect(backup?.meta).toEqual({ kind: 'backup_latest', counts: { sessions: 3, weights: 10, programs: 1 }, exportedAt: '2026-10-05T09:30:00+02:00' });
+    // V1.5.0 (adaptation signalée) : `measurements` ajouté aux compteurs.
+    expect(backup?.meta).toEqual({ kind: 'backup_latest', counts: { sessions: 3, weights: 10, programs: 1, measurements: 0 }, exportedAt: '2026-10-05T09:30:00+02:00' });
     expect(backup).not.toHaveProperty('force');
     expect(await getLastAutoBackupAt()).toBe('2026-10-05T09:30:00+02:00');
   });

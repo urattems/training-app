@@ -5,6 +5,7 @@ import type { MeasurementEntry } from '../domain/types';
 import { validateWeightDate } from '../domain/weight';
 import { strings } from '../i18n/strings';
 import { measurementEntrySchema } from '../schemas/measurement.schema';
+import { DRIVE_TRIGGERS, notifyDriveQueued, queueDriveTasks } from './driveOutbox';
 import { toLocalDateString, toLocalIsoString } from '../utils/dates';
 import { formatDayLong } from '../utils/format';
 
@@ -42,11 +43,15 @@ function checkedEntry(date: string, values: MeasurementValues, now: Date): Measu
  */
 export async function addMeasurement(date: string, values: MeasurementValues, now: Date = new Date()): Promise<MeasurementEntry> {
   const entry = checkedEntry(date, values, now);
-  return db.transaction('rw', [db.measurements, db.settings], async () => {
+  // Archive Drive (V1.5.0) : sauvegarde mise en file dans la même transaction que la prise.
+  const saved = await db.transaction('rw', [db.measurements, db.settings], async () => {
     if (await db.measurements.get(date)) throw new DomainError(t.exists(formatDayLong(date)));
     await db.measurements.add(entry);
+    await queueDriveTasks(DRIVE_TRIGGERS.measurementChanged());
     return entry;
   });
+  notifyDriveQueued();
+  return saved;
 }
 
 /**
@@ -54,17 +59,23 @@ export async function addMeasurement(date: string, values: MeasurementValues, no
  * la supprimer puis la recréer). `recordedAt` devient l'instant de la modification.
  */
 export async function updateMeasurement(date: string, values: MeasurementValues, now: Date = new Date()): Promise<MeasurementEntry> {
-  return db.transaction('rw', [db.measurements, db.settings], async () => {
+  const saved = await db.transaction('rw', [db.measurements, db.settings], async () => {
     if (!(await db.measurements.get(date))) throw new DomainError(t.notFound);
     const entry = checkedEntry(date, values, now);
     await db.measurements.put(entry);
+    await queueDriveTasks(DRIVE_TRIGGERS.measurementChanged());
     return entry;
   });
+  notifyDriveQueued();
+  return saved;
 }
 
 /** Supprime une prise. L'interface DOIT demander une confirmation explicite avant l'appel. */
 export async function deleteMeasurement(date: string): Promise<void> {
+  // Rien n'est supprimé dans le Drive : la sauvegarde suivante ne contient simplement plus la prise.
   await db.transaction('rw', [db.measurements, db.settings], async () => {
     await db.measurements.delete(date);
+    await queueDriveTasks(DRIVE_TRIGGERS.measurementChanged());
   });
+  notifyDriveQueued();
 }

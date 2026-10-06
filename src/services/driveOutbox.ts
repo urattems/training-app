@@ -156,6 +156,11 @@ export const DRIVE_TRIGGERS = {
   weightSaved: (date: string) => [{ type: 'weight' as const, key: date }, WEIGHTS_ALL, BACKUP_LATEST],
   /** Pesée supprimée. */
   weightDeleted: (date: string) => [{ type: 'weight_deleted' as const, key: date }, WEIGHTS_ALL, BACKUP_LATEST],
+  /**
+   * Mensuration ajoutée, modifiée ou supprimée (V1.5.0) : la sauvegarde SEULE, aucun fichier par
+   * prise et aucune nouvelle action (protocole sync-2 inchangé).
+   */
+  measurementChanged: () => [BACKUP_LATEST],
 };
 
 /** Copie hebdomadaire due : jamais confirmée, ou dernière confirmation vieille de 7 jours ou plus. */
@@ -309,9 +314,15 @@ async function sendTask(task: DriveTask, config: DriveConfig, now: () => Date): 
     const result = await put(file, kind === 'backup_latest' && task.force === true);
     if (result.kind === 'rejected' && result.error === 'regression' && kind === 'backup_latest') {
       // Garde-fou §8.2 : pas de réessai ; pause et écran de choix.
+      // Lecture tolérante : un compteur absent (ex. mensurations avec le script sync-2) est ignoré.
       const counts = (value: unknown): RegressionCounts => {
         const v = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
-        return { sessions: Number(v.sessions ?? 0), weights: Number(v.weights ?? 0) };
+        const measurements = Number(v.measurements);
+        return {
+          sessions: Number(v.sessions ?? 0),
+          weights: Number(v.weights ?? 0),
+          ...(v.measurements !== undefined && v.measurements !== null && Number.isFinite(measurements) && { measurements }),
+        };
       };
       await updateOutbox((s) =>
         pauseForRegression(s, task, { current: counts(result.body.current), incoming: counts(result.body.incoming), at: toLocalIsoString(now()) }, describe(result, config), now().getTime()),

@@ -66,6 +66,8 @@ export interface DriveTask {
 export interface RegressionCounts {
   sessions: number;
   weights: number;
+  /** V1.5.0 : seulement si le script le renvoie (absent avec le script sync-2). */
+  measurements?: number;
 }
 
 export interface RegressionInfo {

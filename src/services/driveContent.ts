@@ -117,7 +117,7 @@ export function buildWeightsAllFile(stored: StoredData, exportedAt: string): Dri
 
 export interface BackupFile extends DriveFile {
   exportedAt: string;
-  /** Aucune séance, aucune pesée, aucun programme : jamais envoyée (spec §8.1). */
+  /** Aucune séance, aucune pesée, aucune mensuration, aucun programme : jamais envoyée (spec §8.1). */
   empty: boolean;
 }
 
@@ -127,13 +127,15 @@ export interface BackupFile extends DriveFile {
  */
 export async function buildBackupFile(kind: 'backup_latest' | 'backup_weekly', now: Date): Promise<BackupFile> {
   const prepared = await prepareExport(now);
-  const counts = { sessions: prepared.sessionCount, weights: prepared.weightCount, programs: prepared.programCount };
+  // V1.5.0 : `measurements` en plus (ignoré par le script sync-2, qui ne compare que séances et pesées).
+  const counts = { sessions: prepared.sessionCount, weights: prepared.weightCount, programs: prepared.programCount, measurements: prepared.measurementCount };
   return {
     folder: DRIVE_PATHS.backupsFolder,
     name: kind === 'backup_latest' ? DRIVE_PATHS.backupLatest : DRIVE_PATHS.weeklyName(toLocalDateString(now)),
     content: prepared.json,
     meta: { kind, counts, exportedAt: prepared.data.exportedAt },
     exportedAt: prepared.data.exportedAt,
-    empty: counts.sessions === 0 && counts.weights === 0 && counts.programs === 0,
+    // Des mensurations seules suffisent à rendre la base non vide (V1.5.0).
+    empty: counts.sessions === 0 && counts.weights === 0 && counts.programs === 0 && counts.measurements === 0,
   };
 }
