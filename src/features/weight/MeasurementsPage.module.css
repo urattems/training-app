@@ -159,16 +159,24 @@
   visibility: hidden;
 }
 
-/* DÉPART / AUJOURD'HUI / VARIATION : trois cartes neutres (~80 px chacune à 320 px). */
+/*
+ * DÉPART / AUJOURD'HUI / VARIATION : trois cartes neutres (V1.6.1).
+ * Chaque carte fait AU MOINS la largeur de son contenu (`min-width: max-content`) : un libellé ou
+ * une valeur ne peut jamais déborder ni être coupé, quelle que soit la police (SF Pro sur iPhone
+ * est plus large que les polices de test). Les cartes se partagent la place restante ; si une
+ * police très large ne laisse pas la place pour trois, la dernière passe à la ligne au lieu de
+ * déborder. Libellé compact (11 px, espacement réduit) pour tenir sur une ligne dès 320 px.
+ */
 .summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin: var(--space-2) 0 var(--space-3);
 }
 
 .summaryCard {
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: max-content;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-surface-muted);
@@ -177,10 +185,11 @@
 
 .summaryCard dt {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: 0.6875rem;
   font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .summaryCard dd {
@@ -198,10 +207,16 @@
 .summaryDate {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
+  white-space: nowrap;
 }
 
-/* Petits écrans (iPhone SE, 320 px : ~75 px par carte) : libellé et valeur plus compacts. */
-@media (max-width: 359px) {
+/* Écrans étroits (320 à 389 px : iPhone SE, mini, Android 360) : marges et valeur plus
+   compactes, libellé à 10 px, pour garder une marge face à une police système plus large. */
+@media (max-width: 389px) {
+  .summary {
+    gap: var(--space-1);
+  }
+
   .summaryCard {
     padding: var(--space-2) var(--space-1);
   }
