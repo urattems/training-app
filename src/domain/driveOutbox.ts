@@ -36,6 +36,9 @@ export const TASK_ORDER: readonly DriveTaskType[] = [
   'backup_weekly',
 ];
 
+/** Suppressions à faire connaître au script AVANT la sauvegarde (`mark_deleted`, `note_deletion`). */
+export const DELETION_TYPES: ReadonlySet<DriveTaskType> = new Set(['session_deleted', 'weight_deleted', 'measurement_deleted']);
+
 /** Clés uniques des tâches sans objet propre : une seule de chaque en file (fusion). */
 export const SINGLETON_KEYS = { weights_all: 'all', backup_latest: 'latest', backup_weekly: 'weekly' } as const;
 
@@ -148,9 +151,11 @@ export function enqueueTasks(state: DriveOutboxState, items: readonly { type: Dr
  * `timer` : seulement les tâches dont l'heure de reprise est passée.
  */
 export function nextDueTask(state: DriveOutboxState, now: number, mode: 'all' | 'timer'): DriveTask | null {
-  // V1.6.2 : tant qu'une suppression de mensuration n'est pas confirmée (en attente ou en erreur),
-  // `backup_latest` attend : envoyée avant, elle serait refusée à tort comme une régression.
-  const deletionPending = state.tasks.some((t) => t.type === 'measurement_deleted');
+  // Tant qu'une suppression n'est pas confirmée par le script (en attente ou en erreur), `backup_latest`
+  // attend : envoyée avant, elle compterait une donnée en moins que le script ne sait pas encore
+  // supprimée et serait refusée à tort comme une régression. V1.6.2 : mensurations ; V1.6.3 :
+  // séances et pesées (`mark_deleted`), même règle.
+  const deletionPending = state.tasks.some((t) => DELETION_TYPES.has(t.type));
   const due = state.tasks.filter(
     (t) =>
       t.status === 'pending' &&

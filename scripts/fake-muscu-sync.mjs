@@ -19,6 +19,9 @@
  *   mensurations en moins que de suppressions notées depuis la dernière sauvegarde acceptée
  *   (chaque suppression ne tolère qu'une baisse : elle est « consommée » à l'acceptation).
  *   En sync-2, `note_deletion` est une action inconnue (`bad_request`), comme le vrai script.
+ *   V1.6.3 : en sync-3, la baisse des séances et des pesées est tolérée de même, d'après les
+ *   `mark_deleted` reçus (un fichier marqué ne compte qu'une fois, même si la marque est rejouée).
+ *   En sync-2, le refus reste strict (comportement d'avant).
  *
  * Usage : `node scripts/fake-muscu-sync.mjs [port]` (défaut 4190, secret FAKE_SECRET ou
  * « fake-secret-1234 »). Pilotage pour les tests : GET /__state, POST /__config, POST /__reset.
@@ -70,6 +73,8 @@ export function createFakeMuscuSync(options = {}) {
   const requests = [];
   /** sync-3 : suppressions notées `kind:key` → { at, consumed } (idempotentes). */
   const deletions = new Map();
+  /** sync-3 : fichiers marqués supprimés (`dossier/nom`) → { kind: 'session' | 'weight', consumed }. */
+  const marks = new Map();
   const isSync3 = () => config.version !== 'sync-2';
   /** Réponses en attente de la redirection GET. */
   const pending = new Map();
@@ -117,6 +122,8 @@ export function createFakeMuscuSync(options = {}) {
     if (action === 'mark_deleted') {
       const file = files.get(key);
       if (!file) return { log: { ...log, outcome: 'not_in_index' }, response: fail('not_in_index') };
+      // sync-3 : première marque de ce fichier seulement (rejouer la marque ne compte pas deux fois).
+      if (isSync3() && !marks.has(key)) marks.set(key, { kind: folder === 'Pesees' ? 'weight' : 'session', consumed: false });
       file.deletedAt = request.at;
       return { log: { ...log, outcome: 'ok' }, response: json({ ok: true, deletedAt: request.at }) };
     }
@@ -136,7 +143,10 @@ export function createFakeMuscuSync(options = {}) {
       const measured = isSync3() && existing && typeof existing.measurements === 'number' && typeof incoming.measurements === 'number';
       const tolerated = [...deletions.values()].filter((d) => !d.consumed).length;
       const fewerMeasurements = measured && incoming.measurements < existing.measurements - tolerated;
-      if (existing && (incoming.sessions < existing.sessions || incoming.weights < existing.weights || fewerMeasurements)) {
+      const marked = (kind) => (isSync3() ? [...marks.values()].filter((m) => m.kind === kind && !m.consumed).length : 0);
+      const fewerSessions = incoming.sessions < existing?.sessions - marked('session');
+      const fewerWeights = incoming.weights < existing?.weights - marked('weight');
+      if (existing && (fewerSessions || fewerWeights || fewerMeasurements)) {
         const current = { sessions: existing.sessions, weights: existing.weights, ...(measured && { measurements: existing.measurements }) };
         return {
           log: { ...log, outcome: 'regression' },
@@ -149,7 +159,7 @@ export function createFakeMuscuSync(options = {}) {
     }
     if (key === LATEST_KEY && request.force === true) config.regressionCounts = null;
     // Sauvegarde acceptée : les suppressions notées jusque-là ont servi (une seule tolérance chacune).
-    if (key === LATEST_KEY) for (const d of deletions.values()) d.consumed = true;
+    if (key === LATEST_KEY) for (const d of [...deletions.values(), ...marks.values()]) d.consumed = true;
     const previous = files.get(key);
     files.set(key, { folder, name, content: request.content, meta: request.meta, writes: (previous?.writes ?? 0) + 1, deletedAt: previous?.deletedAt ?? null });
     return { log: { ...log, outcome: 'ok', chars: request.chars, force: request.force === true }, response: json({ ok: true, folder, name, chars: request.chars }) };
@@ -185,6 +195,7 @@ export function createFakeMuscuSync(options = {}) {
     if (url.pathname === '/__reset' && req.method === 'POST') {
       files.clear();
       deletions.clear();
+      marks.clear();
       requests.length = 0;
       pending.clear();
       res.writeHead(204, cors).end();
@@ -241,6 +252,7 @@ export function createFakeMuscuSync(options = {}) {
     files,
     requests,
     deletions,
+    marks,
     /** Démarre l'écoute ; renvoie l'URL `/exec` à configurer dans l'app. */
     listen: (port = 0) =>
       new Promise((resolve) => {

@@ -45,6 +45,8 @@ export interface FakeMuscuSync {
   requests: FakeRequest[];
   /** sync-3 : suppressions notées `kind:key` (idempotentes) et leur consommation. */
   deletions: Map<string, { at: string; consumed: boolean }>;
+  /** sync-3 : fichiers marqués supprimés (`dossier/nom`), tolérés une fois chacun. */
+  marks: Map<string, { kind: 'session' | 'weight'; consumed: boolean }>;
   listen: (port?: number) => Promise<string>;
   close: () => Promise<void>;
 }
