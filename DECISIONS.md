@@ -2008,3 +2008,70 @@ Aucun changement de base, de format de sauvegarde, de schéma ni de protocole Dr
 ### Contrôles
 - Aucun nouveau minuteur. Typecheck, lint et build verts.
 - Tests : 839 en V1.6.0, **841** en V1.6.1, en `--maxWorkers=1` puis en `TZ=UTC`.
+
+---
+
+## V1.6.2 — Jalon 6 : suppressions de mensurations notées au script sync-3 (aucun changement de format ni de schéma)
+
+### Contexte
+Le script Apps Script est en **sync-3**, déjà déployé par l'utilisateur.
+- Il compte `meta.counts.measurements` et refuse une sauvegarde dont ce nombre baisse sans suppression connue.
+- Pour les séances et les pesées, il connaît les suppressions par `mark_deleted`.
+- Pour les mensurations, qui n'ont pas de fichier par prise, il ajoute l'action `note_deletion { kind: 'measurement', key: <date>, at }`, idempotente.
+- sync-2 ne connaît pas cette action.
+
+### Choix
+- **Version du script = réglage de l'APPAREIL** (`driveScriptVersion`, ajoutée à `DEVICE_SETTING_KEYS`) :
+  - lue dans la réponse de `ping` (« Envoyer un test », et le ping discret ci-dessous) ;
+  - jamais exportée, jamais dans la sauvegarde ni l'archive Drive, jamais écrasée par une restauration, absente de `preRestoreBackup` (testé) ;
+  - une version absente ou illisible est mémorisée comme **inconnue** (`null`) ;
+  - changer l'URL ou le secret la remet à inconnue, puisque c'est un autre script.
+- **Comparaison pure et numérique** (`domain/scriptVersion.ts`) :
+  - seul le format `sync-<entier>` est compris ;
+  - « sync-10 » > « sync-3 » (jamais une comparaison de texte) ;
+  - tout autre format = non supporté.
+- **Tâche `measurement_deleted`** (clé = date) : dédupliquée comme `weight_deleted`.
+  - `DRIVE_TRIGGERS.measurementDeleted(date)` = `measurement_deleted` + `backup_latest`, sans fichier par prise ni `weights_all`.
+  - Elle n'est mise en file que pour une **vraie** suppression (prise existante, après la confirmation de l'interface). Une modification reste un enregistrement normal (`backup_latest` seul).
+- **Exécution** :
+  - version ≥ sync-3 : `note_deletion` est envoyée, la file garantissant l'ordre (`measurement_deleted` avant `backup_latest` dans `TASK_ORDER`) ;
+  - sync-2 ou version inconnue : **rien n'est envoyé**, aucune action inconnue, et la tâche est terminée sans erreur. La sauvegarde suit le comportement d'avant : avec sync-2, les mensurations ne sont pas comparées, donc la sauvegarde est acceptée.
+  - Si la version est inconnue au moment d'envoyer (réglages jamais testés depuis la mise à jour du script), un **ping discret** la découvre d'abord, dans la passe d'envoi, sans bloquer l'écran. S'il échoue, la version reste inconnue et rien n'est envoyé.
+- **Note non confirmée** : même politique de nouvel essai que `mark_deleted` (30 s, 2 min, 10 min, 1 h, puis à l'ouverture).
+  - **`backup_latest` attend** tant qu'une tâche `measurement_deleted` est en file, en attente ou en erreur. La règle est dans `nextDueTask`, une fonction pure.
+  - Sans cette règle, une passe « timer » où la sauvegarde est due avant le nouvel essai de la note enverrait une sauvegarde refusée à tort (fausse régression). Une mutation qui retire cette règle fait échouer les tests du domaine et du service.
+  - `backup_weekly` n'est pas retenue : le refus de régression ne concerne que `sauvegarde-derniere.json`.
+  - Une note **en erreur** (refus non réessayable) retient aussi la sauvegarde. Elle est visible dans Paramètres → Archive Drive (« Suppression de la mensuration du … »), avec « Réessayer » ou « Ignorer ».
+- « Remplacer quand même » et « Restaurer depuis mon Drive » : inchangés.
+- **Faux script** (`scripts/fake-muscu-sync.mjs`) : option `version: 'sync-3'`, avec sync-2 par défaut (les tests existants sont inchangés).
+  - Il accepte `note_deletion` (idempotente).
+  - Il compare les mensurations avec autant de baisse tolérée que de suppressions notées depuis la dernière sauvegarde acceptée ; chaque suppression est **consommée** à l'acceptation (une seule tolérance).
+  - En sync-2, `note_deletion` reste une action inconnue.
+  - Comme le vrai script, une réponse HTML 404 peut arriver **après** le traitement de l'action, ce qui sert au test du rejeu.
+
+### Doutes et limites
+- **Séances et pesées** : le même risque de fausse régression existe en théorie si un `mark_deleted` n'est pas confirmé et qu'une passe « timer » envoie la sauvegarde avant son nouvel essai. Je ne l'ai pas changé, pour rester dans le périmètre de ce jalon et garder les tests existants intacts. La même règle pourrait s'étendre à `session_deleted` et `weight_deleted` plus tard.
+- Si le ping discret échoue (réseau) au moment d'une suppression, la note n'est pas envoyée. La sauvegarde suivante pourra alors être refusée par sync-3, et l'utilisateur verra l'écran de régression existant (« Remplacer quand même »). C'est le comportement demandé (« rien d'envoyé »).
+- **Test instable préexistant**, sans lien avec ce jalon et non modifié : `SetInputGuards.test.tsx`, « champ vidé : reste vide et vaut null en base » (V1.3.2). Il a échoué 1 fois sur 23 exécutions isolées (0 sur 8 sur le code de la V1.6.1, 1 sur 15 sur celui-ci). Cause probable : l'attente par défaut de Testing Library (1 s) dépassée sous la charge. À stabiliser séparément.
+
+### Tests
+- `domain/scriptVersion.test.ts` (version pure ; file : ordre, sauvegarde retenue si la note est en attente ou en erreur, `backup_weekly` libre).
+- `services/measurementsSync3.test.ts` (13, faux script HTTP réel) :
+  - sync-3, 1 suppression : note puis sauvegarde acceptée ;
+  - une seule tolérance (une 2ᵉ baisse non notée est refusée) ;
+  - 2 suppressions rapides : 2 notes distinctes, 1 sauvegarde ;
+  - rejeu après réponse perdue : la note est comptée une fois, puis une baisse en trop est refusée ;
+  - note non confirmée : sauvegarde retenue en passe « timer », puis note et sauvegarde ;
+  - modification sans note ; date sans prise ;
+  - sync-2 sans aucune note ;
+  - version inconnue avec sync-2 (ping seul) ou sync-3 (ping, note, sauvegarde) ; ping en échec ;
+  - réglage absent des exports, de la sauvegarde, de l'archive et de la copie interne, conservé par une restauration, et remis à inconnu si l'URL ou le secret change.
+- **Tests existants adaptés (signalé)** : 2 assertions de `measurementsDrive.test.ts` (jalon 3) qui figeaient l'ancien comportement demandé alors :
+  - « backup_latest SEUL » après une suppression (désormais aussi `measurement_deleted`) ;
+  - la liste exacte des requêtes avec sync-2 (désormais précédée du ping discret).
+
+  Aucun autre test modifié.
+
+### Contrôles
+- Aucun nouveau minuteur. Typecheck, lint et build verts.
+- Tests : 841 en V1.6.1, **872** en V1.6.2, en `--maxWorkers=1` puis en `TZ=UTC`. Les deux passes sont sorties en code 0, sans erreur non gérée.
