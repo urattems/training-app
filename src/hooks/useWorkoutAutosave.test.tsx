@@ -182,6 +182,46 @@ describe('Autosave immédiat : la frappe est en base sans attendre de délai', (
   });
 });
 
+describe('V1.6.3 : valeur affichée en retard sur la base (cause du test instable « champ vidé »)', () => {
+  // Le harnais garde la séance de départ en props : la valeur affichée reste celle d'avant les
+  // écritures, exactement comme quand la lecture réactive n'a pas encore rafraîchi l'écran.
+  it('saisie validée au blur, puis champ vidé AVANT le rafraîchissement : le null est écrit', async () => {
+    render(<Harness workout={workout} />);
+    type(kg(1), '47,5');
+    fireEvent.blur(kg(1));
+    await until((w) => set(w, 1)?.actualWeightKg === 47.5, workout.id);
+    fireEvent.focus(kg(1));
+    type(kg(1), '');
+    fireEvent.blur(kg(1));
+    await until((w) => set(w, 1)?.actualWeightKg === null, workout.id);
+  });
+
+  it('même chose pour un texte : commentaire validé puis effacé avant le rafraîchissement', async () => {
+    render(<Harness workout={workout} />);
+    type(comment(), 'Épaule');
+    fireEvent.blur(comment());
+    await until((w) => chest(w)?.comment === 'Épaule', workout.id);
+    fireEvent.focus(comment());
+    type(comment(), '');
+    fireEvent.blur(comment());
+    await until((w) => chest(w)?.comment === null, workout.id);
+  });
+
+  it('retaper après le blur la valeur déjà enregistrée : toujours rien d’écrit', async () => {
+    render(<Harness workout={workout} />);
+    type(reps(1), '12');
+    fireEvent.blur(reps(1));
+    await until((w) => set(w, 1)?.actualReps === 12, workout.id);
+    await idle();
+    const count = writes.count;
+    fireEvent.focus(reps(1));
+    type(reps(1), '12');
+    fireEvent.blur(reps(1));
+    await idle();
+    expect(writes.count).toBe(count);
+  });
+});
+
 describe('Garde-fous inchangés', () => {
   it('valide puis invalide sans blur (« 4,7,5 ») : la valeur intermédiaire est retirée, la série redevient absente', async () => {
     render(<Harness workout={workout} />);

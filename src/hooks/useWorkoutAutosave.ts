@@ -22,20 +22,27 @@ interface QueuedWrite {
 }
 
 /**
- * Saisie en cours d'un champ (de sa première modification jusqu'au blur) :
+ * Saisie d'un champ (de sa première modification jusqu'au blur ; après le blur, l'état reste la
+ * référence du champ tant qu'aucune valeur ne vient d'ailleurs) :
  * - `origin` : valeur en base avant la saisie (rétablie si la saisie devient invalide) ;
  * - `seen` : valeurs que cette saisie a elle-même écrites (une valeur venue de la base qui n'en
  *   fait pas partie vient d'ailleurs, ex. « Comme prévu » : c'est une nouvelle saisie) ;
  * - `sent` : dernière valeur mise en file (comparaison « rien n'a changé »).
  */
+/** Valeurs gardées par champ pour reconnaître un affichage en retard (borne la mémoire). */
+const MAX_SEEN = 20;
+
 interface FieldEdit {
   origin: unknown;
   seen: unknown[];
   sent: unknown;
   build: FieldUpdate<never>;
   restore: FieldRestore | undefined;
-  /** Séance en base juste avant la première écriture de cette saisie. */
-  before: WorkoutSession | undefined;
+  /**
+   * Saisie en cours : séance en base juste avant SA première écriture. Un objet par saisie, capturé
+   * par ses écritures : une écriture d'une saisie précédente encore en file ne le remplit jamais.
+   */
+  burst: { before: WorkoutSession | undefined };
 }
 
 export interface WorkoutAutosave {
@@ -118,21 +125,29 @@ export function useWorkoutAutosave(workoutId: string): WorkoutAutosave {
       let edit = edits.current.get(key);
       // Valeur de la base qui ne vient pas de cette saisie (ex. « Comme prévu ») : nouvelle saisie.
       if (edit && !edit.seen.some((v) => Object.is(v, current))) edit = undefined;
-      edit ??= { origin: current, seen: [current], sent: current, build, restore, before: undefined };
+      edit ??= { origin: current, seen: [current], sent: current, build, restore, burst: { before: undefined } };
       edit.build = build;
       edit.restore = restore;
       if (!Object.is(edit.sent, next)) {
         edit.sent = next;
         edit.seen.push(next);
-        const target = edit;
+        const burst = edit.burst;
         const update = build(next);
         void enqueue(key, (w) => {
-          target.before ??= w;
+          burst.before ??= w;
           return update(w);
         });
       }
-      if (immediate) edits.current.delete(key);
-      else edits.current.set(key, edit);
+      if (immediate) {
+        // Fin de saisie (blur). La dernière valeur envoyée reste la RÉFÉRENCE du champ (V1.6.3) :
+        // l'écran peut encore afficher une valeur antérieure (lecture réactive pas encore
+        // rafraîchie). Oublier la saisie ferait comparer la saisie suivante à cette valeur
+        // périmée : vider le champ juste après le blur n'aurait alors rien écrit.
+        edit.origin = edit.sent;
+        edit.burst = { before: undefined };
+        edit.seen = edit.seen.slice(-MAX_SEEN);
+      }
+      edits.current.set(key, edit);
     },
     [enqueue],
   );
@@ -142,10 +157,10 @@ export function useWorkoutAutosave(workoutId: string): WorkoutAutosave {
       const edit = edits.current.get(key);
       if (!edit || Object.is(edit.sent, edit.origin)) return;
       edit.sent = edit.origin;
-      const target = edit;
+      const { restore, burst } = edit;
       const fallback = edit.build(edit.origin as never);
       // L'état « avant » est connu dès que la première écriture a été appliquée (file sérialisée).
-      void enqueue(key, (w) => (target.restore && target.before ? target.restore(target.before)(w) : fallback(w)));
+      void enqueue(key, (w) => (restore && burst.before ? restore(burst.before)(w) : fallback(w)));
     },
     [enqueue],
   );
