@@ -118,6 +118,26 @@ describe('Nouvelle mensuration : saisie', () => {
     expect(await db.measurements.count()).toBe(0);
   });
 
+  it.each(['91.234', '91,234'])('3ᵉ décimale (« %s ») : message sous le champ DÈS la frappe, pas un bouton grisé muet', async (text) => {
+    const user = renderAt('#/weight/mensurations');
+    await openNew(user);
+    await user.type(field('Ventre'), '9,');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // saisie en cours : aucun message
+    await user.clear(field('Ventre'));
+    await user.type(field('Ventre'), text);
+    const message = screen.getByText('Ventre : au plus 1 décimale (ex. 98,5).');
+    expect(message).toHaveAttribute('role', 'alert');
+    expect(field('Ventre')).toHaveAttribute('aria-invalid', 'true');
+    expect(field('Ventre').getAttribute('aria-describedby')).toBe(message.id);
+    expect(saveButton()).toBeDisabled();
+    expect(field('Ventre')).toHaveValue(text); // jamais d'arrondi ni de réécriture
+    await user.clear(field('Ventre'));
+    await user.type(field('Ventre'), '91,2');
+    expect(screen.queryByText('Ventre : au plus 1 décimale (ex. 98,5).')).not.toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
+    expect(await db.measurements.count()).toBe(0);
+  });
+
   it('date future refusée, rien d’écrit', async () => {
     const user = renderAt('#/weight/mensurations');
     const dialog = await openNew(user);

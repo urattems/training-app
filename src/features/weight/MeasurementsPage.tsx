@@ -41,13 +41,19 @@ type Texts = Record<MeasurementZoneKey, string>;
 const EMPTY_TEXTS = Object.fromEntries(MEASUREMENT_ZONES.map((z) => [z.key, ''])) as Texts;
 const EMPTY_VALUES: MeasurementValues = { chestCm: null, bellyCm: null, waistCm: null, bicepsCm: null, thighCm: null, calfCm: null };
 
-/** Texte saisi → mesure : vide = absente (`null`, jamais 0) ; message précis sinon (jamais d'arrondi). */
-function readField(text: string, label: string): { ok: true; value: number | null } | { ok: false; error: string } {
+/**
+ * Texte saisi → mesure : vide = absente (`null`, jamais 0) ; message précis sinon (jamais d'arrondi).
+ * `definitive` : aucune frappe de plus ne peut corriger la saisie (3ᵉ décimale, plus de 300 cm) ;
+ * le message s'affiche alors tout de suite sous le champ (V1.6.1), sans attendre « Enregistrer ».
+ */
+function readField(text: string, label: string): { ok: true; value: number | null } | { ok: false; error: string; definitive: boolean } {
   const parsed = parseDecimalInput(text);
-  if (!parsed.ok) return { ok: false, error: t.unreadable(label) };
+  if (!parsed.ok) return { ok: false, error: t.unreadable(label), definitive: false };
   if (parsed.value === null) return { ok: true, value: null };
   const error = measurementValueError(parsed.value);
-  return error === null ? { ok: true, value: parsed.value } : { ok: false, error: t.valueErrors[error](label) };
+  return error === null
+    ? { ok: true, value: parsed.value }
+    : { ok: false, error: t.valueErrors[error](label), definitive: error === 'too_precise' || error === 'too_large' };
 }
 
 type FormTarget = { mode: 'add' } | { mode: 'edit'; entry: MeasurementEntry };
@@ -352,7 +358,9 @@ function MeasurementFormSheet({ target, entries, onClose, onEditExisting, onSave
           </details>
           {MEASUREMENT_ZONES.map((zone) => {
             const id = `${baseId}-${zone.key}`;
-            const error = errors[zone.key];
+            const read = readAll.find((r) => r.zone.key === zone.key)?.read;
+            // Erreur de l'envoi, sinon erreur définitive affichée dès la frappe (jamais un bouton grisé sans explication).
+            const error = errors[zone.key] ?? (read && !read.ok && read.definitive ? read.error : undefined);
             const last = latestValue(entries, zone.key);
             return (
               <div key={zone.key} className={weightStyles.field}>
