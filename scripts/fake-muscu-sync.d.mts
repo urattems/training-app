@@ -9,7 +9,9 @@ export interface FakeMuscuSyncOptions {
   latencyMax?: number;
   seed?: number;
   online?: boolean;
-  regressionCounts?: { sessions: number; weights: number } | null;
+  regressionCounts?: { sessions: number; weights: number; measurements?: number } | null;
+  /** V1.6.2 : `sync-3` ajoute `note_deletion` et le compteur des mensurations. */
+  version?: 'sync-2' | 'sync-3';
 }
 
 export interface FakeFile {
@@ -31,6 +33,9 @@ export interface FakeRequest {
   html: boolean;
   chars?: number;
   force?: boolean;
+  /** `note_deletion` (sync-3). */
+  kind?: string;
+  key?: string;
 }
 
 export interface FakeMuscuSync {
@@ -38,6 +43,8 @@ export interface FakeMuscuSync {
   config: Required<FakeMuscuSyncOptions>;
   files: Map<string, FakeFile>;
   requests: FakeRequest[];
+  /** sync-3 : suppressions notées `kind:key` (idempotentes) et leur consommation. */
+  deletions: Map<string, { at: string; consumed: boolean }>;
   listen: (port?: number) => Promise<string>;
   close: () => Promise<void>;
 }

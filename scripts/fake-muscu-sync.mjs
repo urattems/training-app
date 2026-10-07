@@ -13,6 +13,13 @@
  *   une sauvegarde contenant moins de séances ou moins de pesées (`meta.counts`), sauf `force: true`.
  *   À la demande des tests : `regressionCounts` simule un Drive déjà plus complet.
  *
+ * - V1.6.2 : `version: 'sync-3'` (option ; `sync-2` par défaut, inchangé) ajoute l'action
+ *   `note_deletion` ({ kind: 'measurement', key: date, at }), idempotente par (kind, key), et le
+ *   compteur `measurements` au refus de régression : la sauvegarde peut compter AUTANT de
+ *   mensurations en moins que de suppressions notées depuis la dernière sauvegarde acceptée
+ *   (chaque suppression ne tolère qu'une baisse : elle est « consommée » à l'acceptation).
+ *   En sync-2, `note_deletion` est une action inconnue (`bad_request`), comme le vrai script.
+ *
  * Usage : `node scripts/fake-muscu-sync.mjs [port]` (défaut 4190, secret FAKE_SECRET ou
  * « fake-secret-1234 »). Pilotage pour les tests : GET /__state, POST /__config, POST /__reset.
  */
@@ -30,6 +37,8 @@ const DEFAULTS = {
   online: true,
   /** `{ sessions, weights }` : contenu (simulé) de la sauvegarde déjà présente dans Drive. */
   regressionCounts: null,
+  /** Version du script : `sync-2` (défaut) ou `sync-3` (V1.6.2 : `note_deletion`). */
+  version: 'sync-2',
 };
 
 const LATEST_KEY = 'Sauvegardes/sauvegarde-derniere.json';
@@ -59,6 +68,9 @@ export function createFakeMuscuSync(options = {}) {
   const files = new Map();
   /** Journal des requêtes reçues (sans le secret). */
   const requests = [];
+  /** sync-3 : suppressions notées `kind:key` → { at, consumed } (idempotentes). */
+  const deletions = new Map();
+  const isSync3 = () => config.version !== 'sync-2';
   /** Réponses en attente de la redirection GET. */
   const pending = new Map();
   let tokenCounter = 0;
@@ -78,7 +90,18 @@ export function createFakeMuscuSync(options = {}) {
     if (secret !== config.secret) return { log: { ...log, outcome: 'unauthorized' }, response: fail('unauthorized') };
 
     if (action === 'ping') {
-      return { log: { ...log, outcome: 'ok' }, response: json({ ok: true, version: 'sync-2', serverTime: new Date().toISOString(), rootReady: true }) };
+      return { log: { ...log, outcome: 'ok' }, response: json({ ok: true, version: config.version, serverTime: new Date().toISOString(), rootReady: true }) };
+    }
+    if (action === 'note_deletion' && isSync3()) {
+      const { kind, key, at } = request;
+      const noted = { ...log, kind, key };
+      if (kind !== 'measurement' || typeof key !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+        return { log: { ...noted, outcome: 'bad_request' }, response: fail('bad_request') };
+      }
+      const id = `${kind}:${key}`;
+      // Idempotente : rejouer la même suppression ne la compte qu'une fois.
+      if (!deletions.has(id)) deletions.set(id, { at, consumed: false });
+      return { log: { ...noted, outcome: 'ok' }, response: json({ ok: true, kind, key }) };
     }
     if (action !== 'put' && action !== 'mark_deleted') return { log: { ...log, outcome: 'bad_request' }, response: fail('bad_request') };
 
@@ -109,15 +132,24 @@ export function createFakeMuscuSync(options = {}) {
     if (key === LATEST_KEY && request.force !== true) {
       const existing = config.regressionCounts ?? files.get(LATEST_KEY)?.meta?.counts ?? null;
       const incoming = request.meta?.counts ?? { sessions: 0, weights: 0 };
-      if (existing && (incoming.sessions < existing.sessions || incoming.weights < existing.weights)) {
-        const current = { sessions: existing.sessions, weights: existing.weights };
+      // sync-3 : mensurations comparées seulement si les deux sauvegardes les comptent.
+      const measured = isSync3() && existing && typeof existing.measurements === 'number' && typeof incoming.measurements === 'number';
+      const tolerated = [...deletions.values()].filter((d) => !d.consumed).length;
+      const fewerMeasurements = measured && incoming.measurements < existing.measurements - tolerated;
+      if (existing && (incoming.sessions < existing.sessions || incoming.weights < existing.weights || fewerMeasurements)) {
+        const current = { sessions: existing.sessions, weights: existing.weights, ...(measured && { measurements: existing.measurements }) };
         return {
           log: { ...log, outcome: 'regression' },
-          response: fail('regression', false, { current, incoming: { sessions: incoming.sessions, weights: incoming.weights } }),
+          response: fail('regression', false, {
+            current,
+            incoming: { sessions: incoming.sessions, weights: incoming.weights, ...(measured && { measurements: incoming.measurements }) },
+          }),
         };
       }
     }
     if (key === LATEST_KEY && request.force === true) config.regressionCounts = null;
+    // Sauvegarde acceptée : les suppressions notées jusque-là ont servi (une seule tolérance chacune).
+    if (key === LATEST_KEY) for (const d of deletions.values()) d.consumed = true;
     const previous = files.get(key);
     files.set(key, { folder, name, content: request.content, meta: request.meta, writes: (previous?.writes ?? 0) + 1, deletedAt: previous?.deletedAt ?? null });
     return { log: { ...log, outcome: 'ok', chars: request.chars, force: request.force === true }, response: json({ ok: true, folder, name, chars: request.chars }) };
@@ -152,6 +184,7 @@ export function createFakeMuscuSync(options = {}) {
     }
     if (url.pathname === '/__reset' && req.method === 'POST') {
       files.clear();
+      deletions.clear();
       requests.length = 0;
       pending.clear();
       res.writeHead(204, cors).end();
@@ -207,6 +240,7 @@ export function createFakeMuscuSync(options = {}) {
     config,
     files,
     requests,
+    deletions,
     /** Démarre l'écoute ; renvoie l'URL `/exec` à configurer dans l'app. */
     listen: (port = 0) =>
       new Promise((resolve) => {
