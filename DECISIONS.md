@@ -2075,3 +2075,55 @@ Le script Apps Script est en **sync-3**, déjà déployé par l'utilisateur.
 ### Contrôles
 - Aucun nouveau minuteur. Typecheck, lint et build verts.
 - Tests : 841 en V1.6.1, **872** en V1.6.2, en `--maxWorkers=1` puis en `TZ=UTC`. Les deux passes sont sorties en code 0, sans erreur non gérée.
+
+---
+
+## V1.6.3 — Stabilité des tests (vraie cause trouvée) et ordre des suppressions de séances et de pesées
+
+### 1. Test instable SetInputGuards « champ vidé » : c'était un bug de l'app
+- **Symptôme** (signalé en V1.6.2) : environ 1 échec sur 23 exécutions isolées, toujours avec `expected 47.5 to be null`.
+- **Vraie cause : ce n'était pas un délai trop court, l'écriture n'avait pas lieu.**
+  - À la fin d'une saisie (blur), `useWorkoutAutosave` **oubliait** la dernière valeur envoyée.
+  - Si l'utilisateur vidait le champ **avant** que la lecture réactive ait rafraîchi l'écran, la nouvelle saisie se comparait à la valeur **affichée**, encore périmée (vide).
+  - Le hook concluait « rien n'a changé » : le `null` n'était jamais écrit et la base gardait 47,5. Le test attendait alors jusqu'à l'expiration de son délai.
+  - Le même défaut pouvait arriver à un utilisateur rapide, et l'effet inverse aussi : une écriture inutile en retapant la même valeur.
+- **Preuve déterministe** : 3 nouveaux tests dans `useWorkoutAutosave.test.tsx` gardent volontairement l'ancienne valeur affichée. Ils couvrent :
+  - un champ de série vidé après le blur ;
+  - un commentaire effacé après le blur ;
+  - une valeur retapée qui ne doit rien écrire.
+
+  Les 3 échouent à chaque fois sans le correctif.
+- **Correctif (hook, aucun minuteur)** :
+  - après le blur, la dernière valeur envoyée **reste la référence** du champ. Une valeur venue d'ailleurs (« Comme prévu ») ouvre toujours une nouvelle saisie ;
+  - l'état « avant » d'une saisie (pour rétablir une saisie invalide) est désormais **propre à chaque saisie**. Sinon, une écriture de la saisie précédente encore en file pouvait le remplir : défaut vu par un test existant pendant le correctif, puis corrigé.
+- **Le test `SetInputGuards` n'est pas modifié.** Mesures sur ce fichier :
+
+| Code | Conditions | Exécutions | Échecs |
+|---|---|---|---|
+| V1.6.3 | isolé, à la suite | 60 | **0** |
+| V1.6.3 | sous charge : 3 boucles parallèles de 20, 24 processus saturant les 20 cœurs | 60 | **0** |
+| ancien hook | même épreuve sous charge, pour vérifier qu'elle détecte le défaut | 30 | **3**, tous `expected 47.5 to be null` |
+
+- **Tests voisins au schéma « fragile »** : attente courte sur une écriture IndexedDB, ou pause fixe suivie d'une vérification positive.
+  - Mesurés sous la même charge, 15 exécutions chacun, **0 échec** : `ExerciseScreen.test.tsx` (attentes de 150 ms ; pauses de 500 ms avant une vérification), `db/connection.test.tsx` (pause de 20 ms), `services/driveOutbox.test.ts` et `services/driveBackups.test.ts` (pauses de 30 ms). Fragilité **non démontrée** : laissés tels quels.
+  - Non mesurés, car ils ne peuvent pas échouer à tort : les pauses fixes suivies d'une vérification **négative** (« rien n'est écrit ») dans `ExerciseScreen.test.tsx`, `ScrollReset.test.tsx` et `UpdateBanner.test.tsx`. Une écriture en retard les ferait passer, pas échouer.
+  - Aucun test sauté, aucune relance automatique.
+
+### 2. Ordre des suppressions de séances et de pesées (`mark_deleted`)
+- **Même règle que les mensurations (V1.6.2)** : tant qu'une tâche `session_deleted` ou `weight_deleted` est en file, en attente ou en erreur, `backup_latest` n'est pas due (`DELETION_TYPES`, `nextDueTask`).
+  - Elle part une fois la suppression confirmée, ou retirée par « Ignorer ».
+  - Sans cette règle, après une marque non confirmée (réponse perdue, page HTML, délai dépassé), une passe « timer » pouvait envoyer la sauvegarde avant le nouvel essai. Sync-3 l'aurait alors refusée comme une fausse régression.
+  - Aucun changement de protocole ni de format.
+- **Politique d'essais inchangée** : 30 s, 2 min, 10 min, 1 h, puis à l'ouverture. Une marque refusée sans nouvel essai possible passe « en erreur », visible dans Paramètres → Archive Drive, et retient la sauvegarde jusqu'à « Réessayer » ou « Ignorer ».
+- **Faux script** : en sync-3, la baisse des séances et des pesées est tolérée d'après les `mark_deleted` reçus. Un fichier marqué ne compte qu'une fois, même si la marque est rejouée, et la tolérance est consommée à l'acceptation d'une sauvegarde. En sync-2, le refus reste strict.
+- **Tests** (`services/deletionOrder.test.ts`, 11 tests, faux script HTTP, sync-2 et sync-3, séance et pesée) :
+  - marque non confirmée : aucune sauvegarde, même quand elle seule est due. Puis nouvel essai : marque rejouée, puis sauvegarde, acceptée en sync-3 ; en sync-2, la sauvegarde part après la marque et le refus de régression d'avant s'applique ;
+  - marque confirmée du premier coup : marque puis sauvegarde dans la même passe ;
+  - refus non réessayable : attente jusqu'à « Ignorer » ;
+  - rejeu idempotent : une seule tolérance, puis une baisse non marquée est refusée.
+- **Vérification par mutation** : avec l'ancienne règle (mensurations seulement), 6 de ces tests échouent.
+- **Aucun test existant modifié** : aucun ne figeait l'ancien ordre.
+
+### Contrôles
+- Aucun minuteur ajouté dans l'app. Typecheck, lint et build verts.
+- Tests : 872 en V1.6.2, **886** en V1.6.3, en `--maxWorkers=1` puis en `TZ=UTC`. Les deux passes sont sorties en code 0, sans erreur non gérée.

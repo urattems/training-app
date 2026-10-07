@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1.6.2 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations)** → **https://urattems.github.io/training-app/**
+> **État : V1.6.3 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
