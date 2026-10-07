@@ -1974,3 +1974,37 @@ Aucun changement de base, de format de sauvegarde, de schéma ni de protocole Dr
 | 3 | `TZ=UTC` | 21 s |
 
 - Aucun nouveau minuteur. Le seul différé est le défilement au focus, via `scrollFieldIntoView`, déjà protégé en V1.4.1.
+
+---
+
+## V1.6.1 — Correctifs de la page Mensurations (aucun autre changement)
+
+### 1. Cartes DÉPART / AUJOURD'HUI / VARIATION : plus de débordement
+- **Constat** (mesuré par l'utilisateur sur iPhone, puis reproduit en navigateur réel) : le libellé « AUJOURD'HUI » dépassait de sa carte (scrollWidth 70 > 65 à 320 px, 91 > 71 à 360 px, 91 > 81 à 390 px). Le compactage de la V1.6.0 ne s'appliquait que sous 360 px, et ma vérification mesurait la carte entière, pas chaque libellé.
+- **Correctif (CSS seul)** :
+  - les trois cartes passent en ligne flexible ;
+  - chaque carte fait **au moins la largeur de son contenu** (`min-width: max-content`), puis se partage le reste. Un libellé ou une valeur ne peut donc **jamais** déborder ni être coupé : ni ellipsis, ni libellé raccourci ;
+  - si une police système très large ne laisse pas la place pour trois cartes, la dernière **passe à la ligne** au lieu de déborder ;
+  - libellé compact : 11 px avec un espacement réduit, puis 10 px sans espacement de 320 à 389 px, avec des marges et une valeur plus compactes. Les trois cartes tiennent ainsi sur une ligne avec de la marge.
+- **Vérification en navigateur réel** (Edge headless, tactile, production) à **320, 360, 390 et 430 px**, pour 4 séries (Ventre, Total, Taille, Cuisse ; valeurs longues « 431,2 cm », « −13,2 cm ») :
+  - un script parcourt **chaque élément feuille** de la page (1 832 mesures) et vérifie `scrollWidth <= clientWidth`, ou la boîte dans son parent pour un élément en ligne ;
+  - avant le correctif : 8 débordements (360 et 390 px) ; après : **0** ;
+  - test de résistance avec un texte élargi d'environ 10 % (simulation d'une police plus large) : **0 débordement, une seule ligne de cartes** aux 4 largeurs.
+- **Pourquoi pas de test automatique dans la suite** :
+  - Vitest tourne sous jsdom, **sans moteur de mise en page**, où `scrollWidth` et `clientWidth` valent toujours 0 : un test de débordement y serait vide ;
+  - Playwright n'est pas installé, et la consigne exclut toute nouvelle dépendance ;
+  - le contrôle reste donc **documenté et manuel** : script puppeteer-core hors dépôt, à relancer après toute modification de ces cartes. Son principe : pour chaque largeur et chaque série, tout élément feuille visible de `main` doit vérifier `scrollWidth <= clientWidth`.
+
+### 2. Champ de mensuration : message immédiat pour une 3ᵉ décimale
+- **Constat** : une saisie comme « 91.234 » grisait « Enregistrer » sans explication. Le message n'apparaissait qu'à l'envoi, et le bouton n'était plus cliquable.
+- **Correctif** :
+  - une erreur **définitive** s'affiche **dès la frappe**, sous le champ : « Ventre : au plus 1 décimale (ex. 98,5). ». Elle est définitive quand aucune frappe de plus ne peut la corriger : 3ᵉ décimale, plus de 300 cm ;
+  - le message porte `role="alert"`, le champ `aria-invalid` et `aria-describedby` ;
+  - pas d'arrondi ni de réécriture du texte ;
+  - une saisie en cours (« 9, ») n'affiche rien ;
+  - les autres erreurs (illisible, 0) restent signalées à l'envoi, comme avant.
+- **Test** (`Measurements.test.tsx`, avec le point et avec la virgule) : il échoue sans le correctif.
+
+### Contrôles
+- Aucun nouveau minuteur. Typecheck, lint et build verts.
+- Tests : 839 en V1.6.0, **841** en V1.6.1, en `--maxWorkers=1` puis en `TZ=UTC`.
