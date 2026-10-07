@@ -34,8 +34,9 @@ import { toLocalIsoString } from '../utils/dates';
 import { technicalDetails } from '../utils/errors';
 import { createDriveClient, type DriveClient, type DriveConfig, type DriveResult } from './driveClient';
 import { buildBackupFile, buildSessionArchive, buildWeightFile, buildWeightsAllFile, DRIVE_PATHS, type DriveFile } from './driveContent';
-import { getDriveSync, isDriveActive } from './driveSettings';
+import { getDriveScriptVersion, getDriveSync, isDriveActive, setDriveScriptVersion } from './driveSettings';
 import { readStoredData, storedDataTables } from './exportService';
+import { supportsNoteDeletion } from '../domain/scriptVersion';
 import { getLastWeeklyBackupAt, setLastAutoBackupAt, setLastWeeklyBackupAt } from './settingsService';
 import { redact } from '../domain/driveNames';
 
@@ -161,6 +162,11 @@ export const DRIVE_TRIGGERS = {
    * prise et aucune nouvelle action (protocole sync-2 inchangé).
    */
   measurementChanged: () => [BACKUP_LATEST],
+  /**
+   * Prise de mensurations supprimée (V1.6.2) : la suppression est notée (`note_deletion`, script
+   * sync-3), puis la sauvegarde. Aucun fichier par prise, pas de `weights_all`.
+   */
+  measurementDeleted: (date: string) => [{ type: 'measurement_deleted' as const, key: date }, BACKUP_LATEST],
 };
 
 /** Copie hebdomadaire due : jamais confirmée, ou dernière confirmation vieille de 7 jours ou plus. */
@@ -296,6 +302,22 @@ async function sendTask(task: DriveTask, config: DriveConfig, now: () => Date): 
       await client.markDeleted(config, { folder: DRIVE_PATHS.weightsFolder, name: DRIVE_PATHS.weightName(task.key), at: toLocalIsoString(now()) }),
       'not_in_index',
     );
+  }
+
+  if (task.type === 'measurement_deleted') {
+    // Version connue du script ; inconnue (jamais testée depuis la mise à jour) : `ping` discret,
+    // sans rien bloquer. Échec du `ping` = version inconnue.
+    let version = await getDriveScriptVersion();
+    if (version === null) {
+      const ping = await client.ping(config);
+      if (ping.kind === 'confirmed') version = await setDriveScriptVersion(ping.body.version);
+    }
+    // sync-2 ou inconnue : RIEN n'est envoyé (aucune action inconnue), la tâche est terminée sans
+    // erreur ; la sauvegarde suivante suit le comportement d'avant (refus de régression éventuel).
+    if (!supportsNoteDeletion(version)) return drop();
+    // Même politique que `mark_deleted` : non confirmé = nouvel essai programmé ; la sauvegarde
+    // attend (cf. `nextDueTask`) tant que la suppression n'est pas confirmée.
+    return handle(await client.noteDeletion(config, { kind: 'measurement', key: task.key, at: toLocalIsoString(now()) }));
   }
 
   if (task.type === 'backup_latest' || task.type === 'backup_weekly') {

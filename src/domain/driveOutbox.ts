@@ -5,8 +5,20 @@
  */
 import type { DriveFileName } from './driveNames';
 
-/** Types de tâches (spec §6). Clés : id de séance, date de pesée, ou `all` / `latest` / `weekly`. */
-export type DriveTaskType = 'session' | 'session_deleted' | 'weight' | 'weight_deleted' | 'weights_all' | 'backup_latest' | 'backup_weekly';
+/**
+ * Types de tâches (spec §6). Clés : id de séance, date de pesée ou de mensuration, ou `all` /
+ * `latest` / `weekly`. `measurement_deleted` (V1.6.2) : suppression d'une prise de mensurations,
+ * notée par `note_deletion` (script sync-3) ; aucun fichier par prise.
+ */
+export type DriveTaskType =
+  | 'session'
+  | 'session_deleted'
+  | 'weight'
+  | 'weight_deleted'
+  | 'measurement_deleted'
+  | 'weights_all'
+  | 'backup_latest'
+  | 'backup_weekly';
 
 /**
  * Ordre d'envoi (spec §6) : séances, suppressions de séances, pesées (et leurs suppressions),
@@ -17,6 +29,8 @@ export const TASK_ORDER: readonly DriveTaskType[] = [
   'session_deleted',
   'weight',
   'weight_deleted',
+  // Toujours AVANT la sauvegarde : le script doit connaître la suppression avant la baisse du compteur.
+  'measurement_deleted',
   'weights_all',
   'backup_latest',
   'backup_weekly',
@@ -134,8 +148,14 @@ export function enqueueTasks(state: DriveOutboxState, items: readonly { type: Dr
  * `timer` : seulement les tâches dont l'heure de reprise est passée.
  */
 export function nextDueTask(state: DriveOutboxState, now: number, mode: 'all' | 'timer'): DriveTask | null {
+  // V1.6.2 : tant qu'une suppression de mensuration n'est pas confirmée (en attente ou en erreur),
+  // `backup_latest` attend : envoyée avant, elle serait refusée à tort comme une régression.
+  const deletionPending = state.tasks.some((t) => t.type === 'measurement_deleted');
   const due = state.tasks.filter(
-    (t) => t.status === 'pending' && (mode === 'all' || (t.nextAttemptAt !== null && Date.parse(t.nextAttemptAt) <= now)),
+    (t) =>
+      t.status === 'pending' &&
+      !(deletionPending && t.type === 'backup_latest') &&
+      (mode === 'all' || (t.nextAttemptAt !== null && Date.parse(t.nextAttemptAt) <= now)),
   );
   due.sort((a, b) => TASK_ORDER.indexOf(a.type) - TASK_ORDER.indexOf(b.type) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
   return due[0] ?? null;

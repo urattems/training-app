@@ -572,6 +572,7 @@ export const strings = {
     taskSessionDeleted: (label: string) => `Suppression de la séance ${label}`,
     taskWeight: (date: string) => `Pesée du ${date}`,
     taskWeightDeleted: (date: string) => `Suppression de la pesée du ${date}`,
+    taskMeasurementDeleted: (date: string) => `Suppression de la mensuration du ${date}`,
     taskWeightsAll: 'Toutes les pesées (_pesees.json)',
     taskBackupLatest: 'Sauvegarde (sauvegarde-derniere.json)',
     taskBackupWeekly: 'Copie hebdomadaire',

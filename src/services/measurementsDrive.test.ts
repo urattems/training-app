@@ -53,8 +53,10 @@ describe('Mensurations et archive Drive (jalon 3, compatible sync-2)', () => {
     expect(await taskIds()).toEqual(['backup_latest:latest']);
     await processDriveOutbox('all');
 
+    // V1.6.2 (adaptation signalée) : une VRAIE suppression met aussi en file `measurement_deleted`
+    // (notée au script sync-3) ; toujours aucun fichier par prise.
     await deleteMeasurement('2026-10-01');
-    expect(await taskIds()).toEqual(['backup_latest:latest']);
+    expect(await taskIds()).toEqual(['measurement_deleted:2026-10-01', 'backup_latest:latest']);
     await processDriveOutbox('all');
     expect(await taskIds()).toEqual([]);
   });
@@ -85,7 +87,8 @@ describe('Mensurations et archive Drive (jalon 3, compatible sync-2)', () => {
     expect(latestCounts()?.measurements).toBe(2);
     await deleteMeasurement('2026-09-20');
     await processDriveOutbox('all');
-    expect(fake.requests.map((r) => r.outcome)).toEqual(['ok', 'ok']);
+    // V1.6.2 (adaptation signalée) : version inconnue → `ping` discret (sync-2 annoncé), rien d'autre.
+    expect(fake.requests.map((r) => `${r.action} ${r.outcome}`)).toEqual(['put ok', 'ping ok', 'put ok']);
     expect(latestCounts()?.measurements).toBe(1);
     expect((await getOutbox()).regression ?? null).toBeNull();
   });

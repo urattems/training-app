@@ -74,8 +74,10 @@ export async function updateMeasurement(date: string, values: MeasurementValues,
 export async function deleteMeasurement(date: string): Promise<void> {
   // Rien n'est supprimé dans le Drive : la sauvegarde suivante ne contient simplement plus la prise.
   await db.transaction('rw', [db.measurements, db.settings], async () => {
+    const existed = (await db.measurements.get(date)) !== undefined;
     await db.measurements.delete(date);
-    await queueDriveTasks(DRIVE_TRIGGERS.measurementChanged());
+    // V1.6.2 : vraie suppression → suppression notée (sync-3) puis sauvegarde ; rien à noter sinon.
+    if (existed) await queueDriveTasks(DRIVE_TRIGGERS.measurementDeleted(date));
   });
   notifyDriveQueued();
 }

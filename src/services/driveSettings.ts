@@ -4,6 +4,7 @@
  */
 import { db, type DriveSyncSettings } from '../db/database';
 import { DomainError } from '../domain/errors';
+import { readableSyncVersion } from '../domain/scriptVersion';
 import { strings } from '../i18n/strings';
 
 const t = strings.drive;
@@ -45,6 +46,8 @@ export async function saveDriveConfig(url: string, secret: string): Promise<Driv
     const changed = current.url !== cleanUrl || current.secret !== cleanSecret;
     const next: DriveSyncSettings = changed ? { url: cleanUrl, secret: cleanSecret, enabled: false, testedAt: null } : current;
     await db.settings.put({ key: 'driveSync', value: next });
+    // Autre script (URL ou secret changés) : sa version n'est plus connue.
+    if (changed) await db.settings.delete('driveScriptVersion');
     return next;
   });
 }
@@ -66,6 +69,19 @@ export async function setDriveEnabled(enabled: boolean): Promise<void> {
     if (enabled && current.testedAt === null) throw new DomainError(t.testRequired);
     await db.settings.put({ key: 'driveSync', value: { ...current, enabled } });
   });
+}
+
+/** Version du script connue (dernier `ping` confirmé), `null` = inconnue. */
+export async function getDriveScriptVersion(): Promise<string | null> {
+  const record = await db.settings.get('driveScriptVersion');
+  return record?.key === 'driveScriptVersion' ? record.value : null;
+}
+
+/** Mémorise la version annoncée par un `ping` confirmé (illisible ou absente : `null`, inconnue). */
+export async function setDriveScriptVersion(version: unknown): Promise<string | null> {
+  const value = readableSyncVersion(version);
+  await db.settings.put({ key: 'driveScriptVersion', value });
+  return value;
 }
 
 /** Envoi actif ET configuré. */

@@ -60,6 +60,15 @@ export interface DriveClient {
   ping: (config: DriveConfig) => Promise<DriveResult>;
   put: (config: DriveConfig, request: PutRequest) => Promise<DriveResult>;
   markDeleted: (config: DriveConfig, request: MarkDeletedRequest) => Promise<DriveResult>;
+  /** sync-3 (V1.6.2) : note la suppression d'une donnée sans fichier propre (mensuration). */
+  noteDeletion: (config: DriveConfig, request: NoteDeletionRequest) => Promise<DriveResult>;
+}
+
+export interface NoteDeletionRequest {
+  kind: 'measurement';
+  /** Date de la prise (`YYYY-MM-DD`). */
+  key: string;
+  at: string;
 }
 
 export function createDriveClient({ fetch: fetchImpl, timeoutMs = DRIVE_TIMEOUT_MS, now = () => Date.now() }: DriveClientOptions = {}): DriveClient {
@@ -123,5 +132,6 @@ export function createDriveClient({ fetch: fetchImpl, timeoutMs = DRIVE_TIMEOUT_
       // `chars` toujours envoyé : le script vérifie l'intégrité du contenu reçu.
       call(config, 'put', { folder, name, content, chars: content.length, meta, ...(force === true && { force: true }) }),
     markDeleted: (config, { folder, name, at }) => call(config, 'mark_deleted', { folder, name, at }),
+    noteDeletion: (config, { kind, key, at }) => call(config, 'note_deletion', { kind, key, at }),
   };
 }

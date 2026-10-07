@@ -52,7 +52,12 @@ export type SettingRecord =
    */
   | { key: 'lastAutoBackupAt'; value: string | null }
   /** Dernière copie hebdomadaire CONFIRMÉE (`ok: true`). */
-  | { key: 'lastWeeklyBackupAt'; value: string | null };
+  | { key: 'lastWeeklyBackupAt'; value: string | null }
+  /**
+   * Version du script annoncée par le dernier `ping` confirmé (« sync-3 »), `null` = inconnue
+   * (V1.6.2). PAR APPAREIL, comme l'URL et le secret : jamais exportée ni restaurée.
+   */
+  | { key: 'driveScriptVersion'; value: string | null };
 
 /** Configuration de l'envoi vers le script « Muscu Sync » de l'utilisateur. */
 export interface DriveSyncSettings {
@@ -72,6 +77,7 @@ export const DEVICE_SETTING_KEYS = [
   'driveNames',
   'lastAutoBackupAt',
   'lastWeeklyBackupAt',
+  'driveScriptVersion',
 ] as const;
 
 export type SettingKey = SettingRecord['key'];

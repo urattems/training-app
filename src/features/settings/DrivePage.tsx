@@ -17,7 +17,7 @@ import { useDriveState, type DriveState } from '../../hooks/useDrive';
 import { strings } from '../../i18n/strings';
 import { cancelWholeArchiveResend, getDriveClient, ignoreDriveTask, resendWholeArchive, retryDriveTask } from '../../services/driveOutbox';
 import { sendDriveNow } from '../../services/driveScheduler';
-import { markDriveTested, saveDriveConfig, setDriveEnabled } from '../../services/driveSettings';
+import { markDriveTested, saveDriveConfig, setDriveEnabled, setDriveScriptVersion } from '../../services/driveSettings';
 import { toLocalIsoString } from '../../utils/dates';
 import { toDisplayError } from '../../utils/errors';
 import { formatDateTime, formatDayShort } from '../../utils/format';
@@ -80,6 +80,8 @@ function DriveSettings({ state, workouts }: { state: DriveState; workouts: Worko
     if (result.kind === 'confirmed') {
       const version = typeof result.body.version === 'string' ? result.body.version : '?';
       await markDriveTested(toLocalIsoString(new Date()), tested);
+      // V1.6.2 : version du script mémorisée (réglage de l'appareil) ; illisible = inconnue.
+      await setDriveScriptVersion(result.body.version);
       setTest({ ok: true, text: t.testOk(version, formatDecimal(Math.round(result.latencyMs / 100) / 10)), rootReady: result.body.rootReady === true });
       return;
     }
@@ -271,6 +273,8 @@ const taskLabel = (task: DriveTask, workouts: WorkoutSession[], state: DriveStat
       return t.taskWeight(formatDayShort(task.key));
     case 'weight_deleted':
       return t.taskWeightDeleted(formatDayShort(task.key));
+    case 'measurement_deleted':
+      return t.taskMeasurementDeleted(formatDayShort(task.key));
     case 'weights_all':
       return t.taskWeightsAll;
     case 'backup_latest':
