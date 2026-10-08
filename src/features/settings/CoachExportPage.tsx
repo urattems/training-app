@@ -7,10 +7,20 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorDetails } from '../../components/ErrorDetails';
 import { LoadingState } from '../../components/LoadingState';
 import { Page } from '../../components/Page';
-import { DEFAULT_WEIGHT_WINDOW, listCoachExportable, selectLatest, selectSinceLastExport, summarizeSelection, weightsInWindow, weightWindowBounds } from '../../domain/coachExport';
+import {
+  DEFAULT_WEIGHT_WINDOW,
+  listCoachExportable,
+  measurementsInWindow,
+  measurementWindowMode,
+  selectLatest,
+  selectSinceLastExport,
+  summarizeSelection,
+  weightsInWindow,
+  weightWindowBounds,
+} from '../../domain/coachExport';
 import { workoutStatusLabel } from '../../domain/display';
-import type { WeightEntry, WorkoutSession } from '../../domain/types';
-import { useLastCoachExportAt, useWeights, useWorkouts } from '../../hooks/useData';
+import type { MeasurementEntry, WeightEntry, WorkoutSession } from '../../domain/types';
+import { useLastCoachExportAt, useMeasurements, useWeights, useWorkouts } from '../../hooks/useData';
 import { useToday } from '../../hooks/useToday';
 import { usePreparedCoachExport } from '../../hooks/usePreparedCoachExport';
 import { strings } from '../../i18n/strings';
@@ -48,13 +58,14 @@ export function CoachExportPage() {
   const workouts = useWorkouts();
   const lastCoachExportAt = useLastCoachExportAt();
   const weights = useWeights();
+  const measurements = useMeasurements();
   const exportable = useMemo(() => (workouts ? listCoachExportable(workouts) : undefined), [workouts]);
-  const loading = exportable === undefined || lastCoachExportAt === undefined || weights === undefined;
+  const loading = exportable === undefined || lastCoachExportAt === undefined || weights === undefined || measurements === undefined;
 
   return (
     <Page title={t.title} backTo="/settings" backLabel={strings.settings.title}>
       {loading && <LoadingState />}
-      {!loading && <CoachExportEditor exportable={exportable} lastCoachExportAt={lastCoachExportAt} weights={weights} />}
+      {!loading && <CoachExportEditor exportable={exportable} lastCoachExportAt={lastCoachExportAt} weights={weights} measurements={measurements} />}
     </Page>
   );
 }
@@ -63,10 +74,12 @@ function CoachExportEditor({
   exportable,
   lastCoachExportAt,
   weights,
+  measurements,
 }: {
   exportable: WorkoutSession[];
   lastCoachExportAt: string | null;
   weights: WeightEntry[];
+  measurements: MeasurementEntry[];
 }) {
   // Par défaut : ce qui n'a pas encore été envoyé (tout, s'il n'y a jamais eu d'envoi).
   const [selection, setSelection] = useState<Selection>(() => ({
@@ -81,11 +94,16 @@ function CoachExportEditor({
   // Pesées jointes (V1.2) : activées par défaut, fenêtre « 30 jours ou plus ».
   const [weightsOn, setWeightsOn] = useState(true);
   const [weightMode, setWeightMode] = useState<WeightWindowMode>(DEFAULT_WEIGHT_WINDOW);
+  // V1.7.0 : DÉCOCHÉ à chaque ouverture de l'écran (état local, jamais mémorisé).
+  const [measurementsOn, setMeasurementsOn] = useState(false);
 
   const selected = useMemo(() => new Set(selection.ids), [selection]);
   const request = useMemo<CoachSelectionRequest | null>(
-    () => (selection.ids.length > 0 ? { mode: selection.mode, selectedIds: selection.ids, weights: weightsOn ? weightMode : null } : null),
-    [selection, weightsOn, weightMode],
+    () =>
+      selection.ids.length > 0
+        ? { mode: selection.mode, selectedIds: selection.ids, weights: weightsOn ? weightMode : null, ...(measurementsOn && { measurements: true }) }
+        : null,
+    [selection, weightsOn, weightMode, measurementsOn],
   );
   const prepared = usePreparedCoachExport(request);
   const ready = prepared.status === 'ready' ? prepared.prepared : null;
@@ -228,12 +246,28 @@ function CoachExportEditor({
         />
       )}
 
+      {!empty && (
+        <MeasurementsSection
+          measurements={measurements}
+          oldestSelectedDate={summary.firstDate}
+          weightMode={weightsOn ? weightMode : null}
+          enabled={measurementsOn}
+          onEnabledChange={(on) => {
+            setMeasurementsOn(on);
+            setStatus(null);
+            setCopyFailed(false);
+          }}
+        />
+      )}
+
       <Card className={styles.actions}>
         <p className={styles.summary} aria-live="polite">
           <span>
             {summary.count === 0 || summary.firstDate === null || summary.lastDate === null
               ? t.summaryNone
               : t.summary(summary.count, t.range(formatDayShort(summary.firstDate), formatDayShort(summary.lastDate)))}
+            {/* Les mensurations ne sont mentionnées que si elles sont jointes. */}
+            {ready?.data.schemaVersion === '1.2' ? t.summaryMeasurements(ready.data.measurementEntries.length) : null}
           </span>
           <span className={styles.outOf}>{t.outOf(exportable.length)}</span>
         </p>
@@ -322,6 +356,60 @@ const WINDOW_LABELS: Record<WeightWindowMode, string> = {
   days_90: t.weights90,
   all: t.weightsAll,
 };
+
+/**
+ * Section « Mensurations » (V1.7.0) : interrupteur DÉCOCHÉ par défaut, aperçu du nombre de prises
+ * calculé comme le fichier (fenêtre des pesées si elles sont jointes, sinon `auto_30d`).
+ */
+function MeasurementsSection({
+  measurements,
+  oldestSelectedDate,
+  weightMode,
+  enabled,
+  onEnabledChange,
+}: {
+  measurements: MeasurementEntry[];
+  oldestSelectedDate: string | null;
+  weightMode: WeightWindowMode | null;
+  enabled: boolean;
+  onEnabledChange: (on: boolean) => void;
+}) {
+  const today = useToday();
+  const bounds = weightWindowBounds(measurementWindowMode(weightMode), oldestSelectedDate ?? today, today, measurements);
+  const count = measurementsInWindow(measurements, bounds.from, bounds.to).length;
+  return (
+    <section className={styles.section} aria-labelledby="coach-measurements">
+      <Eyebrow id="coach-measurements">{t.measurementsTitle}</Eyebrow>
+      <Card className={styles.weights}>
+        {/* Aucune prise en base : une phrase, pas d'interrupteur inutile (comme les pesées). */}
+        {measurements.length === 0 ? (
+          <p className={styles.hint}>{t.measurementsNone}</p>
+        ) : (
+          <>
+            <label className={styles.switchRow}>
+              <span>{t.measurementsInclude}</span>
+              <input
+                type="checkbox"
+                role="switch"
+                className={styles.switch}
+                checked={enabled}
+                onChange={(e) => {
+                  onEnabledChange(e.target.checked);
+                }}
+              />
+            </label>
+            <p className={styles.hint}>{t.measurementsHint}</p>
+            {enabled && (
+              <p className={styles.weightsPreview} aria-live="polite">
+                {count === 0 ? t.measurementsEmpty : t.measurementsCount(count)}
+              </p>
+            )}
+          </>
+        )}
+      </Card>
+    </section>
+  );
+}
 
 /**
  * Section « Pesées » (V1.2) : interrupteur (activé par défaut) et fenêtre, avec aperçu

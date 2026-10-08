@@ -1,6 +1,6 @@
 import { db } from '../db/database';
-import { DEFAULT_WEIGHT_WINDOW, listCoachExportable, weightsInWindow, weightWindowBounds } from '../domain/coachExport';
-import { COACH_SCHEMA_VERSION } from '../schemas/common';
+import { DEFAULT_WEIGHT_WINDOW, listCoachExportable, measurementsInWindow, measurementWindowMode, weightsInWindow, weightWindowBounds } from '../domain/coachExport';
+import { COACH_MEASUREMENTS_SCHEMA_VERSION, COACH_SCHEMA_VERSION } from '../schemas/common';
 import { COACH_EXPORT_TYPE, type CoachExport, type CoachSelectionMode, type WeightWindow, type WeightWindowMode } from '../schemas/coachExport.schema';
 import { parseCoachExportJson } from '../schemas/parse';
 import { canonicalJson } from '../utils/canonicalJson';
@@ -15,6 +15,11 @@ export interface CoachSelectionRequest {
   mode: CoachSelectionMode;
   /** Fenêtre des pesées jointes ; `null` = pesées désactivées ; absent = fenêtre par défaut (`auto_30d`). */
   weights?: WeightWindowMode | null;
+  /**
+   * V1.7.0 : joindre les mensurations (export 1.2). Absent ou `false` = jamais : rien ne part vers
+   * le coach sans ce choix explicite, et l'export reste le 1.1 d'avant, octet pour octet.
+   */
+  measurements?: boolean;
 }
 
 /**
@@ -44,7 +49,7 @@ export function toCoachExport(data: StoredData, request: CoachSelectionRequest, 
     weightWindow = { mode: windowMode, from, to, count: weightEntries.length };
   }
 
-  return {
+  const base = {
     schemaVersion: COACH_SCHEMA_VERSION,
     type: COACH_EXPORT_TYPE,
     exportedAt,
@@ -65,6 +70,19 @@ export function toCoachExport(data: StoredData, request: CoachSelectionRequest, 
     sessions,
     weightEntries,
     weightWindow,
+  } satisfies CoachExport;
+  if (request.measurements !== true) return base;
+
+  // Mensurations (1.2) : fenêtre des pesées si elles sont jointes, sinon `auto_30d` ; même règle de bornes.
+  const measurementMode = measurementWindowMode(windowMode);
+  const all = data.measurements ?? [];
+  const bounds = weightWindowBounds(measurementMode, first.date, today, all);
+  const measurementEntries = measurementsInWindow(all, bounds.from, bounds.to);
+  return {
+    ...base,
+    schemaVersion: COACH_MEASUREMENTS_SCHEMA_VERSION,
+    measurementWindow: { mode: measurementMode, from: bounds.from, to: bounds.to, count: measurementEntries.length },
+    measurementEntries,
   };
 }
 

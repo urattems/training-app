@@ -1,7 +1,8 @@
 import { strings } from '../i18n/strings';
 import type { CoachExport } from './coachExport.schema';
 import type { HistoryExport } from './history.schema';
-import { toLocalDateString } from '../utils/dates';
+import { addDaysToLocalDate, toLocalDateString } from '../utils/dates';
+import { COACH_MEASUREMENTS_SCHEMA_VERSION } from './common';
 
 const findDuplicates = (values: readonly string[]): string[] => {
   const seen = new Set<string>();
@@ -96,6 +97,8 @@ export function checkCoachExportInvariants(data: CoachExport): string[] {
     violations.push(t.coachDatesMismatch);
   }
 
+  if (data.schemaVersion === COACH_MEASUREMENTS_SCHEMA_VERSION) violations.push(...checkCoachMeasurements(data));
+
   // Pesées (1.1) : désactivées ⇒ aucune ; sinon dates uniques, croissantes, dans la fenêtre, compte exact.
   const { weightEntries, weightWindow } = data;
   if (weightWindow === null) {
@@ -109,5 +112,42 @@ export function checkCoachExportInvariants(data: CoachExport): string[] {
   for (const entry of weightEntries) {
     if (entry.date < weightWindow.from || entry.date > weightWindow.to) violations.push(t.coachWeightOutsideWindow(entry.date));
   }
+  return violations;
+}
+
+/**
+ * Mensurations de l'export coach 1.2 (V1.7.0). Le schéma vérifie déjà les valeurs (> 0, ≤ 300,
+ * 1 décimale, `null` = absente) et « au moins une mesure par prise ». Ici : fenêtre (ordre,
+ * jamais dans le futur, mode cohérent avec ses dates), compte, dates uniques et croissantes,
+ * toutes dans la fenêtre.
+ */
+function checkCoachMeasurements(data: Extract<CoachExport, { schemaVersion: '1.2' }>): string[] {
+  const t = strings.invariants;
+  const { measurementEntries: entries, measurementWindow: window } = data;
+  const violations: string[] = [];
+  if (window === null) {
+    if (entries.length > 0) violations.push(t.coachMeasurementsWithoutWindow);
+    return violations;
+  }
+  const today = data.exportedAt.slice(0, 10);
+  if (window.from > window.to) violations.push(t.coachMeasurementWindowReversed);
+  if (window.to > today) violations.push(t.coachMeasurementWindowFuture(window.to));
+  if (window.count !== entries.length) violations.push(t.coachMeasurementCountMismatch(window.count, entries.length));
+  const increasing = entries.every((e, i) => i === 0 || (entries[i - 1]?.date ?? '') < e.date);
+  if (!increasing) violations.push(t.coachMeasurementsNotIncreasing);
+  for (const entry of entries) {
+    if (entry.date < window.from || entry.date > window.to) violations.push(t.coachMeasurementOutsideWindow(entry.date));
+  }
+  // Mode cohérent avec les dates (mêmes règles que `weightWindowBounds`).
+  const thirtyDays = addDaysToLocalDate(window.to, -30);
+  const expectedFrom =
+    window.mode === 'days_90'
+      ? addDaysToLocalDate(window.to, -90)
+      : window.mode === 'auto_30d'
+        ? data.selection.firstSessionDate < thirtyDays
+          ? data.selection.firstSessionDate
+          : thirtyDays
+        : (entries[0]?.date ?? window.to);
+  if (window.from !== expectedFrom) violations.push(t.coachMeasurementWindowMode(window.mode));
   return violations;
 }

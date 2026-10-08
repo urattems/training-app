@@ -1,7 +1,7 @@
 import { strings } from '../i18n/strings';
 import { toLocalDateString } from '../utils/dates';
 import { err, ok, type Result } from '../utils/result';
-import { COACH_SCHEMA_VERSION, HISTORY_SCHEMA_VERSION, SCHEMA_VERSION } from './common';
+import { COACH_MEASUREMENTS_SCHEMA_VERSION, COACH_SCHEMA_VERSION, HISTORY_SCHEMA_VERSION, SCHEMA_VERSION } from './common';
 import { importFailure, zodFailure, type DocumentKind, type ImportFailure } from './errors';
 import { historyExportSchema, type HistoryExport } from './history.schema';
 import { coachExportSchema, COACH_EXPORT_TYPE, type CoachExport } from './coachExport.schema';
@@ -15,11 +15,15 @@ const EXPECTED_TYPE: Record<DocumentKind, string> = {
   coach: COACH_EXPORT_TYPE,
 };
 
-/** Chaîne de migrations et version courante de chaque type de document. */
-const VERSIONING: Record<DocumentKind, { migrations: readonly SchemaMigration[]; target: string }> = {
+/**
+ * Chaîne de migrations et version courante de chaque type de document. `alsoFinal` : versions
+ * lues TELLES QUELLES, sans migration (V1.7.0 : l'export coach 1.2, produit seulement avec les
+ * mensurations ; un 1.1 reste un 1.1, jamais migré en 1.2).
+ */
+const VERSIONING: Record<DocumentKind, { migrations: readonly SchemaMigration[]; target: string; alsoFinal?: readonly string[] }> = {
   program: { migrations: SCHEMA_MIGRATIONS, target: SCHEMA_VERSION },
   history: { migrations: HISTORY_MIGRATIONS, target: HISTORY_SCHEMA_VERSION },
-  coach: { migrations: COACH_MIGRATIONS, target: COACH_SCHEMA_VERSION },
+  coach: { migrations: COACH_MIGRATIONS, target: COACH_SCHEMA_VERSION, alsoFinal: [COACH_MEASUREMENTS_SCHEMA_VERSION] },
 };
 
 const wrongTypeReason = (doc: DocumentKind, type: string): string => {
@@ -53,7 +57,8 @@ function readDocument(text: string, doc: DocumentKind): Result<{ raw: JsonObject
     return err(importFailure('wrong_type', doc, wrongTypeReason(doc, type)));
   }
 
-  const { migrations, target } = VERSIONING[doc];
+  const { migrations, target, alsoFinal = [] } = VERSIONING[doc];
+  if (typeof raw.schemaVersion === 'string' && alsoFinal.includes(raw.schemaVersion)) return ok({ raw });
   const migration = migrateToVersion(raw, migrations, target);
   if (!migration.ok) {
     return err(

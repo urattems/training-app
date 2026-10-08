@@ -3,8 +3,10 @@
  * Règles pures, sans accès à la base.
  */
 import type { WeightWindowMode } from '../schemas/coachExport.schema';
+import type { CoachMeasurementEntry } from '../schemas/measurement.schema';
+import { sortMeasurements, valuesOf } from './measurements';
 import { addDaysToLocalDate } from '../utils/dates';
-import type { WeightEntry, WorkoutSession } from './types';
+import type { MeasurementEntry, WeightEntry, WorkoutSession } from './types';
 import { sortWeights } from './weight';
 import { isWorkoutEmpty } from './workout';
 
@@ -72,6 +74,22 @@ export function weightWindowBounds(
   if (mode === 'all') return { from: sortWeights(weights)[0]?.date ?? today, to: today };
   const thirtyDays = addDaysToLocalDate(today, -30);
   return { from: oldestSessionDate < thirtyDays ? oldestSessionDate : thirtyDays, to: today };
+}
+
+// --- Mensurations jointes (1.2, V1.7.0) ------------------------------------------------
+
+/**
+ * Mode de la fenêtre des mensurations : celui des pesées si elles sont jointes, sinon le mode par
+ * défaut (`auto_30d`). Les bornes viennent de la MÊME règle (`weightWindowBounds`) : pour
+ * `auto_30d` et `days_90`, identiques à celles des pesées ; `all` = depuis la première prise.
+ */
+export const measurementWindowMode = (weightMode: WeightWindowMode | null): WeightWindowMode => weightMode ?? DEFAULT_WEIGHT_WINDOW;
+
+/** Prises de la fenêtre (date + 6 zones, `null` conservé), par date croissante ; ni `recordedAt` ni Total. */
+export function measurementsInWindow(entries: readonly MeasurementEntry[], from: string, to: string): CoachMeasurementEntry[] {
+  return sortMeasurements(entries)
+    .filter((m) => m.date >= from && m.date <= to)
+    .map((m) => ({ date: m.date, ...valuesOf(m) }));
 }
 
 /** Pesées compactes (date, poids) de la fenêtre, par date croissante. */

@@ -17,19 +17,31 @@ export const measurementCmSchema = z
  * `recordedAt` = instant de la dernière écriture. Chaque zone est PRÉSENTE et nullable ;
  * au moins une mesure non nulle.
  */
+/** Date et 6 zones, dans l'ordre du domaine (commun à la sauvegarde et à l'export coach). */
+const measurementShape = {
+  date: weightDateSchema,
+  chestCm: measurementCmSchema,
+  bellyCm: measurementCmSchema,
+  waistCm: measurementCmSchema,
+  bicepsCm: measurementCmSchema,
+  thighCm: measurementCmSchema,
+  calfCm: measurementCmSchema,
+};
+
+const hasOneMeasurement = {
+  check: (entry: Record<string, unknown>) => MEASUREMENT_ZONE_KEYS.some((key) => entry[key] !== null),
+  message: 'une prise de mensurations contient au moins une mesure',
+};
+
 export const measurementEntrySchema = z
-  .object({
-    date: weightDateSchema,
-    chestCm: measurementCmSchema,
-    bellyCm: measurementCmSchema,
-    waistCm: measurementCmSchema,
-    bicepsCm: measurementCmSchema,
-    thighCm: measurementCmSchema,
-    calfCm: measurementCmSchema,
-    recordedAt: dateTimeSchema,
-  })
-  .refine((entry) => MEASUREMENT_ZONE_KEYS.some((key) => entry[key] !== null), {
-    message: 'une prise de mensurations contient au moins une mesure',
-  });
+  .object({ ...measurementShape, recordedAt: dateTimeSchema })
+  .refine(hasOneMeasurement.check, { message: hasOneMeasurement.message });
+
+/**
+ * Prise dans l'export pour le coach (1.2, V1.7.0) : date et 6 zones seulement. Ni `recordedAt`
+ * (sans intérêt pour le coach), ni Total (on n'exporte que des faits : il le calcule s'il veut).
+ */
+export const coachMeasurementEntrySchema = z.object(measurementShape).refine(hasOneMeasurement.check, { message: hasOneMeasurement.message });
 
 export type MeasurementEntry = z.infer<typeof measurementEntrySchema>;
+export type CoachMeasurementEntry = z.infer<typeof coachMeasurementEntrySchema>;

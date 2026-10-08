@@ -6,6 +6,11 @@ export const SCHEMA_VERSION = '1.0';
 export const HISTORY_SCHEMA_VERSION = '1.2';
 /** Version courante de l'export pour le coach (`training_coach_export`) : 1.1 = pesées (V1.2). */
 export const COACH_SCHEMA_VERSION = '1.1';
+/**
+ * Export pour le coach AVEC mensurations (V1.7.0) : produit SEULEMENT quand l'utilisateur coche
+ * « Joindre mes mensurations ». Sans cette option, l'export reste en 1.1, identique octet pour octet.
+ */
+export const COACH_MEASUREMENTS_SCHEMA_VERSION = '1.2';
 
 /** Identifiant stable : texte non vide. */
 export const idSchema = z.string().trim().min(1);
