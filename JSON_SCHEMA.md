@@ -330,6 +330,57 @@ Fichier complet, validé par les tests et reproduit à l'identique par l'app : [
 
 ---
 
+## COACH_JSON v1.2 (`training_coach_export`, avec mensurations — V1.7.0)
+
+Produit **uniquement** quand l'utilisateur coche « Joindre mes mensurations » (décochée par défaut, à chaque ouverture de l'écran). **Sans cette option, l'export reste le COACH_JSON v1.1 ci-dessus, octet pour octet** : même `schemaVersion`, mêmes clés, même ordre, aucune clé de mensurations.
+
+- Toutes les clés du 1.1, dans le même ordre, avec `schemaVersion: "1.2"` ;
+- puis **deux clés de plus**, après celles des pesées : `measurementWindow`, puis `measurementEntries` ;
+- jamais restaurable (comme le 1.1) ; l'archive Drive (fichiers par séance) reste en 1.1, sans mensurations ;
+- lecture : un fichier 1.1 n'est jamais migré en 1.2. Une clé de mensurations dans un fichier 1.1 est refusée (« les mensurations exigent un export pour le coach en version « 1.2 » »).
+
+### `measurementEntries` (1.2)
+
+Une prise par date, **par date croissante**, zones dans l'ordre fixe : Poitrine, Ventre, Taille, Biceps, Cuisse, Mollet.
+
+| Champ | Type | Règles |
+|---|---|---|
+| `date` | `YYYY-MM-DD` | Date locale de la prise, unique |
+| `chestCm`, `bellyCm`, `waistCm`, `bicepsCm`, `thighCm`, `calfCm` | nombre ou `null` | cm, > 0, ≤ 300, au plus 1 décimale ; **`null` = zone non mesurée ce jour-là (jamais 0)** ; au moins une zone renseignée |
+
+- Les prises **incomplètes** sont jointes telles quelles (zones absentes à `null`).
+- **Ni `recordedAt`** (sans intérêt pour le coach), **ni Total** : on n'exporte que des faits mesurés. Le coach peut faire la somme des 6 zones d'une prise complète s'il le souhaite.
+
+### `measurementWindow` (1.2)
+
+Même forme et mêmes modes que `weightWindow` : `{ mode, from, to, count }`, ou `null` (alors `measurementEntries` est vide).
+
+- **Mode** : celui des pesées si elles sont jointes ; sinon `auto_30d`. Bornes calculées par la même règle que les pesées (`auto_30d` : la plus ancienne entre la première séance jointe et aujourd'hui − 30 jours ; `days_90` : les 90 derniers jours ; `all` : depuis la toute première prise).
+- **Aucune prise sur la période** : la fenêtre reste renseignée, avec `count: 0` et `measurementEntries: []`.
+
+### Invariants (1.2, en plus de ceux du 1.1)
+
+1. dates uniques et strictement croissantes, toutes dans `[from, to]` ;
+2. `count` = nombre de prises ; `from ≤ to` ; `to` jamais après la date de l'export ;
+3. `from` cohérent avec `mode` (même règle que ci-dessus) ;
+4. valeurs > 0, ≤ 300, au plus 1 décimale, au moins une zone par prise ;
+5. `measurementWindow` `null` ⇒ `measurementEntries` vide.
+
+### Exemple (abrégé ; complet dans `examples/coach-export-measurements-example.json`)
+
+```json
+{
+  "schemaVersion": "1.2",
+  "type": "training_coach_export",
+  "…": "mêmes clés que le 1.1, dans le même ordre (selection, programs, sessions, weightEntries, weightWindow)",
+  "measurementWindow": {"mode": "auto_30d", "from": "2026-09-01", "to": "2026-10-01", "count": 2},
+  "measurementEntries": [
+    {"date": "2026-09-01", "chestCm": null, "bellyCm": 92.5, "waistCm": null, "bicepsCm": null, "thighCm": null, "calfCm": null},
+    {"date": "2026-09-29", "chestCm": 104, "bellyCm": 92, "waistCm": 88.3, "bicepsCm": 36.4, "thighCm": 58.8, "calfCm": 38.5}
+  ]
+}
+```
+
 ## Archive Drive (V1.3)
 
 Facultative, désactivée par défaut : l'app envoie, à sens unique, une copie de ses données vers le script « Muscu Sync » de l'utilisateur, qui l'écrit dans son Google Drive. L'app ne lit **jamais** Drive. Détail complet : `SPEC.md` §10.7.
@@ -450,6 +501,14 @@ Muscu/
 - **`weightWindow`** dit quelle période couvrent les pesées jointes (`from` → `to`) et combien il y en a (`count`). `count: 0` : aucune pesée sur la période. `null` : l'utilisateur n'a pas joint ses pesées. N'en déduis rien sur son poids.
 - Le poids varie d'un jour à l'autre (eau, repas, heure de la mesure) : regarde la **tendance sur plusieurs pesées**, pas un écart isolé.
 - **L'app ne fixe aucun objectif de poids et ne donne aucun conseil.** Si tu tiens compte du poids pour le programme, c'est **ta** décision ; dis-le explicitement, sans l'imposer.
+
+### Lire les mensurations (COACH_JSON 1.2, seulement si l'utilisateur les a jointes)
+
+- **Circonférences en cm**, une prise par date, zones dans l'ordre Poitrine, Ventre, Taille, Biceps, Cuisse, Mollet (biceps, cuisse et mollet : un seul côté, idéalement toujours le même ; mesures prises relâchées).
+- **`null` = zone non mesurée ce jour-là**, jamais une valeur nulle : n'interpole pas et ne compare une zone qu'avec elle-même.
+- Une variation de quelques millimètres est dans la marge de mesure au mètre ruban : regarde la **tendance sur plusieurs prises**.
+- **L'app ne fixe aucun objectif et ne calcule aucun score.** Le fichier ne contient pas de total : si tu en calcules un, fais-le seulement sur les prises complètes (les 6 zones).
+- Pas de clé de mensurations (COACH_JSON 1.1) = l'utilisateur ne les a pas jointes : n'en déduis rien.
 
 ### Lire un export d'historique
 

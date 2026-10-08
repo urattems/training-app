@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1.6.3 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations)** → **https://urattems.github.io/training-app/**
+> **État : V1.7.0 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations, jointes au coach sur demande)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
@@ -40,6 +40,7 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
   - sauvegarde complète en JSON, restauration, rappel d'export après 14 jours ;
   - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT ;
   - les pesées font partie de la sauvegarde (format 1.1, anciennes sauvegardes 1.0 toujours acceptées) et peuvent être jointes à l'export pour le coach (30 jours ou plus, 90 jours, tout, ou désactivées).
+  - les mensurations peuvent aussi être jointes à l'export pour le coach (« Joindre mes mensurations », **décochée par défaut** à chaque fois, même période que les pesées) : le fichier passe alors en format 1.2 ; sans cette option, il reste exactement le 1.1.
 - **Archive Drive** (facultative, désactivée par défaut, Paramètres → Archive Drive) :
   - copie automatique vers le Drive de l'utilisateur, via son propre script « Muscu Sync », à sens unique : chaque séance, chaque pesée, toutes les pesées regroupées, une sauvegarde complète tenue à jour et une copie hebdomadaire ;
   - file d'attente hors ligne ; garde-fous (jamais de sauvegarde d'une base vide, refus de remplacer une sauvegarde plus complète) ;

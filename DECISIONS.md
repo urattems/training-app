@@ -2127,3 +2127,64 @@ Le script Apps Script est en **sync-3**, déjà déployé par l'utilisateur.
 ### Contrôles
 - Aucun minuteur ajouté dans l'app. Typecheck, lint et build verts.
 - Tests : 872 en V1.6.2, **886** en V1.6.3, en `--maxWorkers=1` puis en `TZ=UTC`. Les deux passes sont sorties en code 0, sans erreur non gérée.
+
+---
+
+## V1.7.0 — Jalon 7 : mensurations dans l'export pour le coach (option décochée par défaut)
+
+Aucun changement de base (Dexie v3), ni du format de sauvegarde (1.2), ni du protocole Drive.
+
+### Choix
+- **Aucune mensuration ne part sans geste explicite.**
+  - « Joindre mes mensurations » est **décochée** à chaque ouverture de l'écran : c'est un état local, **jamais mémorisé** (testé : rouvrir l'écran = décochée).
+  - Sans aucune prise en base, la section affiche une phrase au lieu de l'interrupteur, comme les pesées.
+  - Le résumé ne mentionne les mensurations que lorsqu'elles sont jointes.
+- **1.2 seulement si l'option est cochée.** Sans l'option, l'export reste le 1.1 d'avant, **octet pour octet** : même `schemaVersion`, mêmes clés, même ordre, aucune clé de mensurations.
+  - Test : avec des prises en base, le fichier produit est exactement `coach-export-weights-example.json`.
+  - Raison : un lecteur du 1.1 (le coach, ChatGPT, un script) ne voit aucun changement tant que l'utilisateur ne joint rien. Passer tous les exports en 1.2 aurait changé le format pour tout le monde sans rien apporter.
+- **Lecture** : les exports coach migrent 1.0 → 1.1 comme avant, et **1.1 et 1.2 sont lus tels quels** (`alsoFinal` dans `parse.ts`). Un 1.1 n'est jamais migré en 1.2, sinon l'autotest de relecture verrait un fichier différent.
+  - Schéma : deux variantes distinguées par `schemaVersion`. Une clé de mensurations dans un 1.1 est **refusée**, avec un message clair, au lieu d'être ignorée en silence.
+- **Contenu** :
+  - `measurementWindow` puis `measurementEntries`, après les clés des pesées ;
+  - chaque prise : date + 6 zones, dans l'ordre du domaine, `null` = zone absente (jamais 0), par date croissante ;
+  - les prises incomplètes sont jointes telles quelles.
+  - **Pas de `recordedAt`** : l'instant d'écriture n'apprend rien au coach. **Pas de Total** : on n'exporte que des faits mesurés, et le coach le calcule s'il veut, sur les prises complètes. Cela évite aussi toute ressemblance avec un « score ».
+- **Fenêtre** : celle des pesées si elles sont jointes, sinon `auto_30d`. Les bornes viennent de la **même fonction** (`weightWindowBounds`, réutilisée et non copiée).
+  - Pour `auto_30d` et `days_90`, elles sont identiques à celles des pesées.
+  - Pour `all`, la fenêtre part de la toute première **prise**, comme « Tout » part de la première pesée.
+  - Aucune prise sur la période : la fenêtre reste renseignée (`count: 0`), et l'export reste possible.
+- **Invariants du 1.2** (`invariants.ts`, messages en français) :
+  - dates uniques et croissantes, dans la fenêtre ;
+  - `count` = nombre de prises ; `from ≤ to` ; `to` jamais après la date de l'export ;
+  - `from` cohérent avec le mode ;
+  - les valeurs (> 0, ≤ 300, 1 décimale, au moins une zone) sont vérifiées par le schéma.
+  - Un export coach 1.2 est **refusé** par la restauration et par l'import de programme, comme avant.
+- **Archive Drive** : les fichiers par séance restent en **1.1, sans mensurations**, même avec des prises en base (testé : contenu identique). L'option ne concerne que l'export manuel.
+- **Deux sorties** : le fichier indenté et la copie compacte pour ChatGPT respectent l'option. Avec 2 prises jointes, la copie compacte grossit de moins de 600 caractères.
+
+### Fixture
+- `examples/coach-export-measurements-example.json` (1.2) : **produite par l'app** à partir de `history-measurements-example.json`, avec la même sélection que `coach-export-weights-example.json`. Elle contient 2 prises, dont une incomplète.
+- Son empreinte SHA-256 est figée, et le test « reproduit à l'identique par l'app » compare l'objet ET les octets. Les fixtures existantes sont intactes (empreintes revérifiées).
+
+### Écarts et constats
+- **Débordement préexistant signalé, non corrigé** (hors de ce jalon) : sur l'écran d'export coach, le libellé du raccourci « N dernières » dépasse son bouton à 320 px (scrollWidth 84 > 61) et à 360 px (84 > 75). Il a été trouvé par le script de mesure, et n'est touché ni par ce jalon ni par son CSS. La section Mensurations, elle, ne déborde à aucune largeur.
+- **`JSON_SCHEMA.md`, section HISTORY_JSON** : elle décrit encore le 1.1, sans `measurementEntries` (sauvegarde 1.2 depuis la V1.5.0). Hors du périmètre de ce jalon, à compléter. La SPEC §10.6 (export coach) n'a pas été modifiée non plus : la consigne listait JSON_SCHEMA, DECISIONS et README.
+
+### Tests
+- `services/coachMeasurements.test.ts` (27 tests) :
+  - sans option : octets identiques au 1.1 ;
+  - empreintes ;
+  - fixture 1.2 reproduite (objet et octets) ;
+  - ordre des clés ; prises triées, `null` conservés, incomplètes incluses, ni `recordedAt` ni Total ;
+  - aucune prise ;
+  - fenêtre (suit les pesées, `auto_30d` si les pesées sont désactivées, `days_90`, `all`) ;
+  - bornes incluses et dates métier autour des changements d'heure ;
+  - 14 refus d'invariants, version 1.3 refusée, restauration et import refusés ;
+  - les deux sorties ; secret et URL absents ; fichiers Drive par séance inchangés.
+- `features/settings/CoachMeasurements.test.tsx` (6 tests) : décochée par défaut, aperçu et résumé, copie compacte en 1.2 ou en 1.1, aucune prise sur la période, aucune prise en base, choix non mémorisé.
+- **Aucun test existant modifié.** Un test existant (« aucune pesée en base : aucun interrupteur à l'écran ») a conduit à masquer l'interrupteur quand il n'y a aucune prise. Le test n'a pas été touché : c'est l'interface qui s'aligne sur la règle des pesées.
+- **Navigateur réel** (Edge headless, tactile, production) à 320, 360, 390 et 430 px, interrupteur coché, 144 éléments texte mesurés : la section Mensurations est sans débordement, décochée au départ, cochée au toucher, avec l'aperçu « 1 prise ». Seul débordement trouvé : « N dernières », préexistant (voir plus haut).
+
+### Contrôles
+- Aucun nouveau minuteur, aucune dépendance. Typecheck, lint et build verts.
+- Tests : 886 en V1.6.3, **919** en V1.7.0, en `--maxWorkers=1` puis en `TZ=UTC`.
