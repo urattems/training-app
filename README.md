@@ -39,7 +39,7 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
 - **Données** :
   - sauvegarde complète en JSON, restauration, rappel d'export après 14 jours ;
   - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT ;
-  - les pesées font partie de la sauvegarde (format 1.1, anciennes sauvegardes 1.0 toujours acceptées) et peuvent être jointes à l'export pour le coach (30 jours ou plus, 90 jours, tout, ou désactivées).
+  - les pesées et les mensurations font partie de la sauvegarde (format 1.2 depuis la V1.5.0 ; anciennes sauvegardes 1.0 et 1.1 toujours acceptées) et peuvent être jointes à l'export pour le coach (30 jours ou plus, 90 jours, tout, ou désactivées).
   - les mensurations peuvent aussi être jointes à l'export pour le coach (« Joindre mes mensurations », **décochée par défaut** à chaque fois, même période que les pesées) : le fichier passe alors en format 1.2 ; sans cette option, il reste exactement le 1.1.
 - **Archive Drive** (facultative, désactivée par défaut, Paramètres → Archive Drive) :
   - copie automatique vers le Drive de l'utilisateur, via son propre script « Muscu Sync », à sens unique : chaque séance, chaque pesée, toutes les pesées regroupées, une sauvegarde complète tenue à jour et une copie hebdomadaire ;
@@ -83,7 +83,7 @@ src/
   features/     écrans : home, program, workout, exercise, history, progress, weight, settings, import
   domain/       règles métier pures et testées (séance, rotation, stats, graphique, rappel d'export)
   schemas/      contrat JSON (Zod), invariants, migrations de schéma, messages d'erreur
-  db/           base IndexedDB (Dexie, version 2 depuis la V1.2), état de connexion entre onglets
+  db/           base IndexedDB (Dexie, version 3 depuis la V1.5.0), état de connexion entre onglets
   services/     accès aux données : programme, séance, historique, export, restauration, stockage
   hooks/        lectures réactives, enregistrement automatique, export préparé
   pwa/          manifest, bannière de mise à jour
@@ -105,7 +105,7 @@ scripts/        génération des icônes
 | Action | Où | Effet |
 |---|---|---|
 | Importer un programme | Paramètres, ou premier lancement | Fichier, ou « Coller le JSON » (un bloc ` ```json … ``` ` est accepté). Valide le JSON, prévisualise, puis le programme devient actif (l'ancien est archivé). Un `programId` déjà connu est refusé |
-| Exporter mes données | Paramètres | **Sauvegarde complète** : fichier `training_history_export` (programmes, séances, préférences), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
+| Exporter mes données | Paramètres | **Sauvegarde complète** : fichier `training_history_export` (programmes, séances, pesées, mensurations, préférences ; format 1.2), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
 | Exporter pour le coach | Paramètres | **Sélection de séances** : fichier `training-coach-AAAA-MM-JJ.json` (`training_coach_export`) ou « Copier pour ChatGPT » (JSON compact). Vérifié avant remise. Ne compte pas comme sauvegarde et n'est jamais restaurable |
 | Restaurer une sauvegarde | Paramètres | Résumé, puis export obligatoire des données actuelles, puis remplacement complet en une opération (copie interne de sécurité conservée) |
 
@@ -136,7 +136,7 @@ Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runn
   - restaurer d'abord `Sauvegardes/sauvegarde-derniere.json`, PUIS activer l'envoi (sinon l'app demande quoi faire, sans rien écraser) ;
   - les noms de fichiers gelés sont propres à l'appareil : une séance dont la date a été corrigée avant une réinstallation peut produire un second fichier.
 - **Un appareil** : pas de synchronisation. Pour changer d'iPhone, exporter puis restaurer.
-- **Plusieurs onglets ou fenêtres de l'app** (surtout sur ordinateur) : lors d'une mise à jour qui fait évoluer la base (V1.2 : version 2), une ancienne version encore ouverte peut retarder la mise à jour.
+- **Plusieurs onglets ou fenêtres de l'app** (surtout sur ordinateur) : lors d'une mise à jour qui fait évoluer la base (V1.2 : version 2 ; V1.5.0 : version 3), une ancienne version encore ouverte peut retarder la mise à jour.
   - L'app affiche alors « Ferme les autres onglets de l'app, puis rouvre-la », puis reprend d'elle-même.
   - Aucune donnée n'est touchée.
   - Sur iPhone, l'app installée et Safari ont des données séparées : le cas ne se présente qu'entre plusieurs onglets Safari.

@@ -10,13 +10,17 @@
 }
 
 .shortcuts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* V1.7.5 : ligne flexible avec retour à la ligne. Chaque raccourci fait AU MOINS la largeur de
+     son contenu (jamais tronqué : « N dernières » débordait de sa demi-colonne de grille) et ils se
+     partagent la place restante ; l'ordre et le sens des boutons sont inchangés. */
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .shortcuts > * {
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: max-content;
   padding-left: var(--space-3);
   padding-right: var(--space-3);
 }
@@ -66,8 +70,6 @@ label.active {
 }
 
 .nField span {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

@@ -77,6 +77,11 @@
   justify-content: center;
   width: var(--tap-min);
   height: var(--tap-min);
+  /* V1.7.5 : remise à zéro du <button> (bordure « outset » et fond par défaut du navigateur) ;
+     sans effet sur la version lien (<a>), déjà sans bordure ni fond. */
+  padding: 0;
+  border: 0;
+  background: transparent;
   border-radius: 50%;
   color: var(--color-text);
   transition: background-color var(--duration-fast) var(--easing-standard);

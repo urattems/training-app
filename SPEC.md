@@ -466,6 +466,16 @@ Export **partiel**, distinct de la sauvegarde (§10.2) : il sert uniquement à e
 - Un fichier 1.0 est migré (`weightEntries: []`, `weightWindow: null`) ; l'autotest avant remise s'applique au format 1.1 ;
 - la restauration et l'import de programme refusent toujours ce type, en 1.0 comme en 1.1.
 
+**Complément V1.7.0 — mensurations dans l'export pour le coach** (`schemaVersion: "1.2"`, seulement si l'option est cochée) :
+- option « Joindre mes mensurations » sur l'écran d'export, **décochée par défaut** à chaque ouverture de l'écran, jamais mémorisée ; sans aucune prise en base, une phrase remplace l'interrupteur ;
+- **option décochée : l'export reste le 1.1 ci-dessus, octet pour octet** (même `schemaVersion`, mêmes clés, même ordre, aucune clé de mensurations) ;
+- **option cochée : `schemaVersion: "1.2"`**, toutes les clés du 1.1 dans le même ordre, puis :
+  - `measurementWindow` : `{ mode, from, to, count }`, même forme que `weightWindow` ; mode = celui des pesées si elles sont jointes, sinon `auto_30d` ; mêmes bornes que les pesées (`all` : depuis la première prise) ;
+  - `measurementEntries` : prises `{ date, chestCm, bellyCm, waistCm, bicepsCm, thighCm, calfCm }` par date croissante, `null` = zone absente (jamais 0), prises incomplètes jointes telles quelles ; **ni `recordedAt`, ni total** ;
+- **invariants ajoutés (1.2)** : dates uniques et strictement croissantes dans `[from, to]` ; `count` = nombre de prises ; `from ≤ to` ; `to` jamais après la date de l'export ; `from` cohérent avec le mode ; `measurementWindow` null ⇒ `measurementEntries` vide ;
+- lecture : un 1.1 n'est jamais migré en 1.2 ; une clé de mensurations dans un 1.1 est refusée ; restauration et import de programme refusent aussi le 1.2 ;
+- l'archive Drive (fichiers par séance) reste en 1.1, sans mensurations. Détail : `JSON_SCHEMA.md`, « COACH_JSON v1.2 ».
+
 ### 10.7 Archive automatique vers Google Drive (amendement V1.3)
 Reprise des §1 à §9 de `V1.3-SPEC.md` (référence de la V1.3) ; l'interface est décrite au §7.10 (complément V1.3). Dans cette section, un renvoi « §n » désigne la sous-section 10.7.n.
 

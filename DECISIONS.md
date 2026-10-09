@@ -2188,3 +2188,37 @@ Aucun changement de base (Dexie v3), ni du format de sauvegarde (1.2), ni du pro
 ### Contrôles
 - Aucun nouveau minuteur, aucune dépendance. Typecheck, lint et build verts.
 - Tests : 886 en V1.6.3, **919** en V1.7.0, en `--maxWorkers=1` puis en `TZ=UTC`.
+
+---
+
+## V1.7.5 — Correctifs (bloc A) et système de thèmes (bloc B)
+
+Aucun changement de base (Dexie v3), ni du format de sauvegarde (1.2), ni de l'export coach (1.1 sans option / 1.2 avec). Aucune dépendance, aucun minuteur.
+
+### Bloc A — correctifs
+
+**A1. « N dernières » débordait de son bouton** (écran Exporter pour le coach).
+- Cause : la grille des raccourcis avait des colonnes de largeur fixe ; le libellé « N dernières » (84 px de texte) ne tenait pas dans sa colonne à 320, 360 et 375 px, ni de 360 à 414 px avec la police agrandie de 10 %.
+- Solution : la rangée devient une **ligne flexible avec retour à la ligne** (`flex-wrap`). Chaque raccourci a pour largeur minimale son contenu (`min-width: max-content`) et s'étire pour remplir la ligne. Quand quatre raccourcis ne tiennent pas, le dernier passe à la ligne suivante, à la largeur de son contenu, au lieu d'être écrasé. Le libellé du champ ne se coupe jamais (`white-space: nowrap`).
+- Ni coupure, ni points de suspension, ni libellé raccourci ; ordre et sens inchangés. Cibles : « N dernières » mesure 52 × 52 px (57 × 57 avec la police +10 %), champ 52 × 36 dans un libellé de 52 px de haut, boutons ≥ 44 px.
+
+**A2. Bouton « + » de l'écran Poids** : il affichait la bordure par défaut du navigateur (`border: 2px outset rgb(0, 0, 0)`).
+- Cause : `.iconButton` (`components/Page.module.css`) servait d'abord à un lien ; utilisé sur un `<button>`, il gardait la bordure, le fond et la marge intérieure du navigateur.
+- Correctif : remise à zéro (`padding: 0; border: 0; background: transparent`), sans effet sur la version lien. Rien d'autre n'a changé.
+- Audit (script hors dépôt, `border` et `outline` calculés de chaque `<button>` visible, 12 écrans à 390 px : Accueil, Programme, Séance, Exercice, Historique, Détail de séance, Progression, Poids, Mensurations, Paramètres, Archive Drive, Export coach). En V1.7.0 : **un seul** bouton avec bordure par défaut, « Ajouter une pesée » (`2px outset rgb(0, 0, 0)`). En V1.7.5 : aucun. Styles rencontrés : `1px solid` (transparent ou couleur des tokens) et `0px none` ; aucun `outset` ni `inset`.
+
+**A3. Documentation**
+- `JSON_SCHEMA.md` :
+  - HISTORY_JSON passe en **1.2** : clé `measurementEntries`, tableau de l'entrée (date + 6 zones `number|null` + `recordedAt`), invariant 7 (`checkMeasurementEntries`), section « Migrations » (1.0 → 1.1 → 1.2), renvoi à `examples/history-measurements-example.json`. Vérifié dans `history.schema.ts`, `measurement.schema.ts`, `invariants.ts` et `migrations.ts`, cités dans la section.
+  - Tableau des formats, liste des exemples (ajout des deux fixtures 1.2), règles de `schemaVersion` et de migration, sauvegarde Drive (« HISTORY_JSON 1.2 », `meta.counts` avec `measurements`).
+  - Le texte prêt à coller dans ChatGPT n'est pas modifié : il décrit l'export par défaut (1.1).
+- `SPEC.md` §10.6 : complément V1.7.0 (mensurations jointes à l'export coach, option décochée par défaut, 1.2 seulement si cochée, invariants, lecture). Modification demandée explicitement par la consigne.
+- `README.md` : sauvegarde « format 1.1 » → 1.2 (anciennes 1.0 et 1.1 acceptées) ; « Dexie, version 2 depuis la V1.2 » → version 3 depuis la V1.5.0 ; contenu de la sauvegarde complété (pesées, mensurations) ; limite « plusieurs onglets » complétée (V1.5.0 : version 3).
+- `CLAUDE.md` : les fixtures contractuelles sont tous les fichiers d'`examples/` (et plus seulement deux) ; la convention de commit `jalon-N : résumé` ne correspondait plus à la pratique (`type(portée) : résumé`, branche par version, jamais de push).
+- Aucune fixture modifiée (empreintes SHA-256 vérifiées par les tests).
+
+**A4. Débordement de l'écran d'export coach** : vérifié en vrai navigateur (Edge headless, tactile, build de production), avec un script hors dépôt, car jsdom ne calcule aucune largeur.
+- Méthode : chaque élément texte feuille de `main` (`scrollWidth ≤ clientWidth` ; élément en ligne : sa boîte dans celle de son parent), plus l'absence de défilement horizontal, interrupteurs pesées et mensurations **décochés puis cochés**, à 320, 360, 375, 390, 414 et 430 px, puis police agrandie de 10 % de 360 à 430 px (11 configurations × 2 états).
+- V1.7.0 : 14 débordements, tous « N dernières » (320 : 84 > 61 ; 360 : 84 > 75 ; 375 : 84 > 81 ; police +10 % : 360 : 92 > 70, 375 : 92 > 76, 390 : 92 > 81, 414 : 92 > 90 ; chacun dans les deux états).
+- V1.7.5 : 737 éléments texte mesurés, **0 débordement**, 0 erreur console.
+- Contrôles du bloc A : typecheck, lint, build verts ; **919 tests** (inchangés) en `--maxWorkers=1` puis en `TZ=UTC`.

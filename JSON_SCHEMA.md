@@ -5,8 +5,8 @@ Trois formats d'échange, plus deux formats de l'archive Drive (V1.3) :
 | Format | `type` | Version courante | Sens | Usage |
 |---|---|---|---|---|
 | **PROGRAM_JSON** | `training_program` | `"1.0"` | coach → app | Programme de la semaine, à importer (fichier ou texte collé) |
-| **HISTORY_JSON** | `training_history_export` | `"1.1"` (1.0 accepté) | app → app (et coach) | Sauvegarde complète et restauration, pesées comprises |
-| **COACH_JSON** | `training_coach_export` | `"1.1"` (1.0 accepté) | app → coach | Sélection de séances (et de pesées) à envoyer au coach. **Jamais restaurable** |
+| **HISTORY_JSON** | `training_history_export` | `"1.2"` (1.0 et 1.1 acceptés) | app → app (et coach) | Sauvegarde complète et restauration, pesées et mensurations comprises |
+| **COACH_JSON** | `training_coach_export` | `"1.1"`, ou `"1.2"` si les mensurations sont jointes (1.0 accepté) | app → coach | Sélection de séances (et de pesées, et de mensurations sur demande) à envoyer au coach. **Jamais restaurable** |
 | **WEIGHT_ENTRY** | `weight_entry` | `"1.0"` | app → Drive | Une pesée de l'archive Drive (`Muscu/Pesees/AAAA-MM-JJ.json`) |
 | **WEIGHT_LOG** | `weight_log` | `"1.0"` | app → Drive | Toutes les pesées de l'archive Drive (`Muscu/Pesees/_pesees.json`) |
 
@@ -14,9 +14,11 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 
 - [`examples/program-example.json`](examples/program-example.json) (1.0) ;
 - [`examples/history-example.json`](examples/history-example.json) (1.0, accepté via la migration) ;
-- [`examples/history-weights-example.json`](examples/history-weights-example.json) (1.1, 10 pesées) ;
+- [`examples/history-weights-example.json`](examples/history-weights-example.json) (1.1, 10 pesées, accepté via la migration) ;
+- [`examples/history-measurements-example.json`](examples/history-measurements-example.json) (1.2, pesées et 5 prises de mensurations) ;
 - [`examples/coach-export-example.json`](examples/coach-export-example.json) (1.0, accepté via la migration) ;
 - [`examples/coach-export-weights-example.json`](examples/coach-export-weights-example.json) (1.1, avec pesées) ;
+- [`examples/coach-export-measurements-example.json`](examples/coach-export-measurements-example.json) (1.2, avec mensurations) ;
 - [`examples/weight-entry-example.json`](examples/weight-entry-example.json) et [`examples/weight-log-example.json`](examples/weight-log-example.json) (archive Drive, 1.0).
 
 ## Règles communes
@@ -30,10 +32,11 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 - **Refus en bloc** : un fichier invalide n'est jamais importé partiellement. Le message d'erreur indique l'endroit, par exemple « la séance A contient un exercice sans identifiant ».
 - **`schemaVersion`** : obligatoire, **propre à chaque type** de document.
   - Programme : `"1.0"` (aucune autre version).
-  - Sauvegarde et export pour le coach : `"1.1"` depuis la V1.2 (pesées). L'app n'écrit plus qu'en 1.1.
-  - **Migration 1.0 → 1.1** : un fichier 1.0 est mis à jour à la lecture, sans être modifié sur le disque.
-    - Sauvegarde : ajout de `weightEntries: []`.
-    - Export pour le coach : ajout de `weightEntries: []` et `weightWindow: null`.
+  - Sauvegarde : `"1.2"` depuis la V1.5.0 (mensurations), `"1.1"` en V1.2 (pesées). L'app n'écrit plus qu'en 1.2.
+  - Export pour le coach : `"1.1"` depuis la V1.2 (pesées) ; `"1.2"` seulement si l'utilisateur joint ses mensurations (V1.7.0).
+  - **Migrations à la lecture** : un ancien fichier est mis à jour en mémoire, sans être modifié sur le disque.
+    - Sauvegarde 1.0 → 1.1 : ajout de `weightEntries: []` ; 1.1 → 1.2 : ajout de `measurementEntries: []`.
+    - Export pour le coach 1.0 → 1.1 : ajout de `weightEntries: []` et `weightWindow: null`. Un 1.1 n'est jamais migré en 1.2.
     - Les anciennes sauvegardes restent donc restaurables telles quelles.
   - Une version inconnue ou future est refusée avec un message clair : « version de schéma « 2.0 », non prise en charge ».
 
@@ -99,7 +102,9 @@ Références exécutables : [`src/schemas/program.schema.ts`](src/schemas/progra
 
 ---
 
-## HISTORY_JSON v1.1 (`training_history_export`)
+## HISTORY_JSON v1.2 (`training_history_export`)
+
+Version courante : **1.2** depuis la V1.5.0 (mensurations) ; 1.1 en V1.2 (pesées). Source : `src/schemas/history.schema.ts` (`historyExportSchema`), `src/schemas/measurement.schema.ts`, `src/schemas/weight.schema.ts`, invariants dans `src/schemas/invariants.ts`, migrations dans `src/schemas/migrations.ts`. Exemple complet : `examples/history-measurements-example.json` (5 prises, dont des incomplètes).
 
 Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.json`), relu par « Restaurer une sauvegarde ». L'export est relu et vérifié par l'app avant d'être proposé : il est toujours restaurable à l'identique.
 
@@ -107,7 +112,7 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 
 | Champ | Type | Oblig. | Exemple | Règles |
 |---|---|---|---|---|
-| `schemaVersion` | `"1.1"` | oui | | `"1.0"` accepté (migré) |
+| `schemaVersion` | `"1.2"` | oui | | `"1.0"` et `"1.1"` acceptés (migrés, voir « Migrations ») |
 | `type` | `"training_history_export"` | oui | | |
 | `exportedAt` | ISO 8601 + offset | oui | `"2026-10-01T18:45:00+02:00"` | Instant de l'instantané des données |
 | `locale` | texte | oui | `"fr-FR"` | |
@@ -116,7 +121,10 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 | `preferences` | objet | facultatif | `{ "unit": "kg", "theme": "light" }` | Défaut `{ kg, light }` ; `theme` ∈ `light`, `dark`, `system` (V1 : `light`) |
 | `programs` | liste | oui | | Programmes complets (format PROGRAM_JSON), **archivés compris** |
 | `sessions` | liste | oui | | Séances (ordre chronologique) |
-| `weightEntries` | liste | oui (1.1) | | Pesées, **par date croissante** ; peut être vide |
+| `weightEntries` | liste | oui (depuis 1.1) | | Pesées, **par date croissante** ; peut être vide |
+| `measurementEntries` | liste | oui (depuis 1.2) | | Mensurations, **par date croissante** ; peut être vide |
+
+Ordre des clés à l'export : celui du tableau ci-dessus.
 
 ### Pesée (`weightEntries[]`, 1.1)
 
@@ -125,6 +133,25 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 | `date` | `YYYY-MM-DD` | oui | `"2026-10-01"` | Date **locale** de la mesure. **Unique** : une pesée par jour. Jamais dans le futur |
 | `weightKg` | nombre | oui | `80.6` | Fini, **> 0**, **au plus 2 décimales** (`80.65` oui, `80.655` refusé, jamais arrondi). kg uniquement |
 | `recordedAt` | ISO 8601 + offset | oui | `"2026-10-01T07:08:00+02:00"` | Instant de la dernière écriture : saisie ou correction du poids |
+
+### Prise de mensurations (`measurementEntries[]`, 1.2)
+
+Schéma : `measurementEntrySchema` (`src/schemas/measurement.schema.ts`). Les 8 clés sont **toutes présentes**, dans cet ordre.
+
+| Champ | Type | Oblig. | Exemple | Règles |
+|---|---|---|---|---|
+| `date` | `YYYY-MM-DD` | oui | `"2026-09-29"` | Date **locale** de la prise. **Unique** : une prise par jour. Jamais dans le futur |
+| `chestCm` | nombre ou `null` | oui | `104` | Poitrine |
+| `bellyCm` | nombre ou `null` | oui | `92` | Ventre |
+| `waistCm` | nombre ou `null` | oui | `88.3` | Taille |
+| `bicepsCm` | nombre ou `null` | oui | `36.4` | Biceps (un seul côté) |
+| `thighCm` | nombre ou `null` | oui | `58.8` | Cuisse (un seul côté) |
+| `calfCm` | nombre ou `null` | oui | `38.5` | Mollet (un seul côté) |
+| `recordedAt` | ISO 8601 + offset | oui | `"2026-10-01T18:30:00+02:00"` | Instant de la dernière écriture de la prise |
+
+- Chaque zone : cm, nombre fini **> 0, ≤ 300, au plus 1 décimale** (`measurementCmSchema`) ; **`null` = zone non mesurée ce jour-là, jamais 0**.
+- **Au moins une zone renseignée** par prise (refus sinon : « une prise de mensurations contient au moins une mesure »).
+- Une prise incomplète est valide telle quelle. Aucun total n'est stocké.
 
 ### Séance réalisée (`sessions[]`)
 
@@ -229,9 +256,21 @@ En plus des types ci-dessus, une sauvegarde est refusée si :
 3. une séance référence un `programId` absent de `programs` ;
 4. des `id` de séance ou des `programId` sont en double ;
 5. une séance `completed` n'a pas de `completedAt`, ou une séance `in_progress` en a un ;
-6. (1.1) deux pesées ont la même date, ou une pesée est datée après aujourd'hui (date locale de l'appareil). Le format de la date, le poids et `recordedAt` sont vérifiés par les types ci-dessus.
+6. (1.1) deux pesées ont la même date, ou une pesée est datée après aujourd'hui (date locale de l'appareil). Le format de la date, le poids et `recordedAt` sont vérifiés par les types ci-dessus (`checkWeightEntries`) ;
+7. (1.2) deux prises de mensurations ont la même date, ou une prise est datée après aujourd'hui (`checkMeasurementEntries`). Les valeurs (> 0, ≤ 300, 1 décimale, au moins une zone) et `recordedAt` sont vérifiés par le schéma.
 
-La restauration remplace aussi les pesées, dans la même opération unique. Le résumé indique le nombre de pesées du fichier ; si le fichier n'en contient aucune alors que l'app en a, un avertissement le signale avant confirmation.
+Ces invariants sont dans `checkHistoryInvariants` (`src/schemas/invariants.ts`).
+
+La restauration remplace aussi les pesées et les mensurations, dans la même opération unique. Le résumé indique le nombre de pesées et de prises de mensurations du fichier ; si le fichier n'en contient aucune alors que l'app en a, un avertissement le signale avant confirmation.
+
+### Migrations (lecture des anciennes sauvegardes)
+
+Chaîne `HISTORY_MIGRATIONS` (`src/schemas/migrations.ts`), appliquée avant la validation :
+
+- **1.0 → 1.1** : ajoute `weightEntries: []` ;
+- **1.1 → 1.2** (V1.5.0) : ajoute `measurementEntries: []`. Rien d'autre ne change.
+
+Un fichier 1.0 passe par les deux étapes. Une version inconnue ou future est refusée. L'app n'écrit que du 1.2.
 
 ---
 
@@ -437,8 +476,8 @@ Muscu/
 
 ### Sauvegardes et garde-fous
 
-- `sauvegarde-derniere.json` et `AAAA-MM-JJ_hebdo.json` sont **exactement** le fichier de « Exporter mes données » (HISTORY_JSON 1.1), vérifié avant l'envoi.
-  - Les deux ont le même `meta.counts = { sessions, weights, programs }`.
+- `sauvegarde-derniere.json` et `AAAA-MM-JJ_hebdo.json` sont **exactement** le fichier de « Exporter mes données » (HISTORY_JSON 1.2), vérifié avant l'envoi.
+  - Les deux ont le même `meta.counts = { sessions, weights, programs, measurements }`.
   - Le `meta.kind` diffère : `backup_latest` pour la première, `backup_weekly` pour la copie hebdomadaire.
 - Une sauvegarde **confirmée** par le script compte comme sauvegarde pour le rappel d'export. Une réponse non confirmée ne compte pas.
 - **Base vide** (aucune séance, aucune pesée, aucun programme) : rien n'est envoyé. L'app affiche « Base vide : aucune sauvegarde envoyée (pour protéger ton archive) ».

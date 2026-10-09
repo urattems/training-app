@@ -8,7 +8,7 @@ Construire une V1 réellement utilisable d'une app perso de suivi de musculation
 Flux : JSON programme → app → séance réelle → historique local → JSON historique → coach externe.
 
 ## Source de vérité
-`SPEC.md` (à la racine) : à lire en entier avant d'écrire du code. Fixtures contractuelles : `examples/program-example.json` et `examples/history-example.json`. Le code doit les accepter tels quels ; ne les modifie jamais sans que le jalon l'exige, que ce soit documenté dans `DECISIONS.md` et signalé dans le compte rendu.
+`SPEC.md` (à la racine) : à lire en entier avant d'écrire du code. Fixtures contractuelles : tous les fichiers de `examples/` (programme, sauvegardes 1.0/1.1/1.2, exports coach 1.0/1.1/1.2, archive Drive), empreintes SHA-256 figées par les tests. Le code doit les accepter tels quels ; ne les modifie jamais sans que le jalon l'exige, que ce soit documenté dans `DECISIONS.md` et signalé dans le compte rendu.
 En cas de contradiction : `SPEC.md` > ce fichier > tes préférences techniques.
 
 ## Les 6 règles absolues
@@ -24,7 +24,7 @@ Priorités en cas de conflit : intégrité des données > UX mobile > simplicit�
 ## Méthode : jalons J0 → J8 (voir SPEC.md §13)
 - Un jalon à la fois. À la fin : `npm run typecheck`, `lint`, `test`, `build` verts, fonctionnalités branchées sur la vraie base IndexedDB.
 - Compte rendu structuré (SPEC.md §13) : fait, fichiers créés/modifiés, tests + résultats, décisions, reste à faire.
-- Puis **commit git** du jalon (`jalon-N : résumé`), puis **STOP** et attente de ma validation.
+- Puis **commit git** (un commit par sujet ou par bloc, message `type(portée) : résumé`, sur la branche de la version), **jamais de push**, puis **STOP** et attente de ma validation.
 - Ne modifie jamais `SPEC.md` sans me prévenir et attendre mon accord.
 - Décisions techniques équivalentes : tu tranches seul et tu documentes dans `DECISIONS.md`.
 
