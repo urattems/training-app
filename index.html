@@ -15,6 +15,19 @@
     <link rel="icon" href="%BASE_URL%favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png" sizes="180x180" />
     <title>Carnet</title>
+    <script>
+      // Thème (V1.7.5) : posé sur <html> avant le premier rendu, depuis le miroir localStorage
+      // de la préférence (pas de flash). L'app resynchronise depuis la base au démarrage.
+      (function () {
+        try {
+          var preference = localStorage.getItem('training-app-theme');
+          var dark = preference === 'dark' || (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (e) {
+          // Stockage indisponible : thème clair jusqu'à la lecture de la base.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

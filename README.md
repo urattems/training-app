@@ -2,7 +2,7 @@
 
 Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
 
-> **État : V1.7.0 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations, jointes au coach sur demande)** → **https://urattems.github.io/training-app/**
+> **État : V1.7.5 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations, jointes au coach sur demande ; thème sombre)** → **https://urattems.github.io/training-app/**
 
 ```
 Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
@@ -46,6 +46,7 @@ Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techn
   - file d'attente hors ligne ; garde-fous (jamais de sauvegarde d'une base vide, refus de remplacer une sauvegarde plus complète) ;
   - « Renvoyer toute l'archive ».
   - Reprise après perte : voir [`JSON_SCHEMA.md`](JSON_SCHEMA.md#archive-drive-v13).
+- **Thème** : Clair (par défaut), Sombre, ou Système (suit le réglage de l'iPhone), dans Paramètres → Préférences. Appliqué dès l'ouverture, sans flash.
 - **PWA** : installable sur l'écran d'accueil, entièrement hors ligne après la première visite, mise à jour proposée (jamais pendant une séance).
 
 ## Développement
@@ -130,7 +131,10 @@ Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runn
 
 - **Stockage iOS** : Safari peut effacer les données d'une PWA peu utilisée. Seuls des exports réguliers protègent vraiment.
 - **HTTPS requis** pour le mode hors ligne, l'installation complète, la feuille de partage et le stockage persistant (OK sur GitHub Pages ; indisponibles en HTTP sur IP locale).
-- **Une seule unité** (kg, charges et poids) et **un seul thème** (clair). Le thème sombre est prévu au J8, facultatif.
+- **Une seule unité** (kg, charges et poids).
+- **Thème sombre** (Paramètres → Préférences → Thème : Clair, Sombre ou Système) :
+  - le manifeste de la PWA est statique : l'écran de lancement et la couleur annoncée à l'installation restent ceux du thème clair ; la barre d'état suit le thème une fois l'app ouverte (`theme-color` mis à jour) ;
+  - le choix est propre à l'appareil : une restauration ne le change pas (à refaire après une réinstallation).
 - **Archive Drive et iOS** : iOS n'exécute rien en arrière-plan ; un envoi interrompu repart à la prochaine ouverture de l'app. À n'activer que sur l'iPhone qui sert à saisir.
 - **Archive Drive et réinstallation** :
   - restaurer d'abord `Sauvegardes/sauvegarde-derniere.json`, PUIS activer l'envoi (sinon l'app demande quoi faire, sans rien écraser) ;

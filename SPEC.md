@@ -253,7 +253,7 @@ Graphique : points + ligne, minimaliste, tactile. Toucher un point affiche une *
 
 ### 7.10 Paramètres
 **Données** : Importer un programme · Exporter mes données · Restaurer une sauvegarde.
-**Préférences** : unité (kg) · thème (clair en V1 ; sombre/système ajoutés au J8).
+**Préférences** : unité (kg) · thème : Clair (défaut), Sombre ou Système, sélecteur à trois choix (J8 réalisé en V1.7.5).
 **Informations** : version, nom de l'app (constante unique modifiable).
 Rappel d'export : bandeau discret si dernier export > 14 jours **et** ≥ 1 séance terminée depuis.
 
@@ -669,7 +669,7 @@ Les deux fichiers `examples/` doivent passer la validation et alimenter les test
 | **J5** | Paramètres, export (Web Share + fallback), restauration + export de sécurité, rappel d'export, `storage.persist` | Scénario 5 passe |
 | **J6** | PWA (manifest, SW, offline, safe areas), états vides/erreurs | Build prod testé en offline |
 | **J7** | Polish, régression complète, README, `JSON_SCHEMA.md`, `DECISIONS.md` | Definition of Done |
-| **J8** (optionnel) | Thème sombre complet (écrans, graphiques, états) | Aucun écran cassé en sombre ; le clair est inchangé |
+| **J8** (optionnel, **réalisé en V1.7.5**) | Thème sombre complet (écrans, graphiques, états) | Aucun écran cassé en sombre ; le clair est inchangé |
 | **V1.1a** | Coller un programme (zone de texte, presse-papiers, même pipeline que le fichier) · encart « Conseil » (`notes` de l'exercice) | Collage valide (avec/sans clôture Markdown), JSON invalide, `programId` existant, champs ignorés, rien d'écrit avant confirmation, presse-papiers indisponible ; Conseil affiché/absent/replié ; vérifié en navigateur réel à 390 px |
 | **V1.1b** | Export pour le coach (§10.6) : sélection de séances, fichier `training_coach_export`, « Copier pour ChatGPT » · `JSON_SCHEMA.md`, exemple validé | Raccourcis de sélection, contenu exact, autotest, refus par la restauration et l'import, `lastExportAt` intact, `lastCoachExportAt` seulement en cas de succès ; régression complète (390 px, production, hors ligne) |
 | **V1.2a** | Pesées sans interface : modèle et domaine (validation, avertissements doux, périodes, stats), base v2 (`weights`), sauvegarde 1.1 + migration 1.0 → 1.1, restauration atomique, export coach 1.1 (fenêtre), rappel d'export, `weightService`, `JSON_SCHEMA.md` | Base v1 remplie rouverte en v2 intacte ; aller-retour avec pesées ; fichiers 1.0 acceptés ; refus des fichiers invalides ; fenêtres coach ; fuseaux horaires (UTC, Paris, Los Angeles, UTC+14) ; fixtures existantes intactes |
@@ -703,6 +703,8 @@ Une fonctionnalité est terminée quand : le bouton fonctionne, la donnée est p
 
 ## 14b. Definition of Done — J8 (thème sombre, optionnel)
 La V1 est considérée terminée à J7 **sans** thème sombre. Si J8 est réalisé : thème sombre fonctionnel · aucun écran cassé · graphiques, états vides/erreurs et formulaires adaptés · thème clair strictement inchangé · sélecteur de thème (clair / sombre / système) dans Paramètres.
+
+**J8 réalisé en V1.7.5** : jeu de tokens sombre sous `data-theme="dark"` (charbon chaud, texte crème, accent ardoise éclairci), mode Système résolu en JS et suivi en direct, préférence en base (`preferences.theme`, format de sauvegarde inchangé) avec miroir local lu avant le premier rendu, contrastes testés pour chaque thème, clair identique au pixel près hors correctifs (détail : DECISIONS V1.7.5).
 
 ---
 

@@ -117,3 +117,55 @@
     --duration-normal: 0ms;
   }
 }
+
+/*
+ * Thème sombre (V1.7.5, J8) : redéfinit UNIQUEMENT les couleurs et les ombres, sous
+ * `data-theme="dark"` posé sur <html> (script inline d'index.html avant le rendu, puis
+ * `src/theme/theme.ts`). Le mode « Système » est résolu en JS vers "light" ou "dark" : un seul
+ * bloc sombre, aucune duplication dans une media query. Le bloc :root ci-dessus (thème clair)
+ * reste la référence et n'est jamais modifié (empreinte figée par test).
+ * Charbon chaud, surfaces un cran plus claires, texte crème, accent ardoise éclairci.
+ * Contrastes mesurés : src/styles/contrast.test.ts (DECISIONS V1.7.5).
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Fonds et surfaces (charbon chaud) */
+  --color-bg: #1d1b18;
+  --color-surface: #282622;
+  --color-surface-muted: #23211d;
+  --color-surface-pressed: #35322d;
+  --color-overlay: rgb(0 0 0 / 0.55);
+
+  /* Texte (crème) */
+  --color-text: #f2ede4;
+  --color-text-secondary: #bdb6ab;
+  --color-text-tertiary: #aca59a;
+  --color-text-on-strong: #1d1b18;
+
+  /* Séparateurs (crème transparent) */
+  --color-border: rgb(242 237 228 / 0.12);
+  --color-border-strong: rgb(242 237 228 / 0.24);
+
+  /* Accent ardoise éclairci */
+  --color-accent: #8ea2cf;
+  --color-accent-soft: #2f3647;
+  --color-accent-strong: #aebfe3;
+
+  /* Action principale : bouton crème, texte charbon */
+  --color-primary: #ede7dc;
+  --color-primary-pressed: #d3ccc0;
+
+  /* Fonctionnel */
+  --color-success: #86b993;
+  --color-success-soft: #253328;
+  --color-warning: #dba76a;
+  --color-warning-soft: #382b1c;
+  --color-danger: #e8958d;
+  --color-danger-soft: #3d2523;
+
+  --focus-ring: 0 0 0 3px rgb(142 162 207 / 0.5);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.2);
+  --shadow-raised: 0 4px 24px rgb(0 0 0 / 0.5);
+}

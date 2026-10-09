@@ -51,3 +51,17 @@
   fill: var(--color-accent-soft);
   fill-opacity: 0.5;
 }
+
+/*
+ * V1.7.5 — thème sombre. Recharts 3 pose la classe de .grid sur chaque ligne (et non sur un
+ * groupe) et rend les libellés d'axe hors du groupe .axis : les règles .grid et .axis ci-dessus
+ * n'ont jamais pris effet, et le clair affiche les gris par défaut de Recharts. Le clair ne doit
+ * pas changer d'un pixel : seules les couleurs du sombre sont rattachées aux tokens ici.
+ */
+:global(:root[data-theme='dark']) .chart :global(.recharts-cartesian-grid line) {
+  stroke: var(--color-border);
+}
+
+:global(:root[data-theme='dark']) .chart :global(.recharts-cartesian-axis-tick-value) {
+  fill: var(--color-text-tertiary);
+}

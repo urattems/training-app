@@ -2222,3 +2222,82 @@ Aucun changement de base (Dexie v3), ni du format de sauvegarde (1.2), ni de l'e
 - V1.7.0 : 14 débordements, tous « N dernières » (320 : 84 > 61 ; 360 : 84 > 75 ; 375 : 84 > 81 ; police +10 % : 360 : 92 > 70, 375 : 92 > 76, 390 : 92 > 81, 414 : 92 > 90 ; chacun dans les deux états).
 - V1.7.5 : 737 éléments texte mesurés, **0 débordement**, 0 erreur console.
 - Contrôles du bloc A : typecheck, lint, build verts ; **919 tests** (inchangés) en `--maxWorkers=1` puis en `TZ=UTC`.
+
+### Bloc B — thèmes Clair (inchangé), Sombre et Système (J8)
+
+**Mécanisme**
+- **Tokens** : un bloc `:root[data-theme='dark']` ajouté **après** le bloc `:root` clair, dans `tokens.css`. Il ne redéfinit que les couleurs, l'anneau de focus et les ombres, plus `color-scheme: dark` (champs date, boutons radio et barres de défilement natifs en sombre).
+  - Palette : charbon chaud (fond `#1d1b18`), surfaces un cran plus claires (`#282622`), texte crème (`#f2ede4`), accent ardoise éclairci (`#8ea2cf`), bordures crème transparentes. Bouton principal inversé : crème, texte charbon.
+  - Identité conservée : pointillés de l'Objectif, barre d'accent du Réalisé et tab bar flottante sont dessinés par les mêmes styles, seules les variables changent.
+- **Clair strictement identique** : le fichier `tokens.css` de la V1.7.0 est un préfixe, octet pour octet, de celui de la V1.7.5. Le bloc `:root` est figé par empreinte SHA-256 (`styles/themes.test.ts`). Aucune règle existante n'a été modifiée pour le thème.
+- **Système** : résolu en JS (`theme/theme.ts`) en `light` ou `dark`, plutôt qu'en media query.
+  - Raison : un seul bloc sombre. Une media query aurait demandé de dupliquer tout le bloc (Sombre choisi ET Système sur appareil sombre), ou un sélecteur `:not()` plus fragile.
+  - Le JS doit de toute façon connaître le thème résolu pour `theme-color`.
+  - En mode Système, `ThemeAgent` écoute `matchMedia('(prefers-color-scheme: dark)')` (`change`). L'écouteur est retiré en quittant le mode Système et au démontage (testé). Aucun minuteur.
+- **Persistance** : `preferences.theme` dans la table `settings`.
+  - C'est le champ qui existait déjà depuis la V1 (`light | dark | system`) : **aucun changement de base ni de format**. La sauvegarde 1.2 contient le choix ; les sauvegardes antérieures portent toutes `light`.
+  - Défaut Clair : préférences absentes = `{ kg, light }`. Un utilisateur existant (`light` en base) reste en clair.
+- **Restauration** : elle **conserve le thème de l'appareil** et ne reprend plus `theme` du fichier ; l'unité, elle, vient toujours du fichier.
+  - Raison : c'est un choix d'affichage de l'appareil, comme les réglages Drive. Toutes les sauvegardes faites avant la V1.7.5 portent `light` : les restaurer repasserait en silence un utilisateur du sombre en clair.
+  - Testé dans les deux sens (appareil sombre et fichier clair, appareil clair et fichier sombre).
+  - Conséquence assumée : sur un iPhone neuf, le thème est à rechoisir après restauration (un toucher). L'aller-retour export → restauration reste identique tant que le thème de l'appareil est celui du fichier.
+- **Miroir et absence de flash** :
+  - la préférence est recopiée dans `localStorage` (`training-app-theme`, écriture et lecture sous `try/catch`) ;
+  - un script inline d'`index.html`, exécuté avant le chargement des styles et de l'app, pose `data-theme` sur `<html>` ;
+  - au démarrage, `ThemeAgent` relit la base, réapplique et remet le miroir à jour (miroir périmé ou absent : corrigé, testé) ;
+  - stockage indisponible : pas d'erreur, clair jusqu'à la lecture de la base.
+  - Le script est testé tel qu'il est écrit dans `index.html` : même clé, même requête que l'app, six cas, pas de minuteur.
+- **`<meta name="theme-color">`** : la balise statique reste la couleur claire (test existant). Au démarrage et à chaque changement, l'app la remplace par `--color-bg` **résolu** (lu dans le style calculé, aucune couleur dans le code).
+- **Limite du manifeste** : il est statique (`vite.config.ts` → `themeColorsFromTokens`, qui lit toujours le premier `--color-bg`, donc le clair).
+  - L'écran de lancement Android et la couleur d'installation restent clairs.
+  - Sous iOS, la barre d'état en mode installé dépend aussi de `apple-mobile-web-app-status-bar-style` (`default`, inchangé). Son rendu en sombre n'a pas pu être vérifié sans iPhone.
+  - Build et test du manifeste inchangés.
+- **Graphiques (Recharts)** : courbes, points et sélection étaient déjà colorés par des classes CSS et des variables. Ils changent donc de couleur en direct, sans re-rendu (vérifié en navigateur : courbe `rgb(95,116,163)` en clair, `rgb(142,162,207)` en sombre).
+  - **Constat** : la grille et les libellés d'axe n'ont **jamais** suivi les tokens. Recharts 3 pose la classe sur chaque ligne de grille et rend les libellés hors du groupe `.axis`, donc les règles `.grid line` et `.axis text` ne les atteignent pas, et le clair affiche les gris par défaut de Recharts.
+  - Les corriger aurait changé des pixels du clair. Deux règles **limitées au sombre** (`ProgressChart.module.css`) les rattachent à `--color-border` et `--color-text-tertiary`. En clair : rien ne change.
+- **Sélecteur** (Paramètres → Préférences) : trois boutons radio natifs dans un `fieldset` « Thème », Clair, Sombre puis Système (VoiceOver : « bouton radio, 1 sur 3 »). Lignes de 44 px, textes dans `strings.ts`, une phrase d'aide pour Système.
+- **Aucune couleur en dur** hors `tokens.css` : nouveau test (`styles/noHardcodedColors.test.ts`) qui refuse tout hex, `rgb()`, `rgba()`, `hsl()` dans `src`, tests et outillage de test exclus. Aucun test de ce type n'existait.
+
+**Contrastes mesurés** (`styles/themes.test.ts`, pour chaque thème ; clair → sombre)
+- Texte (≥ 4,5:1) :
+  - texte : 14,28 → 12,95 sur carte ; 12,87 → 14,74 sur fond ;
+  - texte secondaire : 5,53 → 7,51 sur carte ; 4,65 → 6,35 sur surface pressée ;
+  - placeholder « prévu » (texte tertiaire sur champ) : 5,14 → 6,19 ;
+  - accent fort sur accent doux : 5,45 → 6,53 ;
+  - bouton principal : 14,28 → 13,96 ;
+  - succès, avertissement et erreur sur leur fond doux : 4,61 → 5,92, 4,60 → 6,37 et 4,63 → 6,13 ;
+  - « Supprimer » du balayage (texte sur erreur) : 5,63 → 7,46.
+- Interface et graphiques (≥ 3:1) :
+  - courbe (accent) sur carte : 4,58 → 5,91 ;
+  - case active du calendrier face à une case inactive : 4,28 → 6,29 ;
+  - contour « aujourd'hui » : 5,53 → 7,51 ;
+  - barre de progression sur sa piste : 4,52 → 5,70 ;
+  - libellés d'axe en sombre : 6,19.
+- Bouton désactivé (opacité 0,5) : 3,02 → 4,49.
+- Bordures, cases inactives et jours à venir : discrets par conception dans le clair (1,2 à 1,5:1), aucun seuil WCAG. Le test exige seulement que le sombre ne soit pas plus discret : bordure forte 1,41 → 2,06.
+- Aucun ajustement du clair n'a été nécessaire : tous les couples ajoutés passent aussi en clair.
+
+**Vérifications navigateur** (Edge headless, tactile, build de production, scripts hors dépôt)
+- **Écrans en clair puis en sombre, à 390 et 320 px** : 12 écrans (Accueil, Programme, Séance, Exercice, Historique, Détail, Progression, Poids, Mensurations, Paramètres, Archive Drive, Export coach), plus une feuille avec son voile (« Ajouter une pesée »).
+  - Résultats : captures prises, 1960 éléments texte mesurés, `data-theme` conforme, 0 erreur console, aucun défilement horizontal.
+  - Un seul élément signalé : le nom « Tirage vertical » de l'écran Séance à 320 px (103 > 91 px). C'est une **troncature voulue** (`text-overflow: ellipsis`), identique en V1.7.0, sans lien avec le thème, et non modifiée.
+- **Comparaison pixel du clair**, V1.7.0 contre V1.7.5 (12 écrans × 2 largeurs, pleine page) : 18 écrans identiques au pixel près, 6 différents (3 par largeur) :
+  - **Poids** : le bouton « + » (correctif A2, bandeau y 20-63), plus des écarts de 1 à 5 niveaux sur 255, invisibles, sur les coins arrondis des cartes et des champs. Ces coins n'ont aucun changement CSS ; la même version capturée deux fois donne 0 écart. Ce sont donc des arrondis de rastérisation, attribués à la page qui change autour.
+  - **Export coach** : la rangée des raccourcis (correctif A1).
+  - **Paramètres** : identique jusqu'à la carte Préférences ; le sélecteur de thème remplace la ligne « Thème : Clair », donc la page est plus haute.
+- **Bascule** Clair → Sombre → Système, `prefers-color-scheme` émulé :
+  - sans rechargement : fond, `color-scheme`, `theme-color` (`#f5f1e9` ↔ `#1d1b18`) et miroir suivent ;
+  - en Système, changer le réglage de l'appareil bascule l'app en direct, dans les deux sens ;
+  - revenu en Clair, l'appareil en sombre n'a plus d'effet ;
+  - avec rechargement : persistance vérifiée pour les trois choix.
+- **Pas de flash** : au premier rendu React après rechargement, `data-theme` et le fond sont déjà ceux du thème choisi (`dark / rgb(29, 27, 24)` en Sombre et en Système sur appareil sombre).
+- **Non vérifiable ici** : rendu sur un vrai iPhone (barre d'état en mode installé, VoiceOver réel, clavier). Les tests jsdom vérifient les rôles et noms accessibles.
+
+**Tests**
+- 919 tests existants inchangés et verts.
+- Un test existant décrit l'ancien comportement dans son titre : « Préférences (kg, clair, sans sélecteur) » (`Settings.test.tsx`). Il passe sans modification : « Clair » est présent une seule fois (libellé du choix) et aucune liste déroulante n'existe (le sélecteur est fait de boutons radio). Son titre ne décrit plus l'écran ; il n'a pas été touché.
+- Nouveaux tests :
+  - `styles/themes.test.ts` (contrastes des deux thèmes, empreinte du clair, contenu du bloc sombre, règles sombres des graphiques) ;
+  - `styles/noHardcodedColors.test.ts` ;
+  - `theme/Theme.test.tsx` (résolution, miroir, script inline, sélecteur, Système en direct et nettoyage, resynchronisation, sauvegarde et restauration).
+- Contrôles du bloc B : typecheck, lint, build verts ; **1019 tests** (919 existants inchangés + 100 nouveaux) en `--maxWorkers=1` puis en `TZ=UTC`.

@@ -11,6 +11,7 @@ import { ImportPasteButton, ImportProgramButton } from '../import/ImportProgramF
 import { ExportSection } from './ExportSection';
 import { RestoreFlow } from './RestoreFlow';
 import styles from './SettingsPage.module.css';
+import { ThemeSelector } from './ThemeSelector';
 
 const t = strings.settings;
 
@@ -61,11 +62,8 @@ export function SettingsPage() {
               <dt>{t.unit}</dt>
               <dd>{t.unitValue}</dd>
             </div>
-            <div className={styles.row}>
-              <dt>{t.theme}</dt>
-              <dd>{t.themeValue}</dd>
-            </div>
           </dl>
+          <ThemeSelector />
         </Card>
       </section>
 

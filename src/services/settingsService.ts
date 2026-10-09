@@ -12,6 +12,14 @@ export async function getPreferences(): Promise<UserPreferences> {
   return record?.key === 'preferences' ? record.value : { ...DEFAULT_PREFERENCES };
 }
 
+/** Thème choisi dans Paramètres (V1.7.5) : seul `theme` change, l'unité est conservée. */
+export async function setThemePreference(theme: UserPreferences['theme']): Promise<void> {
+  await db.transaction('rw', db.settings, async () => {
+    const current = await getPreferences();
+    await db.settings.put({ key: 'preferences', value: { ...current, theme } });
+  });
+}
+
 export async function getLastExportAt(): Promise<string | null> {
   const record = await db.settings.get('lastExportAt');
   return record?.key === 'lastExportAt' ? record.value : null;

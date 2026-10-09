@@ -81,7 +81,9 @@ export async function restoreBackup(data: HistoryExport, now: Date = new Date())
     await db.measurements.bulkPut(data.measurementEntries);
     await db.settings.bulkPut([
       { key: 'activeProgramId', value: data.activeProgramId },
-      { key: 'preferences', value: data.preferences },
+      // Le thème est un choix d'affichage de l'appareil (V1.7.5) : la restauration le conserve.
+      // Les sauvegardes antérieures portent toutes `theme: "light"` (DECISIONS V1.7.5).
+      { key: 'preferences', value: { ...data.preferences, theme: current.preferences.theme } },
     ]);
     await db.settings.bulkPut(deviceSettings);
     // Compatibilité : `lastExportAt` a toujours été présent après une restauration.

@@ -17,6 +17,7 @@ import { DriveSyncAgent } from './DriveSyncAgent';
 import { ErrorBoundary } from './ErrorBoundary';
 import { NotFoundPage } from './NotFoundPage';
 import { Shell } from './Shell';
+import { ThemeAgent } from '../theme/ThemeAgent';
 
 // Progression et Poids (et Recharts, partagé) chargés à la demande : hors du bundle initial.
 const ProgressPage = lazy(() => import('../features/progress/ProgressPage'));
@@ -76,6 +77,7 @@ export function App() {
       </HashRouter>
       <ConnectionNotice />
       <DriveSyncAgent />
+      <ThemeAgent />
     </ErrorBoundary>
   );
 }

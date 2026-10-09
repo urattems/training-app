@@ -1,7 +1,7 @@
 {
   "name": "training-app",
   "private": true,
-  "version": "1.7.0",
+  "version": "1.7.5",
   "type": "module",
   "engines": {
     "node": ">=22"

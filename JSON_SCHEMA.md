@@ -118,7 +118,7 @@ Produit par « Exporter mes données » (fichier `training-backup-AAAA-MM-JJ.jso
 | `locale` | texte | oui | `"fr-FR"` | |
 | `unitSystem` | `"metric"` | oui | | |
 | `activeProgramId` | texte ou `null` | oui | `"prog-2026-w40"` | Doit exister dans `programs` |
-| `preferences` | objet | facultatif | `{ "unit": "kg", "theme": "light" }` | Défaut `{ kg, light }` ; `theme` ∈ `light`, `dark`, `system` (V1 : `light`) |
+| `preferences` | objet | facultatif | `{ "unit": "kg", "theme": "light" }` | Défaut `{ kg, light }` ; `theme` ∈ `light`, `dark`, `system` (choix de Paramètres depuis la V1.7.5). À la restauration, `theme` n'est **pas** repris : l'appareil garde le sien |
 | `programs` | liste | oui | | Programmes complets (format PROGRAM_JSON), **archivés compris** |
 | `sessions` | liste | oui | | Séances (ordre chronologique) |
 | `weightEntries` | liste | oui (depuis 1.1) | | Pesées, **par date croissante** ; peut être vide |
