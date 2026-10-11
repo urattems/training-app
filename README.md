@@ -42,7 +42,7 @@ Détails et cas particuliers : [Installer l'app (iPhone et Android)](docs/instal
 Ouvre l'IA de ton choix (ChatGPT, Claude, Gemini…), démarre une nouvelle conversation et colle ce texte :
 
 ```text
-Sois mon coach de musculation pour l'app Training App. Lis d'abord ce guide : https://urattems.github.io/training-app/coach.md. Confirme que tu l'as lu en entier ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Puis commence l'accueil.
+Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en entier, puis confirme que tu l'as lu ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Ensuite, commence l'accueil. Le guide : https://urattems.github.io/training-app/coach.md
 ```
 
 - Le coach te pose d'abord quelques questions (objectif, expérience, temps disponible, matériel, contraintes), te fait un récapitulatif, puis te propose ton **premier programme**.
@@ -69,20 +69,22 @@ Sois mon coach de musculation pour l'app Training App. Lis d'abord ce guide : ht
 - Colle-les dans la conversation avec ton coach : il analyse ce que tu as réellement fait et te prépare la suite.
 - Nouvelle conversation ? Donne-lui ta fiche profil et un export récent.
 
-## 4. Tes sauvegardes
+## 4. Trois actions à ne pas confondre
 
-1. **Sur ton téléphone** : tout est enregistré dans l'app, à chaque saisie, même hors connexion. Mais un téléphone se perd, et iPhone peut effacer les données d'une app web peu utilisée.
-2. **Le fichier de sauvegarde** : Paramètres → **Exporter mes données**. C'est la **seule** sauvegarde complète qui permet de tout **restaurer** (Paramètres → **Restaurer une sauvegarde**) ou de **changer de téléphone**. Range-la dans Fichiers, iCloud, Google Drive… L'accueil te le rappelle discrètement quand tu as fait des séances et que ton dernier export date de plus de 14 jours.
-3. **L'archive Google Drive** (facultative) : une copie automatique dans ton propre Google Drive. Voir « Options » ci-dessous.
+| Action | Où | À quoi ça sert |
+|---|---|---|
+| **Exporter mes données** | Paramètres | **Ta sauvegarde.** Un fichier complet (programmes, séances, pesées, mensurations), le **seul** qui permet de tout **restaurer** (Paramètres → **Restaurer une sauvegarde**) ou de **changer de téléphone**. Range-le dans Fichiers, iCloud, Google Drive… |
+| **Exporter pour le coach** | Paramètres | **L'envoi à ton IA.** Une sélection de séances à coller dans la conversation. **Ce n'est PAS une sauvegarde** : il ne peut pas être restauré. |
+| **Archive Google Drive** | Paramètres → Archive Drive | **Une copie automatique, facultative**, dans ton propre Google Drive. L'app fonctionne très bien sans. |
 
-L'export pour le coach n'est **pas** une sauvegarde : il ne contient qu'une sélection de séances et ne peut pas être restauré.
+Tes séances sont enregistrées dans l'app à chaque saisie, même hors connexion. Mais un téléphone se perd, et iPhone peut effacer les données d'une app web peu utilisée : **exporte régulièrement tes données**. L'accueil te le rappelle discrètement quand tu as fait des séances et que ton dernier export date de plus de 14 jours.
 
 ## 5. Options
 
 - **Poids** (onglet Poids) : une pesée par jour, courbe et statistiques. Tu peux joindre tes pesées à l'export pour le coach.
 - **Mensurations** (onglet Poids → Mensurations) : 6 zones en cm. Jointes au coach seulement si tu coches « Joindre mes mensurations ».
 - **Thème** : Clair, Sombre ou Système (Paramètres → Préférences).
-- **Archive Google Drive** (option avancée, **facultative**) : copie automatique de tes séances, pesées et sauvegardes dans ton Google Drive, via un petit script à installer toi-même. L'app fonctionne très bien sans. Guide pas à pas : [Activer l'archive Google Drive](docs/guide-drive.md).
+- **Archive Google Drive** (option avancée, **facultative**) : copie automatique de tes séances, pesées et sauvegardes dans ton Google Drive, via un petit script à installer toi-même (fourni). L'app fonctionne très bien sans. Guide pas à pas : [Activer l'archive Google Drive](docs/guide-drive.md).
 
 ## 6. Vie privée
 
@@ -109,6 +111,7 @@ PWA React 19, TypeScript strict, Vite, Dexie (IndexedDB), Zod, Recharts. 100 % s
 - [`DECISIONS.md`](DECISIONS.md) : journal des décisions techniques.
 - [`CLAUDE.md`](CLAUDE.md) : règles de travail du projet.
 - [`docs/installation.md`](docs/installation.md), [`docs/guide-drive.md`](docs/guide-drive.md) : guides utilisateurs.
+- [`docs/apps-script/muscu-sync.gs`](docs/apps-script/muscu-sync.gs) : script Google Apps Script « Muscu Sync » (`sync-3`) de l'archive Drive, sans secret ni adresse.
 
 ### Commandes
 
@@ -155,7 +158,7 @@ src/
 public/         icônes, guide du coach (coach.md)
 examples/       fixtures contractuelles (ne pas modifier)
 scripts/        génération des icônes, faux script Drive pour les tests
-docs/           guides utilisateurs
+docs/           guides utilisateurs, script Apps Script de l'archive Drive (apps-script/)
 ```
 
 ### Stockage et formats

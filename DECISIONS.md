@@ -2334,3 +2334,22 @@ Référence : `V1.8-SPEC.md` (§5, §9), ajouté au dépôt avec une ligne de re
   - Contre-épreuve : le même bloc privé d'un champ nullable est refusé.
   - Ce n'est **pas** le test T1, qui arrive en J2.
 - Typecheck, lint, tests (`--maxWorkers=1`) et build : inchangés et verts.
+
+### Corrections de J1 (même branche, documentation seulement)
+
+- **Script Drive versionné** : `docs/apps-script/muscu-sync.gs` (`sync-3`), fourni par l'utilisateur.
+  - Vérifié : aucun secret ni aucune adresse dans le code. Le secret est lu dans les propriétés du script (`SECRET`).
+  - Le script n'est pas exécuté par l'app ni par les tests : le faux script `scripts/fake-muscu-sync.mjs` reste la référence des tests.
+- **`docs/guide-drive.md`** : les deux encadrés « [À COMPLÉTER] » sont remplacés par la vraie procédure, lue dans le script.
+  - Étapes : copie du fichier dans un nouveau projet ; propriété `SECRET` dans « Paramètres du projet › Propriétés du script » ; fuseau du projet ; lancement de `verifier_installation`, qui déclenche l'autorisation et affiche ses ✅ / ❌ dans le journal ; déploiement en application Web.
+  - Contrôles : test rapide de l'adresse dans un navigateur (`doGet` répond `{"ok":true,"service":"muscu-sync","version":"sync-3"}`) ; `reconstruire_index` en dépannage.
+- **⚠ Écart à traiter en J3 — longueur du secret** : le script exige **20 caractères au moins** (`MIN_SECRET_LENGTH = 20` dans `muscu-sync.gs`) ; l'app en accepte **8** (`MIN_SECRET_LENGTH = 8` dans `src/services/driveSettings.ts`).
+  - Avec un secret de 8 à 19 caractères, l'app enregistre la configuration, mais le script répond `not_configured` à tout appel. L'app affiche alors « Le script n'est pas configuré (secret ou dossier manquant). », sans parler de la longueur.
+  - Le code de l'app **n'est pas modifié** dans ce jalon (consigne). Le guide demande 20 caractères au moins, explique comment en générer un, et relie ce message à la longueur dans le dépannage.
+  - À trancher en J3 : aligner le minimum de l'app sur 20, et préciser le message `not_configured`.
+- **« Trois actions à ne pas confondre »** remplace « les 3 sauvegardes » dans le README, `docs/installation.md` et `docs/guide-drive.md` :
+  - « Exporter mes données » (sauvegarde restaurable) ;
+  - « Exporter pour le coach » (envoi à l'IA, pas une sauvegarde) ;
+  - « Archive Google Drive » (copie automatique, facultative).
+- **Prompt de démarrage** : l'URL termine désormais le texte, sans ponctuation derrière, pour qu'aucune IA n'inclue un point dans le lien. Les phrases sont réordonnées en conséquence, à l'identique dans le README et dans `V1.8-SPEC.md` §5.3. `coach.md` ne contient pas le prompt.
+- **`V1.8-SPEC.md`** : « Réglages » devient « Paramètres » (4 occurrences), et « parseProgram » devient « parseProgramJson » au §6. Aucune autre modification.
