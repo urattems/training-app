@@ -217,9 +217,16 @@ describe('Écran exercice : crayon et feuille « Remplacer l’exercice »', () 
   });
 
   it('saisir le nom d’origine (casse libre) retire le remplacement ; un nom identique ne change rien', async () => {
+    // Espion posé AVANT le rendu : le miroir du thème (V1.7.5) est écrit une fois au démarrage, après
+    // lecture de la base, parfois après l'affichage du titre. On attend cette écriture légitime, puis on
+    // remet l'espion à zéro (DECISIONS V1.8.0 J2) ; l'assertion ci-dessous est inchangée.
+    const writes = vi.spyOn(Storage.prototype, 'setItem'); // aucune écriture parasite attendue ailleurs
     const user = renderAt(exerciseHash(workoutId, CHEST));
     await screen.findByRole('heading', { level: 1, name: 'Chest Press' });
-    const writes = vi.spyOn(Storage.prototype, 'setItem'); // aucune écriture parasite attendue ailleurs
+    await waitFor(() => {
+      expect(writes).toHaveBeenCalledWith('training-app-theme', 'light');
+    });
+    writes.mockClear();
     await replaceWith(user, 'chest press'); // pas remplacé : nom identique, rien ne change
     expect(await savedChest(workoutId)).toMatchObject({ exerciseId: CHEST, exerciseName: 'Chest Press' });
     expect(screen.queryByText('Remplacé')).not.toBeInTheDocument();
