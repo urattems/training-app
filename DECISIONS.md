@@ -2301,3 +2301,36 @@ Aucun changement de base (Dexie v3), ni du format de sauvegarde (1.2), ni de l'e
   - `styles/noHardcodedColors.test.ts` ;
   - `theme/Theme.test.tsx` (résolution, miroir, script inline, sélecteur, Système en direct et nettoyage, resynchronisation, sauvegarde et restauration).
 - Contrôles du bloc B : typecheck, lint, build verts ; **1019 tests** (919 existants inchangés + 100 nouveaux) en `--maxWorkers=1` puis en `TZ=UTC`.
+
+---
+
+## V1.8.0 — J1 : documentation pour tout le monde (aucun code, aucun test, aucune fixture modifiés)
+
+Référence : `V1.8-SPEC.md` (§5, §9), ajouté au dépôt avec une ligne de renvoi dans `SPEC.md` §2.
+
+### Fichiers
+- **`public/coach.md`** (nouveau) : guide du coach autonome, plan du §5.1 en 10 sections, modèle de fiche profil du §5.2.
+  - Le contrat PROGRAM_JSON 1.0 est repris de `src/schemas/program.schema.ts` et `src/schemas/common.ts` (champs, types, entiers, nullables obligatoires, exclusivité des répétitions, unicités, `createdAt` avec fuseau).
+  - Il reprend aussi les règles non portées par le schéma mais utiles au coach : `programId` déjà importé refusé, `notes` de 160 caractères au plus, bornes de « Comme prévu ».
+  - Un exemple complet, générique (2 séances, haltères et poids du corps), sans règle propre à un coaching particulier. Aucun champ RIR.
+  - **Seul bloc ` ```json ` du guide = le programme d'exemple**, pour que le futur test T1 (J2) puisse passer tous les blocs ` ```json ` au validateur. Les autres extraits sont en ` ```text ` ou ` ```markdown `.
+  - Vérification de lecture : l'IA confirme en citant la ligne « Version du guide », ce qui rend une lecture simulée plus visible.
+- **`README.md`** réécrit pour le grand public (plan du §5), prompt de démarrage du §5.3 mot pour mot, emplacements « [capture à ajouter] ».
+  - Le contenu destiné aux développeurs (commandes, structure, formats, déploiement, limites connues) n'est pas perdu : il est déplacé dans une section finale « Pour les développeurs » du même fichier, plutôt que dans un nouveau fichier (le jalon liste les fichiers attendus).
+- **`docs/installation.md`** et **`docs/guide-drive.md`** (nouveaux).
+  - Le guide Drive reprend le fonctionnement réel de l'app : libellés de `strings.ts`, secret de 8 caractères au moins, test obligatoire, `sync-2` / `sync-3`, refus de régression, restauration.
+  - Il ne contient aucune vraie adresse de script ni aucun secret (adresse type `https://script.google.com/macros/s/…/exec`).
+- **`JSON_SCHEMA.md`** : la section « Pour le coach (ChatGPT) » est remplacée par un renvoi vers `public/coach.md`. Son contenu y est repris : liste de contrôle, lecture des exports, des pesées, des mensurations et de l'historique, format des réponses.
+  - Le « texte prêt à coller » disait « séances A, B, C avec order 1, 2, 3 », une règle propre à un coaching : il est retiré, puisque le guide doit rester générique.
+
+### Choix
+- **Format des réponses du coach** (§5.1, point 10 de l'addendum) : explications **avant** le bloc, rien après. L'app n'accepte qu'un JSON seul ou entouré d'**une** clôture Markdown (`unwrapPastedJson`). Le guide et le README demandent donc de copier le **bloc** (bouton « Copier » des IA), pas toute la réponse.
+- **Noms visibles** : l'app s'appelle « Carnet » sur l'écran d'accueil, ce que le README et les guides signalent. L'écran s'appelle « Paramètres » dans l'app : la documentation emploie ce mot, et non « Réglages » (le mot de l'addendum).
+- **Les « 3 sauvegardes » du README** : téléphone, fichier « Exporter mes données », archive Google Drive facultative. L'export pour le coach est présenté comme n'étant pas une sauvegarde.
+- La doc ne décrit que ce qui existe déjà. L'écran de démarrage, « Copier le prompt du coach », « Copier l'erreur pour mon coach » et le déplacement du Drive arrivent en J3, et le README sera alors complété.
+
+### Contrôles
+- Le bloc ` ```json ` de `coach.md` a été passé au **vrai** parseur de l'app (`parseProgramJson`) par un script temporaire **hors dépôt**, via Vite (`ssrLoadModule`, sans plugin) : accepté, aucun champ ignoré (`findIgnoredFields`).
+  - Contre-épreuve : le même bloc privé d'un champ nullable est refusé.
+  - Ce n'est **pas** le test T1, qui arrive en J2.
+- Typecheck, lint, tests (`--maxWorkers=1`) et build : inchangés et verts.

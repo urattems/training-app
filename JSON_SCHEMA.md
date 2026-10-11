@@ -504,76 +504,15 @@ Muscu/
 
 ---
 
-## Pour le coach (ChatGPT)
+## Pour le coach
 
-### Produire un programme valide — pièges à éviter
+Les consignes destinées au coach (IA ou humain) sont dans **un seul document** : le guide du coach, [`public/coach.md`](public/coach.md), publié à l'adresse https://urattems.github.io/training-app/coach.md (V1.8).
 
-- [ ] `"schemaVersion": "1.0"` et `"type": "training_program"`.
-- [ ] **`programId` nouveau à chaque programme** (ex. `"prog-2026-w41"`). L'app refuse un `programId` déjà importé.
-- [ ] **Libellé de semaine (`week.label`) UNIQUE** (ex. `"Semaine 41"`, jamais deux fois le même) : il nomme le dossier de l'archive Drive. Un doublon reste accepté, mais son dossier reçoit le `programId` en suffixe.
-- [ ] **Tous les champs nullables sont présents** : `category`, `equipment`, `restSec`, `notes`, `estimatedDurationMin`, `cardio`, `week.startDate`, `week.endDate`, `targetWeightKg`. Valeur `null` si non pertinent, **jamais absents**.
-- [ ] Série : **soit** `targetReps`, **soit** `targetRepsMin` + `targetRepsMax`, **jamais les deux**. Min ≤ max.
-- [ ] `setNumber` commence à 1 et est **unique** dans chaque exercice.
-- [ ] **`id` d'exercice stables** d'une semaine à l'autre (même machine = même `id`, ex. `"chest-press-machine"`) : c'est la clé de la courbe de progression. Un nouvel `id` crée une nouvelle courbe.
-- [ ] `id` de séance uniques (`"A"`, `"B"`, `"C"`) ; `id` d'exercice uniques dans une séance.
-- [ ] Charges en **nombres** en kg (`47.5`, pas `"47,5 kg"`). Sans charge : `null`.
-- [ ] Gainage et exercices au temps : secondes dans `targetReps`, `targetWeightKg: null`.
-- [ ] Aucun texte de style ni commentaire hors des champs prévus : seulement des données.
-- [ ] **`notes` de chaque exercice = conseil d'exécution court** : 1 à 2 phrases, à l'impératif, en français, **160 caractères max** (ex. « Contrôle la descente sur 2 secondes. Garde les omoplates serrées. »). `null` si rien d'utile. Pas de charges ni de répétitions dedans : elles sont dans `sets`.
-- [ ] Réponds avec le JSON seul. Un bloc ` ```json … ``` ` est accepté (l'utilisateur le colle directement dans l'app), mais aucun texte autour.
+Il reprend tout ce que contenait cette section jusqu'à la V1.7.5 :
+- la liste de contrôle pour produire un PROGRAM_JSON valide (section 6 du guide), avec un exemple complet ;
+- la lecture d'un export pour le coach, des pesées, des mensurations et d'un export d'historique (section 7) ;
+- le format des réponses (section 10).
 
-### Lire un export pour le coach (partiel)
+Le « texte prêt à coller dans ChatGPT » est remplacé par le prompt de démarrage du `README.md`, qui renvoie au guide.
 
-- **C'est une sélection, pas tout l'historique** : `selection` indique combien de séances sont jointes (`sessionCount`), sur combien d'exportables (`totalExportableSessions`), et sur quelle période (`firstSessionDate` → `lastSessionDate`).
-- **`mode`** :
-  - `"since_last_export"` : les séances depuis le dernier envoi, c'est-à-dire la suite de la conversation précédente ;
-  - `"last_n"` : les N dernières ;
-  - `"manual"` : choisies à la main.
-- **Historique incomplet** : une séance absente du fichier n'est pas une séance manquée. Si la décision demande plus de recul (records, tendance), demande un export plus large plutôt que de conclure.
-- **`programs`** : le programme actif et ceux des séances jointes, pour retrouver les objectifs et les conseils. Le programme à faire évoluer est celui de `activeProgramId`.
-- **Pour redonner TOUT le contexte** (historique complet, toutes les pesées) : l'utilisateur peut t'envoyer `Muscu/Sauvegardes/sauvegarde-derniere.json` (HISTORY_JSON) depuis son Drive.
-- Les séances se lisent exactement comme dans un export d'historique (ci-dessous).
-
-### Lire les pesées
-
-- **Une pesée par jour au plus**, en kg, à la date locale de la mesure. Les jours sans pesée n'ont simplement pas été mesurés : n'interpole pas et ne déduis rien d'un trou.
-- **`weightWindow`** dit quelle période couvrent les pesées jointes (`from` → `to`) et combien il y en a (`count`). `count: 0` : aucune pesée sur la période. `null` : l'utilisateur n'a pas joint ses pesées. N'en déduis rien sur son poids.
-- Le poids varie d'un jour à l'autre (eau, repas, heure de la mesure) : regarde la **tendance sur plusieurs pesées**, pas un écart isolé.
-- **L'app ne fixe aucun objectif de poids et ne donne aucun conseil.** Si tu tiens compte du poids pour le programme, c'est **ta** décision ; dis-le explicitement, sans l'imposer.
-
-### Lire les mensurations (COACH_JSON 1.2, seulement si l'utilisateur les a jointes)
-
-- **Circonférences en cm**, une prise par date, zones dans l'ordre Poitrine, Ventre, Taille, Biceps, Cuisse, Mollet (biceps, cuisse et mollet : un seul côté, idéalement toujours le même ; mesures prises relâchées).
-- **`null` = zone non mesurée ce jour-là**, jamais une valeur nulle : n'interpole pas et ne compare une zone qu'avec elle-même.
-- Une variation de quelques millimètres est dans la marge de mesure au mètre ruban : regarde la **tendance sur plusieurs prises**.
-- **L'app ne fixe aucun objectif et ne calcule aucun score.** Le fichier ne contient pas de total : si tu en calcules un, fais-le seulement sur les prises complètes (les 6 zones).
-- Pas de clé de mensurations (COACH_JSON 1.1) = l'utilisateur ne les a pas jointes : n'en déduis rien.
-
-### Lire un export d'historique
-
-- **Objectif ≠ réalisé** : `targetSets` = ce qui était prévu ce jour-là (snapshot) ; `actualSets` = ce qui a réellement été fait. Ne déduis jamais le réalisé de l'objectif.
-- **`null` = non saisi** : une série sans `actualReps` ni `actualWeightKg` n'a pas été faite. Une charge sans reps (ou l'inverse) est une saisie incomplète, laissée telle quelle.
-- **Exercice remplacé** (`exerciseId` ≠ `programExerciseId`) : la machine ou l'exercice prévu n'était pas disponible. `exerciseName` est ce qui a été réellement fait ; le prévu reste dans `targetSets` et dans `programs[]`. Les charges de `targetSets` ne sont pas celles de l'exercice réalisé : ne compare pas le réalisé à ce prévu. L'app n'adapte pas le programme : c'est à toi de le faire.
-- **Séries en plus** (`isExtra: true`) : faites en plus du programme, sans objectif.
-- **Séances abandonnées** (`abandoned`) : arrêtées en cours de route, mais leurs séries sont réelles. Le `comment` donne souvent la raison.
-- **`executionOrder`** : ordre réel des exercices (machine occupée, etc.).
-- **Sensations** : ressenti de l'utilisateur, de `very_easy` à `very_hard`.
-- **L'app ne prend aucune décision** : elle enregistre et calcule. La progression des charges et des volumes est **ta** décision, et le programme suivant est un nouveau PROGRAM_JSON.
-
-### Texte prêt à coller dans ChatGPT
-
-````text
-Tu es mon coach de musculation. Je te joins l'export JSON de mon carnet (type "training_coach_export", schemaVersion "1.1") : une SÉLECTION de séances, pas tout l'historique.
-"selection" indique combien de séances sont jointes, sur combien au total, et la période. "programs" contient mon programme actif ("activeProgramId") et ceux des séances jointes.
-"weightEntries" = mes pesées (kg, une par jour au plus) sur la période "weightWindow" (null = pesées non jointes). Regarde la tendance, pas un jour isolé ; aucun objectif de poids n'est fixé dans l'app.
-Lecture : "targetSets" = objectifs prévus ce jour-là ; "actualSets" = réalisé réel. null = non saisi. "isExtra": true = série en plus.
-Les séances "abandoned" sont réelles mais interrompues ; "comment" et "sensation" (very_easy → very_hard) donnent le ressenti. Le gainage est noté en secondes dans les répétitions.
-Analyse ma progression puis produis le programme de la semaine suivante, en JSON uniquement, au format "training_program" schemaVersion "1.0" :
-- nouveau "programId" (jamais déjà utilisé), mêmes "id" d'exercices qu'avant pour les mêmes exercices ;
-- séances "A", "B", "C" avec "order" 1, 2, 3 ; tous les champs nullables présents (null si non pertinent) ;
-- chaque série : "setNumber" unique à partir de 1, SOIT "targetReps", SOIT "targetRepsMin" + "targetRepsMax", jamais les deux ; "targetWeightKg" en nombre (kg) ou null ;
-- "restSec" en secondes, "estimatedDurationMin" en minutes, "cardio" = { enabled, label, targetDurationMin, notes } ou null ;
-- "notes" de chaque exercice = conseil d'exécution court : 1 à 2 phrases, à l'impératif, en français, 160 caractères maximum (null si rien d'utile), sans charges ni répétitions.
-S'il te faut plus de recul que les séances jointes, dis-le avant de produire le programme.
-Réponds avec le JSON complet et valide, seul (un bloc ```json est accepté), sans commentaire à l'intérieur.
-````
+Ce document-ci (`JSON_SCHEMA.md`) reste la référence technique des formats ; en cas d'évolution du contrat programme, `public/coach.md` est mis à jour dans le même jalon.

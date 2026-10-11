@@ -1,55 +1,116 @@
-# Carnet d'entraînement
+# Training App
 
-Carnet de musculation personnel pour iPhone, sous forme de PWA : **100 % local** (aucun serveur, aucun compte, aucune IA), utilisable **hors ligne**, en français.
+Ton carnet de musculation sur téléphone, avec **le coach IA de ton choix** (ChatGPT, Claude, Gemini…).
 
-> **État : V1.7.5 (V1 + collage du programme, export pour le coach, suivi du poids, archive Drive, remplacement d'exercice ; correctifs V1.3.2 ; suppression des séances abandonnées par balayage ; calendrier d'activité ; correctif de stabilité des tests en CI ; mensurations, jointes au coach sur demande ; thème sombre)** → **https://urattems.github.io/training-app/**
+👉 **https://urattems.github.io/training-app/**
 
+- **Gratuit, sans compte, sans publicité.** Tes séances restent **sur ton téléphone**.
+- Fonctionne **hors connexion** une fois installée, sur **iPhone** et **Android**.
+- En français, conçue pour la salle : une main, gros boutons, clavier numérique.
+
+> Sur l'écran d'accueil du téléphone, l'app s'appelle **« Carnet »**.
+
+## Ce que fait l'app
+
+L'app **enregistre, affiche et calcule**. Elle ne coache pas : c'est ton IA qui joue le coach. Le circuit :
+
+1. ton coach IA te donne un **programme** (un texte JSON) ;
+2. tu le colles dans l'app ;
+3. à la salle, l'app t'affiche chaque exercice avec son objectif, et tu notes ce que tu as **réellement** fait ;
+4. tu renvoies tes résultats au coach en un geste ;
+5. il te prépare le programme suivant. Et on recommence.
+
+Tu as aussi : l'historique de tes séances, des courbes de progression, le suivi du poids et des mensurations, un calendrier d'activité, un thème clair ou sombre.
+
+## 1. Installer l'app
+
+Ouvre **https://urattems.github.io/training-app/** sur ton téléphone, puis ajoute-la à l'écran d'accueil :
+
+- **iPhone** : dans **Safari**, touche **Partager** (le carré avec une flèche vers le haut), puis **« Sur l'écran d'accueil »**, puis **Ajouter**.
+- **Android** : dans **Chrome**, touche le menu **⋮** (en haut à droite), puis **« Installer l'application »** ou **« Ajouter à l'écran d'accueil »**.
+
+[capture à ajouter : iPhone, menu Partager → « Sur l'écran d'accueil »]
+
+[capture à ajouter : Android, menu ⋮ → « Installer l'application »]
+
+Ensuite, **ouvre toujours l'app depuis son icône** « Carnet ». Sur iPhone, c'est indispensable : l'app installée et Safari ne partagent pas leurs données.
+
+Détails et cas particuliers : [Installer l'app (iPhone et Android)](docs/installation.md).
+
+## 2. Démarrer ton coach
+
+Ouvre l'IA de ton choix (ChatGPT, Claude, Gemini…), démarre une nouvelle conversation et colle ce texte :
+
+```text
+Sois mon coach de musculation pour l'app Training App. Lis d'abord ce guide : https://urattems.github.io/training-app/coach.md. Confirme que tu l'as lu en entier ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Puis commence l'accueil.
 ```
-Coach (ChatGPT) → JSON programme → app → séances réelles → historique → JSON d'export → coach
-```
 
-Le fonctionnement complet est décrit dans [`SPEC.md`](SPEC.md), les choix techniques dans [`DECISIONS.md`](DECISIONS.md), et les formats d'échange dans [`JSON_SCHEMA.md`](JSON_SCHEMA.md), qui contient une section et un texte prêt à coller pour le coach.
+- Le coach te pose d'abord quelques questions (objectif, expérience, temps disponible, matériel, contraintes), te fait un récapitulatif, puis te propose ton **premier programme**.
+- Si ton IA ne peut pas ouvrir le lien, ouvre toi-même le [guide du coach](https://urattems.github.io/training-app/coach.md), copie tout son texte et colle-le dans la conversation (ou envoie-lui le fichier).
+- À la fin de l'accueil, le coach te donne une **fiche profil** : garde-la (dans tes notes ou sur ton ordinateur). Elle lui permettra de reprendre dans une nouvelle conversation sans tout redemander.
+- Testé avec ChatGPT (gratuit et payant), Claude et Gemini. Chaque IA a sa façon de répondre : aucune garantie qu'elles se comportent toutes pareil.
 
-## Fonctionnalités
+## 3. Utiliser l'app
 
-- **Programme** : import d'un JSON, par fichier ou **collé** depuis la conversation avec le coach (validation stricte, prévisualisation, messages d'erreur en français). Le nouveau programme devient actif, l'ancien est archivé.
-- **Conseil d'exécution** : le champ `notes` de chaque exercice s'affiche dans un encart « Conseil » sur l'écran exercice.
-- **Séance** :
-  - prochaine séance proposée par rotation (A → B → C) ;
-  - exercices dans n'importe quel ordre ;
-  - saisie réelle, avec l'objectif en gris dans le champ et le bouton « Comme prévu » (charge : 2 décimales et 999,99 kg au plus ; répétitions : 999 au plus) ;
-  - séries en plus, sensation, commentaire, cardio ;
-  - **remplacer un exercice pour la séance** (machine indisponible) : crayon à côté du titre, feuille « Remplacer l'exercice ». Le prévu reste visible (« Prévu : … »), le réalisé porte le nom choisi, les séries déjà saisies sont conservées, le programme du coach n'est jamais modifié et rien ne se propage aux séances futures. Le remplaçant a sa propre courbe de progression ; possible aussi en mode « Modifier » d'une séance terminée ;
-  - chaque exercice s'ouvre tout en haut, clavier fermé (jamais de retour en haut pendant la saisie) ;
-  - reprise après fermeture, abandon (avec suppression proposée si la séance est vide).
-- **Activité** (accueil) : calendrier des 12 dernières semaines, une case par jour, remplie les jours avec une séance terminée. Toucher une case montre les séances du jour. Pas de score ni de série de jours.
-- **Historique** : détail objectif / réalisé, modification après coup (y compris le remplacement d'un exercice), suppression avec confirmation. Une séance **abandonnée** se supprime aussi d'un balayage vers la gauche dans la liste (comme Mail sur iPhone), toujours après confirmation.
-- **Progression** : graphique de charge (ou de répétitions pour les exercices sans charge) sur une vraie échelle de temps, périodes 1M · 3M · 6M · 1A · Tout, carte de détail au toucher, statistiques et records.
-- **Poids** (4ᵉ onglet) :
-  - une pesée par jour, avec le dernier poids en placeholder ;
-  - ajout à une date passée avec « + », correction du poids avec le crayon, suppression confirmée ;
-  - remplacement toujours confirmé, et « C'est bien ça ? » sur une valeur inhabituelle ;
-  - courbe (ordonnée ajustée aux données), statistiques (dernier poids, min, max, variation sur la période) ;
-  - kg uniquement, sans objectif ni conseil.
-- **Mensurations** (sous-onglet de Poids) :
-  - 6 zones (Poitrine, Ventre, Taille, Biceps, Cuisse, Mollet) en cm, saisies ensemble à une date ; une prise peut être incomplète ;
-  - dernière valeur en placeholder, jamais préremplie ; « Comment mesurer ? » replié ; « C'est bien ça ? » au-delà de 10 cm d'écart ;
-  - un graphique à la fois (zone ou Total des mensurations), choisi dans la carte « Dernière mensuration » ; Départ, Aujourd'hui et Variation en couleur neutre ;
-  - historique avec modification et suppression confirmée ; aucun score, aucun objectif.
-- **Données** :
-  - sauvegarde complète en JSON, restauration, rappel d'export après 14 jours ;
-  - **export pour le coach** : sélection de séances (dernière, 3 ou 6 dernières, N dernières, depuis le dernier envoi, ou à la main), envoyée en fichier ou copiée pour ChatGPT ;
-  - les pesées et les mensurations font partie de la sauvegarde (format 1.2 depuis la V1.5.0 ; anciennes sauvegardes 1.0 et 1.1 toujours acceptées) et peuvent être jointes à l'export pour le coach (30 jours ou plus, 90 jours, tout, ou désactivées).
-  - les mensurations peuvent aussi être jointes à l'export pour le coach (« Joindre mes mensurations », **décochée par défaut** à chaque fois, même période que les pesées) : le fichier passe alors en format 1.2 ; sans cette option, il reste exactement le 1.1.
-- **Archive Drive** (facultative, désactivée par défaut, Paramètres → Archive Drive) :
-  - copie automatique vers le Drive de l'utilisateur, via son propre script « Muscu Sync », à sens unique : chaque séance, chaque pesée, toutes les pesées regroupées, une sauvegarde complète tenue à jour et une copie hebdomadaire ;
-  - file d'attente hors ligne ; garde-fous (jamais de sauvegarde d'une base vide, refus de remplacer une sauvegarde plus complète) ;
-  - « Renvoyer toute l'archive ».
-  - Reprise après perte : voir [`JSON_SCHEMA.md`](JSON_SCHEMA.md#archive-drive-v13).
-- **Thème** : Clair (par défaut), Sombre, ou Système (suit le réglage de l'iPhone), dans Paramètres → Préférences. Appliqué dès l'ouverture, sans flash.
-- **PWA** : installable sur l'écran d'accueil, entièrement hors ligne après la première visite, mise à jour proposée (jamais pendant une séance).
+**Importer un programme**
+- Dans la réponse du coach, copie le bloc de code du programme (bouton **Copier** du bloc).
+- Dans l'app : **Coller le JSON** (au premier lancement, ou dans Paramètres), colle, touche **Vérifier**, puis **Importer**.
+- Le nouveau programme devient actif ; l'ancien est archivé, ton historique est conservé.
+- **Programme refusé** (« Texte refusé » ou « Fichier refusé ») : rien n'est importé. Copie le message d'erreur (ou fais une capture) et envoie-le à ton coach : il te renverra un programme corrigé.
 
-## Développement
+**À la salle**
+- L'accueil te propose la prochaine séance : **Commencer la séance**.
+- Pour chaque exercice, l'objectif est affiché en gris ; tu notes ce que tu as **réellement** fait (le bouton **Comme prévu** recopie l'objectif quand tu l'as fait exactement).
+- Ajoute une série en plus, ton ressenti, un commentaire, du cardio ; remplace un exercice si une machine est prise. Tout est enregistré à chaque saisie.
+- Termine avec **Terminer la séance**.
+
+**Renvoyer tes résultats au coach**
+- Paramètres → **Exporter pour le coach** : choisis les séances (par défaut, celles depuis ton dernier envoi), puis **Copier pour ChatGPT** (ça marche avec toutes les IA) ou **Envoyer le fichier**.
+- Colle-les dans la conversation avec ton coach : il analyse ce que tu as réellement fait et te prépare la suite.
+- Nouvelle conversation ? Donne-lui ta fiche profil et un export récent.
+
+## 4. Tes sauvegardes
+
+1. **Sur ton téléphone** : tout est enregistré dans l'app, à chaque saisie, même hors connexion. Mais un téléphone se perd, et iPhone peut effacer les données d'une app web peu utilisée.
+2. **Le fichier de sauvegarde** : Paramètres → **Exporter mes données**. C'est la **seule** sauvegarde complète qui permet de tout **restaurer** (Paramètres → **Restaurer une sauvegarde**) ou de **changer de téléphone**. Range-la dans Fichiers, iCloud, Google Drive… L'accueil te le rappelle discrètement quand tu as fait des séances et que ton dernier export date de plus de 14 jours.
+3. **L'archive Google Drive** (facultative) : une copie automatique dans ton propre Google Drive. Voir « Options » ci-dessous.
+
+L'export pour le coach n'est **pas** une sauvegarde : il ne contient qu'une sélection de séances et ne peut pas être restauré.
+
+## 5. Options
+
+- **Poids** (onglet Poids) : une pesée par jour, courbe et statistiques. Tu peux joindre tes pesées à l'export pour le coach.
+- **Mensurations** (onglet Poids → Mensurations) : 6 zones en cm. Jointes au coach seulement si tu coches « Joindre mes mensurations ».
+- **Thème** : Clair, Sombre ou Système (Paramètres → Préférences).
+- **Archive Google Drive** (option avancée, **facultative**) : copie automatique de tes séances, pesées et sauvegardes dans ton Google Drive, via un petit script à installer toi-même. L'app fonctionne très bien sans. Guide pas à pas : [Activer l'archive Google Drive](docs/guide-drive.md).
+
+## 6. Vie privée
+
+Tes séances restent sur ton téléphone. Ce que tu envoies à ton IA (profil, exports) est traité par son fournisseur, selon ses conditions. Envoie seulement ce qui est utile.
+
+L'app n'a ni compte, ni serveur, ni publicité, ni mesure d'audience, ni IA intégrée. En dehors du chargement de l'app et de ses mises à jour (depuis GitHub Pages), la seule connexion qu'elle établit est l'archive Google Drive, si tu l'actives, vers **ton** script.
+
+## Bon à savoir
+
+- **Un seul téléphone** : pas de synchronisation. Pour changer de téléphone : Exporter mes données sur l'ancien, Restaurer une sauvegarde sur le nouveau.
+- **Mises à jour** : quand une nouvelle version est disponible, l'app affiche « Nouvelle version disponible » (jamais pendant une séance). Touche **Mettre à jour**.
+- **kg uniquement**.
+
+---
+
+## Pour les développeurs
+
+PWA React 19, TypeScript strict, Vite, Dexie (IndexedDB), Zod, Recharts. 100 % statique et locale : aucun serveur, aucune API, aucun compte, aucune IA intégrée. Publiée sur GitHub Pages.
+
+**Documentation du projet**
+- [`SPEC.md`](SPEC.md) : fonctionnement complet (source de vérité), complété par les addendums [`V1.3-SPEC.md`](V1.3-SPEC.md) (archive Drive) et [`V1.8-SPEC.md`](V1.8-SPEC.md) (ouverture à tous).
+- [`JSON_SCHEMA.md`](JSON_SCHEMA.md) : formats d'échange (programme, sauvegarde, export coach, archive Drive).
+- [`public/coach.md`](public/coach.md) : guide du coach, servi sur le site (`/training-app/coach.md`).
+- [`DECISIONS.md`](DECISIONS.md) : journal des décisions techniques.
+- [`CLAUDE.md`](CLAUDE.md) : règles de travail du projet.
+- [`docs/installation.md`](docs/installation.md), [`docs/guide-drive.md`](docs/guide-drive.md) : guides utilisateurs.
+
+### Commandes
 
 Prérequis : Node 22 et npm.
 
@@ -64,18 +125,18 @@ Prérequis : Node 22 et npm.
 | `npm run lint` | ESLint |
 | `npm run icons` | Régénère les icônes de `public/` à partir des couleurs des tokens |
 
-### Tester sur l'iPhone en réseau local
+### Tester sur un téléphone en réseau local
 
 ```bash
 npm run dev -- --host                        # http://<IP-du-PC>:5173/
 npm run build && npx vite preview --host     # http://<IP-du-PC>:4173/training-app/
 ```
 
-En **HTTP sur une IP locale**, Safari n'est pas en contexte sécurisé : pas de mode hors ligne, pas de feuille de partage (l'export passe par un téléchargement) et pas de stockage persistant. L'app reste utilisable. Tout fonctionne sur l'URL HTTPS de GitHub Pages.
+En **HTTP sur une IP locale**, le navigateur n'est pas en contexte sécurisé : pas de mode hors ligne, pas de feuille de partage (l'export passe par un téléchargement), pas de stockage persistant ni de presse-papiers. L'app reste utilisable. Tout fonctionne sur l'URL HTTPS de GitHub Pages.
 
 **Données de démo (mode dev uniquement)** : Paramètres → Développement → « Charger les données de démo » (`examples/history-example.json`). Le port 5173 a sa propre base de données. Cette section n'existe pas dans le build de production.
 
-## Structure
+### Structure
 
 ```
 src/
@@ -85,70 +146,49 @@ src/
   domain/       règles métier pures et testées (séance, rotation, stats, graphique, rappel d'export)
   schemas/      contrat JSON (Zod), invariants, migrations de schéma, messages d'erreur
   db/           base IndexedDB (Dexie, version 3 depuis la V1.5.0), état de connexion entre onglets
-  services/     accès aux données : programme, séance, historique, export, restauration, stockage
+  services/     accès aux données : programme, séance, historique, export, restauration, stockage, Drive
   hooks/        lectures réactives, enregistrement automatique, export préparé
   pwa/          manifest, bannière de mise à jour
   styles/       tokens de design (couleurs, tailles…), styles de base
+  theme/        thème clair, sombre ou système
   i18n/         textes de l'interface
+public/         icônes, guide du coach (coach.md)
 examples/       fixtures contractuelles (ne pas modifier)
-scripts/        génération des icônes
+scripts/        génération des icônes, faux script Drive pour les tests
+docs/           guides utilisateurs
 ```
 
-## Stockage et sauvegardes
+### Stockage et formats
 
-- Les données vivent **uniquement sur l'appareil**, dans IndexedDB (base `training-app-db`). Rien n'est envoyé nulle part.
-- Sur iPhone, **les données de l'app installée sont séparées de celles de Safari** : installe l'app d'abord, puis importe ton programme depuis l'app installée.
-- L'app demande au navigateur un stockage persistant (statut dans Paramètres → Informations), sans garantie absolue : Safari peut purger les données d'un site peu utilisé.
-- **Protection principale : exporter régulièrement**, ou activer l'Archive Drive : une sauvegarde automatique CONFIRMÉE compte comme un export pour le rappel. Paramètres → Exporter mes données produit `training-backup-AAAA-MM-JJ.json`, à garder dans Fichiers ou iCloud. L'accueil le rappelle discrètement après 14 jours sans export. Un envoi au coach ne remplace pas cette sauvegarde et ne fait pas disparaître le rappel.
-
-## Import, export, restauration
+- Les données vivent **uniquement sur l'appareil**, dans IndexedDB (base `training-app-db`). Sur iPhone, les données de l'app installée sont séparées de celles de Safari.
+- L'app demande un stockage persistant (statut dans Paramètres → Informations), sans garantie absolue.
+- Formats : programme `training_program` 1.0 ; sauvegarde `training_history_export` 1.2 (lit 1.0 et 1.1) ; export coach `training_coach_export` 1.1, ou 1.2 avec les mensurations. Détail dans [`JSON_SCHEMA.md`](JSON_SCHEMA.md).
 
 | Action | Où | Effet |
 |---|---|---|
 | Importer un programme | Paramètres, ou premier lancement | Fichier, ou « Coller le JSON » (un bloc ` ```json … ``` ` est accepté). Valide le JSON, prévisualise, puis le programme devient actif (l'ancien est archivé). Un `programId` déjà connu est refusé |
-| Exporter mes données | Paramètres | **Sauvegarde complète** : fichier `training_history_export` (programmes, séances, pesées, mensurations, préférences ; format 1.2), vérifié avant d'être proposé. Feuille de partage iOS ou téléchargement |
+| Exporter mes données | Paramètres | **Sauvegarde complète** : fichier `training_history_export` (programmes, séances, pesées, mensurations, préférences ; format 1.2), vérifié avant d'être proposé. Feuille de partage ou téléchargement |
 | Exporter pour le coach | Paramètres | **Sélection de séances** : fichier `training-coach-AAAA-MM-JJ.json` (`training_coach_export`) ou « Copier pour ChatGPT » (JSON compact). Vérifié avant remise. Ne compte pas comme sauvegarde et n'est jamais restaurable |
 | Restaurer une sauvegarde | Paramètres | Résumé, puis export obligatoire des données actuelles, puis remplacement complet en une opération (copie interne de sécurité conservée) |
 
-Les formats sont détaillés dans [`JSON_SCHEMA.md`](JSON_SCHEMA.md).
-
-## Déploiement et mises à jour
+### Déploiement et mises à jour
 
 Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (runner `ubuntu-24.04`) vérifie le code (typecheck, lint, tests), construit l'app et la publie sur GitHub Pages **à chaque push sur `main`**.
-
-**Publier une nouvelle version :**
 
 1. Vérifier en local : `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
 2. `git push` sur `main`.
 3. Suivre l'onglet **Actions** du dépôt : les étapes *build* et *deploy* doivent passer au vert.
-4. Sur l'iPhone, rouvrir l'app : la bannière « Nouvelle version disponible » apparaît (jamais pendant une séance). Toucher « Mettre à jour ». Paramètres → Informations → *Build* confirme la version.
+4. Sur le téléphone, rouvrir l'app : la bannière « Nouvelle version disponible » apparaît (jamais pendant une séance). Toucher « Mettre à jour ». Paramètres → Informations → *Build* confirme la version.
 
-**Mise en place initiale (déjà faite)** : dépôt public `training-app`, branche `main`, Settings → Pages → Source « GitHub Actions ». Pour un autre nom de dépôt, adapter `DEFAULT_BASE` dans [`src/pwa/manifest.ts`](src/pwa/manifest.ts).
+**L'adresse de l'app et le nom du dépôt ne doivent jamais changer** : les données locales de chaque utilisateur sont liées à l'adresse `https://urattems.github.io/training-app/`. Mise en place initiale (déjà faite) : dépôt public `training-app`, branche `main`, Settings → Pages → Source « GitHub Actions ».
 
-**Installer sur l'iPhone** : Safari → https://urattems.github.io/training-app/ → Partager → **Sur l'écran d'accueil**. Ouvrir l'app depuis son icône, puis importer le programme **depuis l'app installée**.
-
-## Limites connues
+### Limites connues
 
 - **Stockage iOS** : Safari peut effacer les données d'une PWA peu utilisée. Seuls des exports réguliers protègent vraiment.
-- **HTTPS requis** pour le mode hors ligne, l'installation complète, la feuille de partage et le stockage persistant (OK sur GitHub Pages ; indisponibles en HTTP sur IP locale).
-- **Une seule unité** (kg, charges et poids).
-- **Thème sombre** (Paramètres → Préférences → Thème : Clair, Sombre ou Système) :
-  - le manifeste de la PWA est statique : l'écran de lancement et la couleur annoncée à l'installation restent ceux du thème clair ; la barre d'état suit le thème une fois l'app ouverte (`theme-color` mis à jour) ;
-  - le choix est propre à l'appareil : une restauration ne le change pas (à refaire après une réinstallation).
-- **Archive Drive et iOS** : iOS n'exécute rien en arrière-plan ; un envoi interrompu repart à la prochaine ouverture de l'app. À n'activer que sur l'iPhone qui sert à saisir.
-- **Archive Drive et réinstallation** :
-  - restaurer d'abord `Sauvegardes/sauvegarde-derniere.json`, PUIS activer l'envoi (sinon l'app demande quoi faire, sans rien écraser) ;
-  - les noms de fichiers gelés sont propres à l'appareil : une séance dont la date a été corrigée avant une réinstallation peut produire un second fichier.
-- **Un appareil** : pas de synchronisation. Pour changer d'iPhone, exporter puis restaurer.
-- **Plusieurs onglets ou fenêtres de l'app** (surtout sur ordinateur) : lors d'une mise à jour qui fait évoluer la base (V1.2 : version 2 ; V1.5.0 : version 3), une ancienne version encore ouverte peut retarder la mise à jour.
-  - L'app affiche alors « Ferme les autres onglets de l'app, puis rouvre-la », puis reprend d'elle-même.
-  - Aucune donnée n'est touchée.
-  - Sur iPhone, l'app installée et Safari ont des données séparées : le cas ne se présente qu'entre plusieurs onglets Safari.
-- **Supprimer une séance et archive Drive** : la séance n'est jamais effacée du Drive (seulement notée supprimée). La sauvegarde suivante a une séance de moins : le script la refuse et l'app demande une fois « Remplacer quand même » (DECISIONS V1.3.3).
+- **HTTPS requis** pour le mode hors ligne, l'installation complète, la feuille de partage et le stockage persistant.
+- **Thème sombre** : le manifeste de la PWA est statique (écran de lancement et couleur d'installation du thème clair) ; le choix du thème est propre à l'appareil et n'est pas repris par une restauration.
+- **Archive Drive** : iOS n'exécute rien en arrière-plan (un envoi interrompu repart à la prochaine ouverture) ; à n'activer que sur le téléphone qui sert à saisir ; restaurer d'abord, activer ensuite ; les noms de fichiers gelés sont propres à l'appareil ; supprimer une séance demande une confirmation de plus côté Drive (DECISIONS V1.3.3) ; les mensurations ne sont protégées qu'avec le script `sync-3` (DECISIONS V1.6.2). Détails : [`docs/guide-drive.md`](docs/guide-drive.md).
+- **Plusieurs onglets ou fenêtres de l'app** (surtout sur ordinateur) : lors d'une mise à jour qui fait évoluer la base (V1.2 : version 2 ; V1.5.0 : version 3), une ancienne version encore ouverte peut retarder la mise à jour. L'app affiche « Ferme les autres onglets de l'app », puis reprend d'elle-même, sans toucher aux données.
 - **Mensurations** : une sauvegarde 1.2 ne peut pas être restaurée par une version plus ancienne de l'app.
-- **Mensurations et archive Drive** : avec le script **`sync-3`** (déployé), les mensurations sont protégées par le refus de régression, et supprimer une prise ne déclenche plus de fausse alerte (la suppression est notée au script avant la sauvegarde). Avec un ancien script `sync-2`, rien ne change : les mensurations ne sont pas comptées par le script (DECISIONS V1.6.2). Après une mise à jour du script, « Envoyer un test » dans Paramètres → Archive Drive fait connaître sa version à l'app (sinon elle la découvre seule à la première suppression).
-- **Remplacer un exercice** (limites assumées, DECISIONS V1.3.2) :
-  - remplacer par le nom d'un autre exercice du programme crée une courbe distincte de la sienne ;
-  - la ponctuation est ignorée dans la comparaison des noms (« Squat +10 kg » = « Squat 10 kg ») ;
-  - un nom sans aucune lettre ou chiffre latin (ex. 100 % cyrillique ou japonais) est refusé.
-- **Feuille de partage** : dépend de Safari. En cas d'échec, l'export bascule automatiquement sur le téléchargement.
+- **Remplacer un exercice** (DECISIONS V1.3.2) : remplacer par le nom d'un autre exercice du programme crée une courbe distincte ; la ponctuation est ignorée dans la comparaison des noms ; un nom sans aucune lettre ou chiffre latin est refusé.
+- **Feuille de partage** : dépend du navigateur. En cas d'échec, l'export bascule sur le téléchargement.
