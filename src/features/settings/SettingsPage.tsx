@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { CloudUpload, Send } from 'lucide-react';
-import { ButtonLink } from '../../components/Button';
+import { BookOpen, CloudUpload, Compass, Send } from 'lucide-react';
+import { ButtonLink, ExternalButtonLink } from '../../components/Button';
 import { Card, Eyebrow } from '../../components/Card';
 import { Page } from '../../components/Page';
-import { APP_BUILD, APP_NAME, APP_VERSION } from '../../config';
+import { APP_BUILD, APP_NAME, APP_VERSION, DRIVE_GUIDE_URL } from '../../config';
 import { usePersistenceStatus } from '../../hooks/usePersistenceStatus';
 import { usePreparedExport } from '../../hooks/usePreparedExport';
 import { strings } from '../../i18n/strings';
@@ -39,12 +39,6 @@ export function SettingsPage() {
           </ButtonLink>
         </Card>
         <Card className={styles.group}>
-          <p className={styles.hint}>{strings.drive.entryHint}</p>
-          <ButtonLink to="/settings/drive" variant="secondary" fullWidth icon={<CloudUpload aria-hidden />}>
-            {strings.drive.entry}
-          </ButtonLink>
-        </Card>
-        <Card className={styles.group}>
           <RestoreFlow currentExport={preparedExport} />
         </Card>
         <Card className={styles.group}>
@@ -64,6 +58,16 @@ export function SettingsPage() {
             </div>
           </dl>
           <ThemeSelector />
+        </Card>
+      </section>
+
+      <section className={styles.section} aria-labelledby="settings-help">
+        <Eyebrow id="settings-help">{t.help}</Eyebrow>
+        <Card className={styles.group}>
+          <p className={styles.hint}>{t.startGuideHint}</p>
+          <ButtonLink to="/start" variant="secondary" fullWidth icon={<Compass aria-hidden />}>
+            {t.startGuide}
+          </ButtonLink>
         </Card>
       </section>
 
@@ -95,6 +99,20 @@ export function SettingsPage() {
           <DevTools />
         </Suspense>
       )}
+
+      {/* V1.8.0 (§4.3) : l'archive Drive, facultative, en dernière position. Comportement inchangé. */}
+      <section className={styles.section} aria-labelledby="settings-advanced">
+        <Eyebrow id="settings-advanced">{t.advanced}</Eyebrow>
+        <Card className={styles.group}>
+          <p className={styles.hint}>{strings.drive.entryHint}</p>
+          <ButtonLink to="/settings/drive" variant="secondary" fullWidth icon={<CloudUpload aria-hidden />}>
+            {strings.drive.entry}
+          </ButtonLink>
+          <ExternalButtonLink href={DRIVE_GUIDE_URL} variant="ghost" fullWidth icon={<BookOpen aria-hidden />}>
+            {t.driveGuide}
+          </ExternalButtonLink>
+        </Card>
+      </section>
     </Page>
   );
 }

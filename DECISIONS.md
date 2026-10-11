@@ -2438,3 +2438,70 @@ Après restauration : 63/63 sur les fichiers concernés.
   - **vérification au build**, puisque Vitest ne lance pas le build : le petit plugin `verifyCoachGuideBom` de `vite.config.ts` fait **échouer `npm run build`** si `dist/coach.md` n'a pas de BOM. Un test vérifie que ce plugin est branché.
   - Les tests T1 et T2 lisent le fichier sans le BOM ; aucune attente modifiée.
 - **Contre-épreuve** : `public/coach.md` sans BOM → le test échoue (« commence par EF BB BF ») et le build s'arrête (« BOM UTF-8 manquant en tête du guide du coach »). Avec le BOM : 17/17 et build vert.
+
+### 1. Écran de démarrage (§4.1)
+- **Condition** : table `programs` **vide** (`countPrograms`, lecture réactive `useProgramCount`) et aucune séance en cours. Aucune donnée, aucune clé de réglage, rien en `localStorage`. Le choix iPhone / Android est un état React, non mémorisé.
+  - Programmes présents mais aucun actif (sauvegarde restaurée avec `activeProgramId: null`) : l'ancien état « Bienvenue » s'affiche, inchangé. L'addendum ne réserve l'écran de démarrage qu'à l'app réellement vide.
+- **Accueil d'une app vide** : la carte « Bienvenue », avec le texte « Importe ton premier programme pour commencer. », est **conservée en tête** de l'écran, suivie des étapes. Les tests existants qui attendent ce titre, ce texte et ces boutons d'import passent donc **sans modification**.
+- **Étape « Installer »** :
+  - choix iPhone / Android en deux segments de 44 px (`aria-pressed`) ;
+  - présélection d'après l'agent utilisateur (`detectPlatform`) : Android si l'agent le dit, sinon iPhone (iPad et ordinateur compris : « iPhone d'abord ») ;
+  - tutoriel en liste numérotée ;
+  - étape **masquée en mode installé** : `matchMedia('(display-mode: standalone)')` ou `navigator.standalone`, lus une fois à l'affichage ; les étapes suivantes sont alors renumérotées 1 et 2.
+- **Étape « Démarrer ton coach »** :
+  - « Copier le prompt du coach » copie `COACH_PROMPT`, écrit dans le presse-papiers **tout de suite, dans le geste** (`writeClipboardText`, exigence de Safari iOS) ;
+  - confirmation « Copié » dans une région annoncée, **sans minuteur** ;
+  - presse-papiers absent ou refusé : le texte s'affiche dans un champ en lecture seule, 17 px, sélectionné au focus (`CopyTextButton`, partagé avec l'erreur) ;
+  - « Ouvrir le guide du coach » pointe vers `COACH_GUIDE_URL`, dans un nouvel onglet (`noopener noreferrer`) ;
+  - phrase vie privée du §7, mot pour mot.
+- **Étape « Importer ton programme »** : les **mêmes** boutons « Coller le JSON » et « Importer un programme JSON », sans duplication, branchés sur le flux d'import existant.
+- **« Guide de démarrage »** : nouvelle section « Aide » des Paramètres → route `#/start`. C'est le même composant (`StartGuide`), sans la carte « Bienvenue ».
+
+### 2. « Copier l'erreur pour mon coach » (§4.2)
+- Bouton dans la feuille d'échec d'import de **programme** (fichier ou texte collé), sous le message.
+- Texte construit par `buildCoachErrorReport` (fonction pure) :
+  - version de l'app ;
+  - `"type": "training_program", "schemaVersion": "1.0"` (constante `SCHEMA_VERSION`) ;
+  - message de l'app ;
+  - liste des erreurs avec leur emplacement : ce sont les **détails existants**, inchangés (« sessions.0.exercises.1.id — invalid_type : … ») ;
+  - consigne « Corrige et renvoie le JSON complet, seul, conforme au guide du coach : » suivie de `COACH_GUIDE_URL`.
+  - Sans détail (par exemple `programId` déjà importé), la section « Erreurs » est omise.
+- Le message affiché et « Afficher les détails » ne changent pas.
+
+### 3. Archive Drive en dernière position (§4.3)
+- La carte Drive quitte « Données » pour une section finale « Option avancée — facultatif », après « Informations » (et après les outils de développement, absents en production).
+- Elle contient la même entrée « Archive Drive », plus un lien « Guide pas à pas (GitHub) » vers `docs/guide-drive.md` (`DRIVE_GUIDE_URL`, dans `config.ts`).
+- Aucun changement de comportement, de clés ni de données.
+
+### 4. Secret Drive : 20 caractères à la saisie (point signalé en J1)
+- `MIN_SECRET_LENGTH` passe de 8 à **20**, comme `muscu-sync.gs`.
+- La règle s'applique à tout **nouveau** secret. Le secret déjà enregistré, réutilisé tel quel (champ laissé vide), reste accepté même s'il est plus court : **une configuration existante n'est ni effacée ni invalidée** (testé). Le script, lui, la refusera (`not_configured`) : le guide Drive l'explique.
+- Messages :
+  - « Le secret doit contenir au moins 20 caractères, comme dans le script. » ;
+  - `not_configured` : « Le script n'est pas configuré : vérifie sa propriété SECRET (au moins 20 caractères), puis relance « verifier_installation ». ».
+- **Tests existants adaptés (signalé)** : seules leurs **valeurs** de secret, trop courtes pour la nouvelle règle demandée, et une attente qui figeait l'ancien minimum :
+  - `services/driveOutbox.test.ts` : `SECRET` passe de 18 à 24 caractères, `'autre-secret-5555'` devient `'autre-secret-5555-20car'`, et le test « validation » attend « au moins 20 » au lieu de « au moins 8 » (titre ajusté) ;
+  - `features/exercise/ReplaceExercise.test.tsx` : `SECRET` passe de 19 à 25 caractères.
+  - Aucune autre assertion modifiée. Sans ces changements, 19 tests échouaient, uniquement sur `saveDriveConfig`.
+
+### 5. Version et documentation
+- Version **1.8.0** (`package.json`, `package-lock.json`, Paramètres → Informations ; le test existant `Version.test.tsx` les compare).
+- README : écran de démarrage, « Copier le prompt du coach », « Copier l'erreur pour mon coach », Drive tout en bas, nouvelles captures à ajouter.
+- Guides : emplacement du Drive ; secret de 20 caractères exigé aussi par l'app ; nouveaux messages dans le dépannage.
+
+### Tests ajoutés
+- `features/start/StartGuide.test.tsx` (16), app complète et vraie base :
+  - affichage : `programs` vide, programme actif, programmes archivés seulement, après import, après restauration avec et sans programmes ;
+  - entrée « Guide de démarrage » ;
+  - présélection iPhone et Android, et changement d'un tap ;
+  - mode installé : `display-mode` et `navigator.standalone` ;
+  - presse-papiers : contenu **exact**, refusé, absent ;
+  - lien du guide et phrase vie privée ;
+  - l'étape 3 ouvre le collage existant ;
+  - contenu **exact** de « Copier l'erreur pour mon coach » sur un programme à deux erreurs.
+- `features/start/platform.test.ts` (7) ; `coach/coachErrorReport.test.ts` (2).
+- `features/settings/SettingsV18.test.tsx` (4) :
+  - Drive dernière section, titre et lien du guide ;
+  - secret de 19 caractères refusé, de 20 accepté ;
+  - configuration existante (secret court) conservée, au démarrage comme à l'enregistrement ;
+  - message à l'écran.

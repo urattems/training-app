@@ -83,6 +83,11 @@ export async function getProgram(programId: string): Promise<StoredProgram | nul
 }
 
 /** Tous les programmes, du plus récemment importé au plus ancien. */
+/** Nombre de programmes, actifs et archivés (V1.8.0 : 0 = app vide, écran de démarrage). */
+export async function countPrograms(): Promise<number> {
+  return db.programs.count();
+}
+
 export async function listPrograms(): Promise<StoredProgram[]> {
   const programs = await db.programs.toArray();
   return programs.sort((a, b) => Date.parse(b.importedAt) - Date.parse(a.importedAt));

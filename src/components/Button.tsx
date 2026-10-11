@@ -33,6 +33,17 @@ export function ButtonLink({ to, variant = 'primary', size = 'md', fullWidth = f
   );
 }
 
+/** Lien externe (nouvel onglet) avec l'apparence d'un bouton (ex. « Ouvrir le guide du coach »). */
+export function ExternalButtonLink({ href, variant = 'secondary', size = 'md', fullWidth = false, icon, children }: Omit<ButtonLinkProps, 'to'> & { href: string }) {
+  const classes = [styles.button, styles[variant], styles[size], fullWidth && styles.fullWidth].filter(Boolean).join(' ');
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={classes}>
+      {icon}
+      <span>{children}</span>
+    </a>
+  );
+}
+
 export function Button({
   variant = 'primary',
   size = 'md',

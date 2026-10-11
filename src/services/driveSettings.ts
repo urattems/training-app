@@ -10,8 +10,13 @@ import { strings } from '../i18n/strings';
 const t = strings.drive;
 
 export const EMPTY_DRIVE_SYNC: DriveSyncSettings = { url: '', secret: '', enabled: false, testedAt: null };
-/** Longueur minimale du secret (un secret trop court ne pourrait pas être masqué sans risque). */
-export const MIN_SECRET_LENGTH = 8;
+/**
+ * Longueur minimale d'un secret SAISI : 20 caractères, comme le script `muscu-sync.gs`
+ * (`MIN_SECRET_LENGTH = 20`), qui refuse tout appel (`not_configured`) en dessous (V1.8.0).
+ * Un secret déjà enregistré plus court (8 à 19 caractères, avant la V1.8.0) n'est ni effacé
+ * ni invalidé : il reste accepté tel quel tant qu'il n'est pas remplacé.
+ */
+export const MIN_SECRET_LENGTH = 20;
 
 export async function getDriveSync(): Promise<DriveSyncSettings> {
   const record = await db.settings.get('driveSync');
@@ -40,9 +45,12 @@ export async function saveDriveConfig(url: string, secret: string): Promise<Driv
   const cleanSecret = secret.trim();
   const urlError = validateDriveUrl(cleanUrl);
   if (urlError !== null) throw new DomainError(urlError);
-  if (cleanSecret.length < MIN_SECRET_LENGTH) throw new DomainError(t.secretTooShort(MIN_SECRET_LENGTH));
   return db.transaction('rw', db.settings, async () => {
     const current = await getDriveSync();
+    // La longueur minimale ne s'applique qu'à un NOUVEAU secret : le secret enregistré, réutilisé
+    // tel quel (champ laissé vide), reste valable même s'il date d'avant la V1.8.0.
+    const keepsSavedSecret = current.secret !== '' && cleanSecret === current.secret;
+    if (!keepsSavedSecret && cleanSecret.length < MIN_SECRET_LENGTH) throw new DomainError(t.secretTooShort(MIN_SECRET_LENGTH));
     const changed = current.url !== cleanUrl || current.secret !== cleanSecret;
     const next: DriveSyncSettings = changed ? { url: cleanUrl, secret: cleanSecret, enabled: false, testedAt: null } : current;
     await db.settings.put({ key: 'driveSync', value: next });

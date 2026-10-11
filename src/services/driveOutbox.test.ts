@@ -14,7 +14,7 @@ import { previewRestore, restoreBackup } from './importService';
 import { abandonWorkout, finishWorkout, startWorkout, updateWorkout } from './workoutService';
 
 const URL_ = 'https://script.google.com/macros/s/AKfycbOUTBOXTESTID/exec';
-const SECRET = 'secret-outbox-9876';
+const SECRET = 'secret-outbox-9876-20car'; // V1.8.0 : 20 caractères au moins
 
 interface Sent {
   action: string;
@@ -107,14 +107,14 @@ describe('Configuration', () => {
     await markDriveTested('2026-10-04T10:00:00+02:00', { url: URL_, secret: SECRET });
     await setDriveEnabled(true);
     expect((await getDriveSync()).enabled).toBe(true);
-    await saveDriveConfig(URL_, 'autre-secret-5555');
+    await saveDriveConfig(URL_, 'autre-secret-5555-20car');
     expect(await getDriveSync()).toMatchObject({ enabled: false, testedAt: null });
   });
 
-  it('validation : URL https (ou http local), secret d’au moins 8 caractères', async () => {
+  it('validation : URL https (ou http local), secret d’au moins 20 caractères (V1.8.0)', async () => {
     await expect(saveDriveConfig('ftp://x', SECRET)).rejects.toThrow('Adresse invalide');
     await expect(saveDriveConfig('http://example.com/exec', SECRET)).rejects.toThrow('Adresse invalide');
-    await expect(saveDriveConfig(URL_, 'court')).rejects.toThrow('au moins 8');
+    await expect(saveDriveConfig(URL_, 'court')).rejects.toThrow('au moins 20');
     await expect(saveDriveConfig('http://127.0.0.1:4190/macros/s/X/exec', SECRET)).resolves.toBeDefined();
   });
 });

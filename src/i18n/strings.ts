@@ -120,6 +120,55 @@ export const strings = {
     lastSession: 'Dernière séance',
     recentProgress: 'Progression récente',
   },
+  /** Écran de démarrage (V1.8.0, V1.8-SPEC §4.1). */
+  start: {
+    pageTitle: 'Guide de démarrage',
+    intro: 'Trois étapes, et ton coach IA te prépare ton premier programme.',
+    stepTitle: (n: number, title: string) => `${String(n)}. ${title}`,
+    installTitle: 'Installer l’app',
+    installText: 'Ajoute l’app à l’écran d’accueil : elle s’ouvrira comme une vraie app, même sans connexion.',
+    platformLabel: 'Ton téléphone',
+    iphone: 'iPhone',
+    android: 'Android',
+    iphoneSteps: [
+      'Ouvre cette page dans Safari.',
+      'Touche Partager (le carré avec une flèche vers le haut). Tu ne le vois pas ? Touche «\u00a0⋯\u00a0» en bas de l’écran.',
+      'Choisis «\u00a0Sur l’écran d’accueil\u00a0», puis Ajouter.',
+      'Ouvre ensuite l’app depuis son icône «\u00a0Carnet\u00a0» : sur iPhone, l’app installée et Safari ne partagent pas leurs données.',
+    ],
+    androidSteps: [
+      'Ouvre cette page dans Chrome.',
+      'Touche le menu ⋮ (en haut à droite).',
+      'Choisis «\u00a0Installer l’application\u00a0» (ou «\u00a0Ajouter à l’écran d’accueil\u00a0»).',
+      'Ouvre ensuite l’app depuis son icône «\u00a0Carnet\u00a0».',
+    ],
+    coachTitle: 'Démarrer ton coach',
+    coachText:
+      'Copie ce texte et colle-le dans une nouvelle conversation avec l’IA de ton choix (ChatGPT, Claude, Gemini…). Ton coach lira son guide, te posera quelques questions, puis te proposera ton premier programme.',
+    copyPrompt: 'Copier le prompt du coach',
+    openGuide: 'Ouvrir le guide du coach',
+    openGuideHint: 'Si ton IA ne lit pas les liens : ouvre le guide, copie tout son texte (ou télécharge-le) et donne-le-lui.',
+    privacy:
+      'Tes séances restent sur ton téléphone. Ce que tu envoies à ton IA (profil, exports) est traité par son fournisseur, selon ses conditions. Envoie seulement ce qui est utile.',
+    importTitle: 'Importer ton programme',
+    importText: 'Dans la réponse du coach, copie le bloc de code du programme (bouton «\u00a0Copier\u00a0»), puis colle-le ici.',
+  },
+  /** Copie dans le presse-papiers avec repli (V1.8.0). */
+  copy: {
+    copied: 'Copié',
+    failed: 'Copie impossible sur cet appareil : sélectionne le texte ci-dessous et copie-le.',
+    manualLabel: 'Texte à copier',
+  },
+  /** « Copier l'erreur pour mon coach » (V1.8.0, V1.8-SPEC §4.2). */
+  coachError: {
+    copy: 'Copier l’erreur pour mon coach',
+    hint: 'Colle-la dans la conversation : ton coach te renverra un programme corrigé.',
+    title: (version: string) => `Erreur d'import d'un programme dans Training App (version ${version}).`,
+    expected: (schemaVersion: string) => `Format attendu : "type": "training_program", "schemaVersion": "${schemaVersion}".`,
+    message: (message: string) => `Message de l'app : ${message}`,
+    errors: 'Erreurs (emplacement — détail) :',
+    instruction: (url: string) => `Corrige et renvoie le JSON complet, seul, conforme au guide du coach : ${url}`,
+  },
   activity: {
     title: 'Activité',
     gridLabel: 'Activité des 12 dernières semaines, un carré par jour du lundi au dimanche',
@@ -379,6 +428,11 @@ export const strings = {
     build: 'Build',
     storage: 'Stockage persistant',
     storageStatus: { granted: 'oui', denied: 'non', unavailable: 'indisponible' },
+    help: 'Aide',
+    startGuide: 'Guide de démarrage',
+    startGuideHint: 'Installer l’app, démarrer ton coach IA, importer un programme.',
+    advanced: 'Option avancée — facultatif',
+    driveGuide: 'Guide pas à pas (GitHub)',
   },
   export: {
     button: 'Exporter mes données',
@@ -553,7 +607,7 @@ export const strings = {
     saved: 'Configuration enregistrée. Fais un test avant d’activer l’envoi.',
     unchanged: 'Configuration inchangée.',
     invalidUrl: 'Adresse invalide : colle l’URL complète du script (https://…/exec).',
-    secretTooShort: (n: number) => `Le secret doit contenir au moins ${n} caractères.`,
+    secretTooShort: (n: number) => `Le secret doit contenir au moins ${String(n)} caractères, comme dans le script.`,
     test: 'Envoyer un test',
     testing: 'Test en cours…',
     testOk: (version: string, seconds: string) => `Script joint : version ${version}, réponse en ${seconds} s.`,
@@ -638,7 +692,7 @@ export const strings = {
     },
     serverErrors: {
       unauthorized: 'Secret refusé par le script : vérifie le secret.',
-      not_configured: 'Le script n’est pas configuré (secret ou dossier manquant).',
+      not_configured: 'Le script n’est pas configuré : vérifie sa propriété SECRET (au moins 20 caractères), puis relance « verifier_installation ».',
       bad_json: 'Le script n’a pas compris la demande.',
       bad_request: 'Demande refusée par le script.',
       forbidden_name: 'Nom de fichier refusé par le script.',

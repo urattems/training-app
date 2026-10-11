@@ -18,3 +18,18 @@ export async function readClipboardText(): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * Écriture dans le presse-papiers (V1.8.0) : `writeText` est appelé TOUT DE SUITE, dans le geste
+ * de l'utilisateur (exigence de Safari iOS). `false` si l'API est absente, refusée ou en échec.
+ */
+export async function writeClipboardText(text: string): Promise<boolean> {
+  const api = clipboard();
+  if (typeof api?.writeText !== 'function') return false;
+  try {
+    await api.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -65,7 +65,7 @@ Uniquement **sur ton téléphone**, dans l'app. Il n'y a ni compte ni serveur. P
 Trois actions à ne pas confondre, toutes dans Paramètres :
 - **Exporter mes données** : **ta sauvegarde**, le seul fichier qui permet de tout restaurer ou de changer de téléphone ;
 - **Exporter pour le coach** : l'**envoi à ton IA** (une sélection de séances) ; ce n'est **pas** une sauvegarde ;
-- **Archive Google Drive** : une **copie automatique, facultative**, dans ton Google Drive (voir [le guide](guide-drive.md)).
+- **Archive Google Drive** : une **copie automatique, facultative**, dans ton Google Drive (tout en bas des Paramètres ; voir [le guide](guide-drive.md)).
 
 **Si je supprime l'icône, est-ce que je perds mes données ?**
 Sur iPhone, supprimer l'app de l'écran d'accueil **efface ses données**. Fais d'abord **Exporter mes données**, puis, après réinstallation, Paramètres → **Restaurer une sauvegarde**.

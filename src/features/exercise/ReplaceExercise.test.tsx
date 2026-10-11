@@ -424,7 +424,7 @@ describe('Historique : badge, « Prévu » et crayon en mode « Modifier »', ()
 
 describe('Archive Drive : le remplacement depuis l’historique met à jour le MÊME fichier', () => {
   const URL_ = 'https://script.google.com/macros/s/AKfycbREPLACETESTID/exec';
-  const SECRET = 'secret-replace-9876';
+  const SECRET = 'secret-replace-9876-20car'; // V1.8.0 : 20 caractères au moins
   interface Sent {
     action: string;
     folder?: string;

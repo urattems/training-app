@@ -44,7 +44,7 @@ Le code du script est dans ce dépôt : [`docs/apps-script/muscu-sync.gs`](apps-
 
 Le code secret empêche quiconque d'autre d'écrire dans ton Drive via ton script, même s'il connaissait son adresse. Le **même** code doit être saisi dans le script et dans l'app.
 
-**Le script exige au moins 20 caractères.** Avec moins, il refuse tout envoi (« Le script n'est pas configuré »), même si l'app, elle, accepte un secret plus court.
+**Le script exige au moins 20 caractères**, et l'app aussi : un code plus court est refusé à l'enregistrement. (Une configuration enregistrée avant la V1.8.0 avec un code plus court reste en place, mais le script la refuse : remplace-la.)
 
 **Générer un bon code secret** (au moins 20 caractères, uniquement des lettres, des chiffres et des tirets, **sans espace**) :
 - **le plus simple** : le générateur de ton gestionnaire de mots de passe. Sur iPhone, l'app **Mots de passe** propose un mot de passe fort quand tu crées une entrée (par exemple « Muscu Sync ») : il fait 20 caractères, tirets compris. Bitwarden, 1Password ou Proton Pass ont aussi un générateur : règle la longueur sur 24 ou plus.
@@ -114,7 +114,7 @@ https://script.google.com/macros/s/…/exec
 
 Sur le téléphone, dans l'app installée :
 
-1. Va dans **Paramètres** → **Archive Drive**.
+1. Va tout en bas des **Paramètres**, section **Option avancée — facultatif**, puis **Archive Drive**.
 2. **Adresse du script (URL)** : colle l'adresse de l'étape 6.
 3. **Secret** : saisis ton code secret de l'étape 3, **exactement** le même (au moins 20 caractères).
 4. Touche **Enregistrer**. L'app affiche « Configuration enregistrée. Fais un test avant d'activer l'envoi. ».
@@ -178,8 +178,8 @@ Si tu as créé un **nouveau** déploiement au lieu de modifier l'existant, l'ad
 | Ce que tu vois | Ce que ça veut dire | Que faire |
 |---|---|---|
 | « Adresse invalide : colle l'URL complète du script (https://…/exec). » | Ce n'est pas l'adresse de l'application Web | Recopie l'**URL de l'application Web** (étape 6), qui finit par `/exec` (pas l'adresse de l'éditeur de script) |
-| « Le secret doit contenir au moins 8 caractères. » | Code secret beaucoup trop court | Le script en exige **20** : génère-en un nouveau (étape 3), dans le script et dans l'app |
-| « Le script n'est pas configuré (secret ou dossier manquant). » | La propriété `SECRET` est absente du script, ou fait **moins de 20 caractères** | Reprends l'étape 3, lance `verifier_installation` (étape 4), puis **Envoyer un test** |
+| « Le secret doit contenir au moins 20 caractères, comme dans le script. » | Code secret trop court | Génère-en un nouveau (étape 3), et mets le même dans le script et dans l'app |
+| « Le script n'est pas configuré : vérifie sa propriété SECRET (au moins 20 caractères), puis relance « verifier_installation ». » | La propriété `SECRET` est absente du script, ou fait **moins de 20 caractères** | Reprends l'étape 3, lance `verifier_installation` (étape 4), puis **Envoyer un test** |
 | « Secret refusé par le script : vérifie le secret. » | Le code de l'app et celui du script diffèrent | Ressaisis exactement le même code des deux côtés (majuscules, tirets ; aucun espace) |
 | « Fais d'abord un test réussi avec cette configuration. » | L'adresse ou le secret a changé depuis le dernier test | Touche **Envoyer un test**, puis réactive l'envoi |
 | « Le script a répondu par une page d'erreur (cas fréquent chez Google) » | Google renvoie parfois une page d'erreur au lieu de la réponse | Rien : l'envoi repart tout seul |

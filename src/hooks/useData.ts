@@ -5,7 +5,7 @@ import { listWeights } from '../services/weightService';
 import type { ExerciseSummary, RecentProgression } from '../domain/stats';
 import type { ProgramSession, StoredProgram, WorkoutSession } from '../domain/types';
 import { listWorkouts } from '../services/historyService';
-import { getActiveProgram, getProgram } from '../services/programService';
+import { countPrograms, getActiveProgram, getProgram } from '../services/programService';
 import { getRecentProgress, getTrackedExercises } from '../services/statisticsService';
 import { getLastCoachExportAt, getLastExportAt } from '../services/settingsService';
 import { getInProgressWorkout, getNextSessionForActiveProgram, getWorkout } from '../services/workoutService';
@@ -15,6 +15,9 @@ import { getInProgressWorkout, getNextSessionForActiveProgram, getWorkout } from
  * `undefined` = chargement en cours ; `null` = absent.
  */
 export const useActiveProgram = (): StoredProgram | null | undefined => useLiveQuery(getActiveProgram, []);
+
+/** Nombre de programmes, actifs ou archivés (V1.8.0). */
+export const useProgramCount = (): number | undefined => useLiveQuery(countPrograms, []);
 
 export const useTrackedExercises = (): ExerciseSummary[] | undefined => useLiveQuery(getTrackedExercises, []);
 

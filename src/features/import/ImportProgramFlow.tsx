@@ -1,8 +1,11 @@
 import { createContext, use, useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { CircleCheck, ClipboardPaste, FileUp, TriangleAlert } from 'lucide-react';
+import { CircleCheck, ClipboardCopy, ClipboardPaste, FileUp, TriangleAlert } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router';
 import { Button, type ButtonVariant } from '../../components/Button';
+import { CopyTextButton } from '../../components/CopyTextButton';
+import { buildCoachErrorReport } from '../../coach/coachErrorReport';
+import { APP_VERSION } from '../../config';
 import fieldStyles from '../../components/Field.module.css';
 import { Sheet } from '../../components/Sheet';
 import { useActiveProgram } from '../../hooks/useData';
@@ -216,6 +219,16 @@ function ErrorSheet({ failure, source, showDetails, onToggleDetails, onRetry, on
       }
     >
       <p role="alert">{failure.message}</p>
+      {/* V1.8.0 : le texte complet de l'erreur, prêt à coller dans la conversation avec le coach. */}
+      <div className={styles.coachCopy}>
+        <CopyTextButton
+          text={buildCoachErrorReport(failure, APP_VERSION)}
+          label={strings.coachError.copy}
+          icon={<ClipboardCopy aria-hidden />}
+          variant="secondary"
+        />
+        <p className={styles.coachCopyHint}>{strings.coachError.hint}</p>
+      </div>
       {failure.details.length > 0 && (
         <div>
           <button type="button" className={styles.detailsToggle} aria-expanded={showDetails} onClick={onToggleDetails}>

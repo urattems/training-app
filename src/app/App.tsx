@@ -12,6 +12,7 @@ import { WorkoutPage } from '../features/workout/WorkoutPage';
 import { CoachExportPage } from '../features/settings/CoachExportPage';
 import { DrivePage } from '../features/settings/DrivePage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { StartPage } from '../features/start/StartPage';
 import { ConnectionNotice } from './ConnectionNotice';
 import { DriveSyncAgent } from './DriveSyncAgent';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -61,6 +62,7 @@ export function AppRoutes() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/coach" element={<CoachExportPage />} />
           <Route path="settings/drive" element={<DrivePage />} />
+          <Route path="start" element={<StartPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

@@ -16,7 +16,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { DriveRegressionNotice } from '../settings/DriveRegressionNotice';
 import { getLastAutoBackupAt, latestInstant } from '../../services/settingsService';
 import { sessionDriveStatus, useDriveState, type SessionDriveStatus } from '../../hooks/useDrive';
-import { useActiveProgram, useInProgressWorkout, useLastExportAt, useMeasurements, useNextSession, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
+import { useActiveProgram, useInProgressWorkout, useLastExportAt, useMeasurements, useNextSession, useProgramCount, useRecentProgress, useWeights, useWorkouts } from '../../hooks/useData';
 import { strings } from '../../i18n/strings';
 import { formatDayLong, formatDuration, formatTime } from '../../utils/format';
 import { historyDetailPath } from '../history/paths';
@@ -24,6 +24,7 @@ import { ImportPasteButton, ImportProgramButton } from '../import/ImportProgramF
 import { AbandonWorkoutButton, StartWorkoutButton, workoutPath } from '../workout/WorkoutActions';
 import { useToday } from '../../hooks/useToday';
 import { ActivityCard } from './ActivityCard';
+import { StartGuide } from '../start/StartGuide';
 import styles from './HomePage.module.css';
 
 const t = strings.home;
@@ -34,8 +35,11 @@ export function HomePage() {
   const inProgress = useInProgressWorkout();
   const nextSession = useNextSession();
   const workouts = useWorkouts();
+  const programCount = useProgramCount();
 
-  const loading = program === undefined || inProgress === undefined || nextSession === undefined || workouts === undefined;
+  const loading = program === undefined || inProgress === undefined || nextSession === undefined || workouts === undefined || programCount === undefined;
+  // V1.8.0 : table `programs` vide (aucun programme, actif ou archivé) = app réellement vide.
+  const emptyApp = programCount === 0 && !inProgress;
   const lastWorkout = workouts?.find((w) => w.status !== 'in_progress') ?? null;
 
   return (
@@ -49,7 +53,10 @@ export function HomePage() {
     >
       {loading && <LoadingState />}
 
-      {!loading && program === null && !inProgress && (
+      {!loading && emptyApp && <StartGuide welcome />}
+
+      {/* Des programmes existent, mais aucun n'est actif (sauvegarde restaurée sans programme actif). */}
+      {!loading && !emptyApp && program === null && !inProgress && (
         <EmptyState icon={<Dumbbell />} title={t.welcomeTitle} text={t.welcomeText}>
           <ImportProgramButton size="lg" />
           <ImportPasteButton />

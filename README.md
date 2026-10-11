@@ -33,13 +33,17 @@ Ouvre **https://urattems.github.io/training-app/** sur ton téléphone, puis ajo
 
 [capture à ajouter : Android, menu ⋮ → « Installer l'application »]
 
+**Au premier lancement, l'app t'accueille avec un écran de démarrage en trois étapes** : installer l'app (avec le tutoriel iPhone ou Android, choisi automatiquement et modifiable), démarrer ton coach, importer ton programme. L'étape d'installation disparaît quand l'app est déjà ouverte depuis l'écran d'accueil. Tu retrouves cet écran à tout moment dans Paramètres → **Guide de démarrage**.
+
+[capture à ajouter : écran de démarrage]
+
 Ensuite, **ouvre toujours l'app depuis son icône** « Carnet ». Sur iPhone, c'est indispensable : l'app installée et Safari ne partagent pas leurs données.
 
 Détails et cas particuliers : [Installer l'app (iPhone et Android)](docs/installation.md).
 
 ## 2. Démarrer ton coach
 
-Ouvre l'IA de ton choix (ChatGPT, Claude, Gemini…), démarre une nouvelle conversation et colle ce texte :
+Dans l'app, l'écran de démarrage (ou Paramètres → **Guide de démarrage**) propose le bouton **Copier le prompt du coach** : il copie le texte ci-dessous. Ouvre l'IA de ton choix (ChatGPT, Claude, Gemini…), démarre une nouvelle conversation et colle-le :
 
 ```text
 Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en entier, puis confirme que tu l'as lu ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Ensuite, commence l'accueil. Le guide : https://urattems.github.io/training-app/coach.md
@@ -56,7 +60,9 @@ Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en e
 - Dans la réponse du coach, copie le bloc de code du programme (bouton **Copier** du bloc).
 - Dans l'app : **Coller le JSON** (au premier lancement, ou dans Paramètres), colle, touche **Vérifier**, puis **Importer**.
 - Le nouveau programme devient actif ; l'ancien est archivé, ton historique est conservé.
-- **Programme refusé** (« Texte refusé » ou « Fichier refusé ») : rien n'est importé. Copie le message d'erreur (ou fais une capture) et envoie-le à ton coach : il te renverra un programme corrigé.
+- **Programme refusé** (« Texte refusé » ou « Fichier refusé ») : rien n'est importé. Touche **Copier l'erreur pour mon coach** et colle le texte dans la conversation : il contient la version de l'app, le format attendu et chaque erreur avec son emplacement. Ton coach te renverra un programme corrigé.
+
+[capture à ajouter : « Copier l'erreur pour mon coach »]
 
 **À la salle**
 - L'accueil te propose la prochaine séance : **Commencer la séance**.
@@ -75,7 +81,7 @@ Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en e
 |---|---|---|
 | **Exporter mes données** | Paramètres | **Ta sauvegarde.** Un fichier complet (programmes, séances, pesées, mensurations), le **seul** qui permet de tout **restaurer** (Paramètres → **Restaurer une sauvegarde**) ou de **changer de téléphone**. Range-le dans Fichiers, iCloud, Google Drive… |
 | **Exporter pour le coach** | Paramètres | **L'envoi à ton IA.** Une sélection de séances à coller dans la conversation. **Ce n'est PAS une sauvegarde** : il ne peut pas être restauré. |
-| **Archive Google Drive** | Paramètres → Archive Drive | **Une copie automatique, facultative**, dans ton propre Google Drive. L'app fonctionne très bien sans. |
+| **Archive Google Drive** | Paramètres → Option avancée → Archive Drive | **Une copie automatique, facultative**, dans ton propre Google Drive. L'app fonctionne très bien sans. |
 
 Tes séances sont enregistrées dans l'app à chaque saisie, même hors connexion. Mais un téléphone se perd, et iPhone peut effacer les données d'une app web peu utilisée : **exporte régulièrement tes données**. L'accueil te le rappelle discrètement quand tu as fait des séances et que ton dernier export date de plus de 14 jours.
 
@@ -84,7 +90,7 @@ Tes séances sont enregistrées dans l'app à chaque saisie, même hors connexio
 - **Poids** (onglet Poids) : une pesée par jour, courbe et statistiques. Tu peux joindre tes pesées à l'export pour le coach.
 - **Mensurations** (onglet Poids → Mensurations) : 6 zones en cm. Jointes au coach seulement si tu coches « Joindre mes mensurations ».
 - **Thème** : Clair, Sombre ou Système (Paramètres → Préférences).
-- **Archive Google Drive** (option avancée, **facultative**) : copie automatique de tes séances, pesées et sauvegardes dans ton Google Drive, via un petit script à installer toi-même (fourni). L'app fonctionne très bien sans. Guide pas à pas : [Activer l'archive Google Drive](docs/guide-drive.md).
+- **Archive Google Drive** (option avancée, **facultative**, tout en bas des Paramètres) : copie automatique de tes séances, pesées et sauvegardes dans ton Google Drive, via un petit script à installer toi-même (fourni). L'app fonctionne très bien sans. Guide pas à pas : [Activer l'archive Google Drive](docs/guide-drive.md).
 
 ## 6. Vie privée
 
@@ -145,7 +151,7 @@ En **HTTP sur une IP locale**, le navigateur n'est pas en contexte sécurisé : 
 src/
   app/          App (routes HashRouter), Shell (barre basse), filet d'erreur
   components/   UI réutilisable (Button, Card, Sheet, NumberField, TextField…)
-  features/     écrans : home, program, workout, exercise, history, progress, weight, settings, import
+  features/     écrans : home, start (démarrage), program, workout, exercise, history, progress, weight, settings, import
   domain/       règles métier pures et testées (séance, rotation, stats, graphique, rappel d'export)
   schemas/      contrat JSON (Zod), invariants, migrations de schéma, messages d'erreur
   db/           base IndexedDB (Dexie, version 3 depuis la V1.5.0), état de connexion entre onglets
@@ -154,7 +160,7 @@ src/
   pwa/          manifest, bannière de mise à jour
   styles/       tokens de design (couleurs, tailles…), styles de base
   theme/        thème clair, sombre ou système
-  coach/        prompt de démarrage du coach (source unique) et garde-fous de la documentation
+  coach/        prompt de démarrage (source unique), texte « Copier l'erreur pour mon coach », garde-fous de la documentation
   i18n/         textes de l'interface
 public/         icônes, guide du coach (coach.md)
 examples/       fixtures contractuelles (ne pas modifier)

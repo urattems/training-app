@@ -9,3 +9,6 @@ export const APP_BUILD: string = __APP_BUILD__;
 
 /** Nom de la base IndexedDB, unique car l'origine GitHub Pages est partagée entre dépôts. */
 export const DB_NAME = 'training-app-db';
+
+/** Guide pas à pas de l'archive Google Drive, publié dans le dépôt (V1.8-SPEC §4.3). */
+export const DRIVE_GUIDE_URL = 'https://github.com/urattems/training-app/blob/main/docs/guide-drive.md';

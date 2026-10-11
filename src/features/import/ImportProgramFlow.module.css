@@ -92,3 +92,16 @@
   overflow-wrap: normal;
   overflow-x: auto;
 }
+
+/* « Copier l'erreur pour mon coach » (V1.8.0). */
+.coachCopy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+.coachCopyHint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
