@@ -200,7 +200,7 @@ describe('Étape 2 — Démarrer ton coach', () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(writeText).toHaveBeenCalledWith(COACH_PROMPT);
     expect(writeText.mock.calls[0]?.[0]).toBe(
-      "Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en entier, puis confirme que tu l'as lu ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Ensuite, commence l'accueil. Le guide : https://urattems.github.io/training-app/coach.md",
+      "Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en entier, puis confirme que tu l'as lu ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Ensuite, commence l'accueil. Le guide : https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md",
     );
     expect(await screen.findByRole('status')).toHaveTextContent('Copié');
   });
@@ -274,7 +274,7 @@ describe('« Copier l’erreur pour mon coach » (§4.2)', () => {
         'Erreurs (emplacement — détail) :',
         ...parsed.error.details.map((line) => `- ${line}`),
         '',
-        'Corrige et renvoie le JSON complet, seul, conforme au guide du coach : https://urattems.github.io/training-app/coach.md',
+        'Corrige et renvoie le JSON complet, seul, conforme au guide du coach : https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md',
       ].join('\n'),
     );
     expect(parsed.error.message).toBe('Import impossible : la séance A contient un exercice sans identifiant. (et 1 autre erreur)');

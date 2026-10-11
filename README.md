@@ -46,11 +46,11 @@ Détails et cas particuliers : [Installer l'app (iPhone et Android)](docs/instal
 Dans l'app, l'écran de démarrage (ou Paramètres → **Guide de démarrage**) propose le bouton **Copier le prompt du coach** : il copie le texte ci-dessous. Ouvre l'IA de ton choix (ChatGPT, Claude, Gemini…), démarre une nouvelle conversation et colle-le :
 
 ```text
-Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en entier, puis confirme que tu l'as lu ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Ensuite, commence l'accueil. Le guide : https://urattems.github.io/training-app/coach.md
+Sois mon coach de musculation pour l'app Training App. Lis d'abord le guide en entier, puis confirme que tu l'as lu ; si tu ne peux pas l'ouvrir, dis-le et je te le collerai. Ensuite, commence l'accueil. Le guide : https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md
 ```
 
 - Le coach te pose d'abord quelques questions (objectif, expérience, temps disponible, matériel, contraintes), te fait un récapitulatif, puis te propose ton **premier programme**.
-- Si ton IA ne peut pas ouvrir le lien, ouvre toi-même le [guide du coach](https://urattems.github.io/training-app/coach.md), copie tout son texte et colle-le dans la conversation (ou envoie-lui le fichier).
+- Si ton IA ne peut pas ouvrir le lien, ouvre toi-même le [guide du coach](https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md), copie tout son texte et colle-le dans la conversation (ou envoie-lui le fichier).
 - À la fin de l'accueil, le coach te donne une **fiche profil** : garde-la (dans tes notes ou sur ton ordinateur). Elle lui permettra de reprendre dans une nouvelle conversation sans tout redemander.
 - Testé avec ChatGPT (gratuit et payant), Claude et Gemini. Chaque IA a sa façon de répondre : aucune garantie qu'elles se comportent toutes pareil.
 
@@ -113,7 +113,7 @@ PWA React 19, TypeScript strict, Vite, Dexie (IndexedDB), Zod, Recharts. 100 % s
 **Documentation du projet**
 - [`SPEC.md`](SPEC.md) : fonctionnement complet (source de vérité), complété par les addendums [`V1.3-SPEC.md`](V1.3-SPEC.md) (archive Drive) et [`V1.8-SPEC.md`](V1.8-SPEC.md) (ouverture à tous).
 - [`JSON_SCHEMA.md`](JSON_SCHEMA.md) : formats d'échange (programme, sauvegarde, export coach, archive Drive).
-- [`public/coach.md`](public/coach.md) : guide du coach, servi sur le site (`/training-app/coach.md`), jamais intercepté ni précaché par le service worker ; des tests le vérifient contre le code (V1.8-SPEC §6).
+- [`public/coach.md`](public/coach.md) : guide du coach. Les IA le lisent à son adresse brute (https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md, `text/plain`) ; une copie est aussi servie sur le site (`/training-app/coach.md`), jamais interceptée ni précachée par le service worker. Des tests le vérifient contre le code (V1.8-SPEC §6).
 - [`DECISIONS.md`](DECISIONS.md) : journal des décisions techniques.
 - [`CLAUDE.md`](CLAUDE.md) : règles de travail du projet.
 - [`docs/installation.md`](docs/installation.md), [`docs/guide-drive.md`](docs/guide-drive.md) : guides utilisateurs.

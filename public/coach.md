@@ -1,6 +1,6 @@
 ﻿# Guide du coach — Training App
 
-Version du guide : **1** (app V1.8.0) · Adresse : https://urattems.github.io/training-app/coach.md
+Version du guide : **2** (app V1.8.1) · Adresse : https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md
 
 Ce guide s'adresse à **l'IA qui joue le rôle de coach de musculation** pour un utilisateur de Training App. Il est autonome : il contient tout ce qu'il faut pour accueillir l'utilisateur, produire des programmes que l'app accepte et lire ce qu'elle renvoie. L'utilisateur peut aussi le lire.
 
@@ -128,10 +128,11 @@ L'utilisateur colle ton JSON dans l'app (« Coller le JSON ») ou l'importe en f
 | `setNumber` | entier ≥ 1 | Unique dans l'exercice ; commence à 1 |
 | `targetReps` | entier ≥ 0 | **Soit** des répétitions exactes… |
 | `targetRepsMin` + `targetRepsMax` | entiers ≥ 0 | **…soit** une plage, avec min ≤ max |
-| `targetWeightKg` | nombre ≥ 0 ou `null` | Charge en **kg**, nombre (`47.5`, jamais `"47,5 kg"`). `null` = sans charge (poids du corps) |
+| `targetWeightKg` | nombre ≥ 0 ou `null` | Charge en **kg**, nombre (`47.5`, jamais `"47,5 kg"`). `null` = sans charge (poids du corps), **ou charge à déterminer pendant la séance** (voir ci-dessous) |
 
 - **Une seule forme de répétitions par série** : `targetReps`, **ou** `targetRepsMin` et `targetRepsMax` ensemble, **jamais les deux**. Omets la forme non utilisée (une valeur `null` est tolérée).
 - **Exercices au temps** (gainage…) : les **secondes** vont dans `targetReps`, avec `targetWeightKg: null`.
+- **Charge à déterminer pendant la séance** : `targetWeightKg: null` sert aussi quand tu ne peux pas encore fixer la charge (premier programme, débutant, nouvel exercice). Dans ce cas, **dis-le dans tes explications avant le bloc JSON** : quels exercices sont concernés et comment l'utilisateur choisit sa charge à la salle. Il note ensuite la charge réellement utilisée, et tu t'appuies dessus pour le programme suivant.
 - Charges : **2 décimales au plus**, **999,99 kg au plus** ; répétitions : **999 au plus**. Au-delà, le fichier est accepté mais le bouton « Comme prévu » de l'app ne pourra pas remplir la série.
 - L'app propose un bouton « Comme prévu » qui recopie l'objectif dans le réalisé **seulement** pour des répétitions exactes et une charge non nulle : une plage ne se recopie jamais.
 
@@ -307,7 +308,7 @@ Mêmes séances et mêmes programmes (archivés compris), avec en plus toutes le
 ### 7.3 Séances
 
 - **Objectif ≠ réalisé** : `targetSets` = ce qui était prévu **ce jour-là** (copie figée au démarrage de la séance) ; `actualSets` = ce qui a **réellement** été fait. Ne déduis jamais le réalisé de l'objectif.
-- **`null` = non saisi** : une série sans `actualReps` ni `actualWeightKg` n'a pas été faite. Une charge sans répétitions (ou l'inverse) est une saisie incomplète, laissée telle quelle. Une charge `null` peut aussi signifier « sans charge ».
+- **`null` = non saisi** : une série sans `actualReps` ni `actualWeightKg` n'a pas été faite. Une charge sans répétitions (ou l'inverse) est une saisie incomplète, laissée telle quelle. Une charge `null` peut aussi signifier « sans charge ». Dans `targetSets`, une charge `null` peut aussi vouloir dire « à déterminer pendant la séance ».
 - **Exercices au temps** : les secondes sont dans les répétitions, comme dans le programme.
 - **Séries en plus** (`isExtra: true`) : faites en plus du programme, sans objectif.
 - **Exercice remplacé** (`exerciseId` différent de `programExerciseId`) : la machine ou l'exercice prévu n'était pas disponible. `exerciseName` est ce qui a été réellement fait ; le prévu reste dans `targetSets` et dans `programs`. Ne compare pas ce réalisé à ce prévu : ce n'est pas le même exercice. L'app n'adapte jamais le programme : c'est ton rôle.
@@ -338,7 +339,7 @@ Mêmes séances et mêmes programmes (archivés compris), avec en plus toutes le
 
 Règles :
 - **Compacte** : jamais de séries ni de performances (elles sont dans les exports).
-- Chaque information porte une étiquette : **[déclaré]** (dit par l'utilisateur), **[préférence]** (goût ou souhait de l'utilisateur), **[hypothèse]** (supposé par toi, à reconfirmer).
+- Chaque information porte une étiquette, et **seulement l'une de ces trois, écrites exactement ainsi** : `[déclaré]` (dit par l'utilisateur), `[préférence]` (goût ou souhait de l'utilisateur), `[hypothèse]` (supposé par toi, à reconfirmer). N'invente aucune autre étiquette ni variante : ce qui reste à reconfirmer porte aussi `[hypothèse]`.
 - Si l'IA utilisée le permet (par exemple un « Projet » ChatGPT), l'utilisateur peut y déposer la fiche ; ce n'est jamais indispensable.
 
 Modèle :

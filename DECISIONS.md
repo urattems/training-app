@@ -2505,3 +2505,39 @@ Après restauration : 63/63 sur les fichiers concernés.
   - secret de 19 caractères refusé, de 20 accepté ;
   - configuration existante (secret court) conservée, au démarrage comme à l'enregistrement ;
   - message à l'écran.
+
+---
+
+## V1.8.1 — Adresse du guide du coach lisible par ChatGPT (aucun format, aucune base, aucune fixture modifiés)
+
+### Constat (terrain, testé par l'utilisateur)
+- L'outil de navigation de ChatGPT refuse `https://urattems.github.io/training-app/coach.md` : « format non pris en charge ». GitHub Pages sert le fichier en `text/markdown`.
+- Il lit en entier `https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md` (`text/plain; charset=utf-8`) et confirme la version du guide.
+
+### Choix
+- **`COACH_GUIDE_URL`** (`src/coach/coachPrompt.ts`, source unique) devient l'adresse **brute** du fichier dans le dépôt.
+  - Elle sert au prompt, à « Ouvrir le guide du coach » et à « Copier l'erreur pour mon coach ».
+  - Le texte du prompt est inchangé ; seule l'URL change, toujours en fin de texte, sans ponctuation derrière.
+- Même adresse dans le README (prompt et lien), dans l'en-tête de `coach.md` et au §5.3 de `V1.8-SPEC.md`, avec une note datée.
+  - La description de T3 au §6 de l'addendum est alignée (elle citait l'ancienne URL).
+  - `JSON_SCHEMA.md` donne les deux adresses.
+- **La copie du site est conservée** : `public/coach.md` reste servi à `/training-app/coach.md`, exclu du fallback du service worker, non précaché, avec son BOM. Elle reste utile à un navigateur, et rien n'oblige à la retirer.
+- Limite : l'adresse brute suit la branche `main` du dépôt public. Une modification du guide poussée sur `main` est donc lue tout de suite par les IA, avant même le déploiement du site.
+
+### Guide du coach (version 2)
+- « Version du guide : 2 (app V1.8.1) ».
+- §6.5 : `targetWeightKg: null` veut aussi dire **« charge à déterminer pendant la séance »** (premier programme, débutant, nouvel exercice). Le coach le dit dans ses explications avant le bloc JSON. Le §7.3 rappelle cette lecture pour `targetSets`.
+- §8 : seulement trois étiquettes, écrites exactement `[déclaré]`, `[préférence]`, `[hypothèse]`. Ce qui reste à reconfirmer porte `[hypothèse]`. Aucun exemple de variante n'est cité dans le guide, pour ne pas en suggérer.
+- Le bloc JSON d'exemple est inchangé et reste valide (T1).
+
+### Tests
+- T3 et tous les tests qui figeaient l'URL suivent la nouvelle adresse :
+  - `coachGuide.test.ts` ;
+  - `coachErrorReport.test.ts` : 2 littéraux ;
+  - `StartGuide.test.tsx` : 2 littéraux, contenu exact du presse-papiers.
+  - Ce changement d'attente est la conséquence directe de la demande.
+- **Ajouts** :
+  - T3 : le lien du README et l'en-tête de `coach.md` donnent l'adresse de la constante, et l'ancienne adresse n'est plus proposée dans le prompt ni dans le lien ;
+  - §8 : `coach.md` n'emploie aucune étiquette entre crochets autre que les trois autorisées (liens Markdown et cases à cocher exclus).
+- **Contre-épreuve** : l'ancienne URL remise dans le prompt du README fait échouer 2 tests T3. Le fichier restauré, ils repassent.
+- Version **1.8.1** (`package.json`, `package-lock.json`, Paramètres → Informations).

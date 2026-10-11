@@ -91,9 +91,9 @@ describe('T2 — les versions citées dans coach.md sont celles du code', () => 
 });
 
 describe('T3 — prompt de démarrage : une seule source', () => {
-  it('l’URL du guide est l’adresse publique de coach.md, et elle termine le prompt', () => {
-    expect(COACH_GUIDE_URL).toBe('https://urattems.github.io/training-app/coach.md');
-    expect(COACH_GUIDE_URL).toBe(`https://urattems.github.io${DEFAULT_BASE}${COACH_GUIDE_FILE}`);
+  it('l’URL du guide est l’adresse brute de public/coach.md dans le dépôt (V1.8.1), et elle termine le prompt', () => {
+    expect(COACH_GUIDE_URL).toBe('https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md');
+    expect(COACH_GUIDE_URL).toBe(`https://raw.githubusercontent.com/urattems/training-app/main/public/${COACH_GUIDE_FILE}`);
     expect(COACH_PROMPT.endsWith(` ${COACH_GUIDE_URL}`)).toBe(true);
     expect(COACH_PROMPT.split(COACH_GUIDE_URL)).toHaveLength(2);
   });
@@ -102,8 +102,25 @@ describe('T3 — prompt de démarrage : une seule source', () => {
     expect(fencedBlocks(read('README.md'), 'text')).toContain(COACH_PROMPT);
   });
 
+  it('le README et l’en-tête de coach.md donnent la même adresse ; l’ancienne adresse du site n’est plus proposée aux IA', () => {
+    const readme = read('README.md');
+    expect(readme).toContain(`[guide du coach](${COACH_GUIDE_URL})`);
+    expect(coachMd).toMatch(new RegExp(`^Version du guide : \\*\\*\\d+\\*\\* \\(app V[\\d.]+\\) · Adresse : ${COACH_GUIDE_URL.replace(/[.]/g, '\\.')}$`, 'm'));
+    expect(readme).not.toContain('Le guide : https://urattems.github.io/training-app/coach.md');
+    expect(readme).not.toContain('[guide du coach](https://urattems.github.io/training-app/coach.md)');
+  });
+
   it('l’addendum V1.8 (§5.3) cite le même texte', () => {
     expect(read('V1.8-SPEC.md')).toContain(`« ${COACH_PROMPT} »`);
+  });
+});
+
+describe('Fiche profil (§8) : trois étiquettes seulement', () => {
+  it('coach.md n’emploie aucune étiquette entre crochets autre que [déclaré], [préférence], [hypothèse]', () => {
+    // Crochets hors liens Markdown et hors cases à cocher « - [ ] ».
+    const tags = [...coachMd.matchAll(/\[([^\]\n]+)\](?!\()/g)].map((m) => m[1]).filter((tag) => tag !== ' ');
+    expect(tags.length).toBeGreaterThan(0);
+    expect([...new Set(tags)].sort()).toEqual(['déclaré', 'hypothèse', 'préférence']);
   });
 });
 

@@ -506,7 +506,7 @@ Muscu/
 
 ## Pour le coach
 
-Les consignes destinées au coach (IA ou humain) sont dans **un seul document** : le guide du coach, [`public/coach.md`](public/coach.md), publié à l'adresse https://urattems.github.io/training-app/coach.md (V1.8).
+Les consignes destinées au coach (IA ou humain) sont dans **un seul document** : le guide du coach, [`public/coach.md`](public/coach.md), lu par les IA à son adresse brute https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md (V1.8.1, `text/plain`) ; une copie reste publiée sur le site, https://urattems.github.io/training-app/coach.md.
 
 Il reprend tout ce que contenait cette section jusqu'à la V1.7.5 :
 - la liste de contrôle pour produire un PROGRAM_JSON valide (section 6 du guide), avec un exemple complet ;

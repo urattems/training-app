@@ -12,7 +12,7 @@ describe('Texte « Copier l’erreur pour mon coach » (V1.8-SPEC §4.2)', () =>
         '',
         "Message de l'app : Import impossible : un programme avec l’identifiant « prog-1 » existe déjà.",
         '',
-        'Corrige et renvoie le JSON complet, seul, conforme au guide du coach : https://urattems.github.io/training-app/coach.md',
+        'Corrige et renvoie le JSON complet, seul, conforme au guide du coach : https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md',
       ].join('\n'),
     );
   });
@@ -21,6 +21,6 @@ describe('Texte « Copier l’erreur pour mon coach » (V1.8-SPEC §4.2)', () =>
     const failure = importFailure('invalid_schema', 'program', 'détail.', ['a.b — custom : un', 'c — invalid_type : deux']);
     const lines = buildCoachErrorReport(failure, '1.8.0').split('\n');
     expect(lines.slice(4, 8)).toEqual(['', 'Erreurs (emplacement — détail) :', '- a.b — custom : un', '- c — invalid_type : deux']);
-    expect(lines.at(-1)).toBe('Corrige et renvoie le JSON complet, seul, conforme au guide du coach : https://urattems.github.io/training-app/coach.md');
+    expect(lines.at(-1)).toBe('Corrige et renvoie le JSON complet, seul, conforme au guide du coach : https://raw.githubusercontent.com/urattems/training-app/main/public/coach.md');
   });
 });
