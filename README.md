@@ -107,7 +107,7 @@ PWA React 19, TypeScript strict, Vite, Dexie (IndexedDB), Zod, Recharts. 100 % s
 **Documentation du projet**
 - [`SPEC.md`](SPEC.md) : fonctionnement complet (source de vérité), complété par les addendums [`V1.3-SPEC.md`](V1.3-SPEC.md) (archive Drive) et [`V1.8-SPEC.md`](V1.8-SPEC.md) (ouverture à tous).
 - [`JSON_SCHEMA.md`](JSON_SCHEMA.md) : formats d'échange (programme, sauvegarde, export coach, archive Drive).
-- [`public/coach.md`](public/coach.md) : guide du coach, servi sur le site (`/training-app/coach.md`).
+- [`public/coach.md`](public/coach.md) : guide du coach, servi sur le site (`/training-app/coach.md`), jamais intercepté ni précaché par le service worker ; des tests le vérifient contre le code (V1.8-SPEC §6).
 - [`DECISIONS.md`](DECISIONS.md) : journal des décisions techniques.
 - [`CLAUDE.md`](CLAUDE.md) : règles de travail du projet.
 - [`docs/installation.md`](docs/installation.md), [`docs/guide-drive.md`](docs/guide-drive.md) : guides utilisateurs.
@@ -154,6 +154,7 @@ src/
   pwa/          manifest, bannière de mise à jour
   styles/       tokens de design (couleurs, tailles…), styles de base
   theme/        thème clair, sombre ou système
+  coach/        prompt de démarrage du coach (source unique) et garde-fous de la documentation
   i18n/         textes de l'interface
 public/         icônes, guide du coach (coach.md)
 examples/       fixtures contractuelles (ne pas modifier)

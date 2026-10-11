@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import { buildManifest, DEFAULT_BASE, STATIC_ASSETS, themeColorsFromTokens } from './src/pwa/manifest.ts';
+import { buildManifest, DEFAULT_BASE, NAVIGATE_FALLBACK_DENYLIST, STATIC_ASSETS, themeColorsFromTokens } from './src/pwa/manifest.ts';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 const tokensCss = readFileSync(new URL('./src/styles/tokens.css', import.meta.url), 'utf8');
@@ -31,6 +31,8 @@ export default defineConfig(({ command, isPreview }) => {
           globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
           // HashRouter : seule index.html est demandée en navigation.
           navigateFallback: 'index.html',
+          // Sauf le guide du coach (V1.8) : son adresse renvoie le fichier, jamais l'app.
+          navigateFallbackDenylist: [...NAVIGATE_FALLBACK_DENYLIST],
           cleanupOutdatedCaches: true,
           // Aucun runtimeCaching : le service worker n'utilise que Cache Storage, jamais IndexedDB.
           runtimeCaching: [],

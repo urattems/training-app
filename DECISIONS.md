@@ -2353,3 +2353,75 @@ Référence : `V1.8-SPEC.md` (§5, §9), ajouté au dépôt avec une ligne de re
   - « Archive Google Drive » (copie automatique, facultative).
 - **Prompt de démarrage** : l'URL termine désormais le texte, sans ponctuation derrière, pour qu'aucune IA n'inclue un point dans le lien. Les phrases sont réordonnées en conséquence, à l'identique dans le README et dans `V1.8-SPEC.md` §5.3. `coach.md` ne contient pas le prompt.
 - **`V1.8-SPEC.md`** : « Réglages » devient « Paramètres » (4 occurrences), et « parseProgram » devient « parseProgramJson » au §6. Aucune autre modification.
+
+---
+
+## V1.8.0 — J2 : publication du guide du coach et garde-fous (aucune interface, aucun format ni base modifiés)
+
+### Publication de `coach.md`
+- `public/coach.md` est copié tel quel dans `dist/` par Vite, et donc servi à `https://urattems.github.io/training-app/coach.md` après déploiement. Vérifié au build : `dist/coach.md` identique octet pour octet.
+- **Le service worker ne répond jamais à cette adresse par l'app.** `navigateFallbackDenylist` reçoit `NAVIGATE_FALLBACK_DENYLIST` = `[/\/coach\.md(?:\?|$)/]`.
+  - La constante est déclarée dans `src/pwa/manifest.ts`, partagée par `vite.config.ts` et les tests, comme `STATIC_ASSETS`.
+  - Workbox teste ce motif sur `pathname + search` : il couvre `…/coach.md` avec ou sans paramètre, mais pas `/training-app/` ni `index.html`.
+  - **Vérifié dans le `dist/sw.js` réellement généré** : `NavigationRoute(e.createHandlerBoundToURL("index.html"),{denylist:[/\/coach\.md(?:\?|$)/]})`.
+- **Pas de précache** (choix de l'utilisateur, retenu) : l'extension `.md` n'est pas dans `globPatterns`. Vérifié dans `sw.js` : aucune entrée `coach`, 30 entrées au total. Raisons :
+  - le guide est lu par une IA, donc en ligne : il doit toujours être la dernière version publiée, sans attendre une mise à jour du service worker ;
+  - il ne sert à rien hors ligne : sans réseau, pas d'IA ;
+  - aucun `runtimeCaching` n'est ajouté non plus : le service worker continue de n'utiliser que le précache de l'app.
+  - Conséquence : hors ligne, l'adresse du guide donne l'erreur réseau du navigateur, et non l'app. C'est voulu.
+
+### Source unique du prompt
+- `src/coach/coachPrompt.ts` : `COACH_GUIDE_URL` (adresse du guide) et `COACH_PROMPT` (texte du §5.3, qui se termine par cette adresse). Aucun composant ne l'utilise encore (J3).
+
+### Garde-fous (`src/coach/coachGuide.test.ts`, 14 tests)
+- **T1** : au moins un bloc ` ```json ` dans le guide.
+  - Chaque bloc passe `parseProgramJson`, sans champ ignoré (`findIgnoredFields`).
+  - Les `notes` font 160 caractères au plus (points de code).
+- **T2** : les versions citées dans `coach.md` sont lues aux endroits où le guide les annonce (titre du §6, tableau de la racine, tableau du §7, §7.1, §7.5). Elles sont comparées aux constantes de `schemas/common.ts`, sans aucune version recopiée en dur. Toute autre version `"x.y"` citée fait échouer le test.
+- **T3** :
+  - `COACH_GUIDE_URL` = `https://urattems.github.io/training-app/coach.md`, et aussi l'origine + `DEFAULT_BASE` + `coach.md` ;
+  - l'adresse termine le prompt et n'y figure qu'une fois ;
+  - le README contient un bloc ` ```text ` exactement égal à la constante ;
+  - **ajout** : l'addendum (§5.3) cite le même texte, entre guillemets.
+- **T4** :
+  - `public/coach.md` existe ;
+  - `vite.config.ts` garde `navigateFallback` et branche la liste d'exclusion ;
+  - le motif refuse le guide et laisse passer l'app ;
+  - `md` est absent des `globPatterns` (absence de précache).
+  - C'est un test de configuration : le service worker lui-même n'est ni généré ni exécuté par Vitest (plugin désactivé sous test). La vérification de `sw.js` est donc faite au build, comme ci-dessus.
+- **T6** : ces chemins ne doivent contenir aucune adresse `script.google.com/macros/s/<identifiant>`, aucun `AKfy` suivi de 20 caractères ou plus, aucune valeur littérale affectée à `secret` / `SECRET`, et aucun `setProperty('SECRET', …)`.
+  - Chemins analysés : `README.md`, `V1.8-SPEC.md`, tous les fichiers texte de `docs/` (script Apps Script compris) et de `public/`.
+  - Les détecteurs sont eux-mêmes testés. L'adresse type `…/macros/s/…/exec` du guide est autorisée.
+  - Limite : c'est une détection par motifs ; un secret écrit en prose, hors de toute affectation, ne serait pas vu.
+- **T5** : couvert par les tests d'empreintes existants, inchangés :
+  - `src/test/fixtures.test.ts` (`program-example.json`, `history-example.json`) ;
+  - `src/services/measurementsBackup.test.ts` (« valide ; empreinte figée ; fixtures existantes intactes » : 6 autres fixtures) ;
+  - `src/services/coachMeasurements.test.ts` (`coach-export-measurements-example.json`).
+  - Les 9 fichiers d'`examples/` sont donc tous figés.
+
+### Contre-épreuves (script hors dépôt)
+Chaque règle a été cassée dans le vrai fichier, la suite concernée relancée, puis le fichier restauré à l'octet près (empreinte comparée). **19 sur 19 échouent comme attendu** :
+- T1 : `notes` de 196 caractères ; champ `rir` ajouté ; `type` retiré ; plus aucun bloc ` ```json `.
+- T2 : titre en `1.1` ; tableau coach en `1.3` ; version `2.0` citée.
+- T3 : point après l'URL dans le README ; URL de la constante changée ; prompt de l'addendum différent.
+- T4 : liste d'exclusion retirée ; motif visant un autre fichier ; motif trop large (toute l'app) ; `md` ajouté au précache.
+- T6 : vraie URL dans le guide Drive ; `SECRET` écrit dans le script ; `setProperty('SECRET', …)` ; identifiant `AKfy…` seul dans le README.
+- T5 : un octet changé dans `program-example.json` fait échouer 4 tests existants.
+
+Après restauration : 63/63 sur les fichiers concernés.
+
+### Point à vérifier après déploiement
+- GitHub Pages sert les `.md` en `text/markdown`. Les navigateurs courants l'affichent en texte brut, et les IA le lisent. Le type réellement servi et l'affichage dans Safari ne peuvent être vérifiés qu'en ligne (`curl -I https://urattems.github.io/training-app/coach.md`).
+
+### Test existant instable, préexistant (V1.7.5), corrigé dans le test seulement — signalé
+- **Constat** : pendant la passe complète, `features/exercise/ReplaceExercise.test.tsx`, « saisir le nom d'origine (casse libre)… », a échoué une fois (`expected "setItem" to not be called`, appel reçu : `('training-app-theme', 'light')`).
+- **Cause** : le test espionne `Storage.prototype.setItem` juste après l'affichage du titre, pour prouver qu'aucune écriture parasite n'a lieu. Depuis la V1.7.5, `ThemeAgent` écrit **une fois au démarrage** le miroir du thème, après la lecture de la base. Cette lecture arrive parfois après le titre, et l'écriture légitime de démarrage tombait alors dans l'espion.
+- **Préexistant, sans lien avec J2** (aucun code de l'app touché par J2). Mesuré sur `main` (V1.7.5), dans un worktree temporaire, depuis retiré : 1 échec sur 12 en exécution isolée. Sur la branche, avant correction : 1 sur 8, puis 3 sur 20.
+- **Adaptation du test (signalée)** :
+  - l'espion est posé **avant** le rendu ;
+  - le test attend l'écriture de démarrage du miroir (`training-app-theme` = `light`), puis remet l'espion à zéro (`mockClear`) ;
+  - l'assertion `expect(writes).not.toHaveBeenCalled()` est **inchangée** ;
+  - aucun code de l'app modifié.
+- **Mesures** : 0 échec sur 20 exécutions isolées après correction.
+- **Contre-épreuve** : une écriture `localStorage.setItem('parasite', '1')` injectée après la remise à zéro fait échouer le test. Il reste donc un vrai garde-fou.
+

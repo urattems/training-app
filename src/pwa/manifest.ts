@@ -36,6 +36,19 @@ export const ICONS = [
 /** Fichiers de `public/` à précacher en plus des assets du build. */
 export const STATIC_ASSETS = ['favicon.svg', 'favicon-32.png', 'icons/apple-touch-icon.png'] as const;
 
+/**
+ * Guide du coach (V1.8) : `public/coach.md`, servi tel quel à `<base>coach.md`. Il n'est PAS
+ * précaché (motif hors de `globPatterns`) : toujours la version en ligne (DECISIONS V1.8.0 J2).
+ */
+export const COACH_GUIDE_FILE = 'coach.md';
+
+/**
+ * Navigations que le service worker ne sert JAMAIS par l'app (`navigateFallbackDenylist`) :
+ * ouvrir l'adresse du guide doit renvoyer le fichier, y compris sur un appareil où l'app est
+ * installée. Workbox teste ces motifs sur `pathname + search`.
+ */
+export const NAVIGATE_FALLBACK_DENYLIST: readonly RegExp[] = [/\/coach\.md(?:\?|$)/];
+
 export function buildManifest(base: string, colors: ThemeColors) {
   return {
     id: base,
