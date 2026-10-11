@@ -1,4 +1,4 @@
-# Guide du coach — Training App
+﻿# Guide du coach — Training App
 
 Version du guide : **1** (app V1.8.0) · Adresse : https://urattems.github.io/training-app/coach.md
 

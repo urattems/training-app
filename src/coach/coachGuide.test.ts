@@ -5,6 +5,7 @@ import { DEFAULT_BASE, COACH_GUIDE_FILE, NAVIGATE_FALLBACK_DENYLIST } from '../p
 import { COACH_MEASUREMENTS_SCHEMA_VERSION, COACH_SCHEMA_VERSION, HISTORY_SCHEMA_VERSION, SCHEMA_VERSION } from '../schemas/common';
 import { findIgnoredFields } from '../schemas/ignoredFields';
 import { parseProgramJson } from '../schemas/parse';
+import { hasUtf8Bom, UTF8_BOM } from './coachGuideFile';
 import { COACH_GUIDE_URL, COACH_PROMPT } from './coachPrompt';
 
 /**
@@ -13,7 +14,9 @@ import { COACH_GUIDE_URL, COACH_PROMPT } from './coachPrompt';
  * existants (`test/fixtures.test.ts`, `services/measurementsBackup.test.ts`, `services/coachMeasurements.test.ts`).
  */
 const ROOT = process.cwd();
-const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8').replace(/\r\n/g, '\n');
+/** Texte d'un fichier : BOM UTF-8 éventuel retiré (coach.md en porte un, V1.8.0 J3), fins de ligne normalisées. */
+const BOM_AT_START = new RegExp(`^${String.fromCharCode(0xfeff)}`);
+const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8').replace(BOM_AT_START, '').replace(/\r\n/g, '\n');
 const coachMd = read('public/coach.md');
 
 /** Contenu des blocs de code ```<langage> placés en début de ligne. */
@@ -26,6 +29,26 @@ function capture(text: string, pattern: RegExp): string[] {
   if (!match) throw new Error(`Motif introuvable dans coach.md : ${String(pattern)}`);
   return match.slice(1);
 }
+
+describe('Encodage — coach.md commence par un BOM UTF-8 (servi sans charset par GitHub Pages)', () => {
+  it('public/coach.md commence par EF BB BF, une seule fois', () => {
+    const bytes = readFileSync(resolve(ROOT, 'public', COACH_GUIDE_FILE));
+    expect(hasUtf8Bom(bytes)).toBe(true);
+    expect(hasUtf8Bom(bytes.subarray(UTF8_BOM.length))).toBe(false);
+  });
+
+  it('le build refuse un dist/coach.md sans BOM (plugin de vite.config.ts)', () => {
+    const viteConfig = read('vite.config.ts');
+    expect(viteConfig).toMatch(/^ {6}verifyCoachGuideBom\(\),$/m);
+    expect(viteConfig).toMatch(/closeBundle\(\) \{\n\s+const file = resolve\(outDir, COACH_GUIDE_FILE\);\n\s+if \(!hasUtf8Bom\(readFileSync\(file\)\)\) throw/);
+  });
+
+  it('détecteur : BOM présent, absent, fichier trop court', () => {
+    expect(hasUtf8Bom(new Uint8Array([0xef, 0xbb, 0xbf, 0x23]))).toBe(true);
+    expect(hasUtf8Bom(new TextEncoder().encode('# Guide'))).toBe(false);
+    expect(hasUtf8Bom(new Uint8Array([0xef, 0xbb]))).toBe(false);
+  });
+});
 
 describe('T1 — chaque bloc ```json de coach.md est un programme accepté par l’app', () => {
   const blocks = fencedBlocks(coachMd, 'json');

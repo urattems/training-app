@@ -2425,3 +2425,16 @@ Après restauration : 63/63 sur les fichiers concernés.
 - **Mesures** : 0 échec sur 20 exécutions isolées après correction.
 - **Contre-épreuve** : une écriture `localStorage.setItem('parasite', '1')` injectée après la remise à zéro fait échouer le test. Il reste donc un vrai garde-fou.
 
+
+---
+
+## V1.8.0 — J3 : interface (écran de démarrage, copies pour le coach, Drive en dernier) et correctifs
+
+### 0. Encodage de `coach.md` (commit séparé)
+- **Constat** (utilisateur, en navigateur) : GitHub Pages sert `coach.md` en `text/markdown` **sans charset**. Le navigateur le lit en Windows-1252 et affiche « Guide du coach â€” ».
+- **Correctif** : un BOM UTF-8 (`EF BB BF`) en tête de `public/coach.md`. C'est la seule solution indépendante du serveur, vérifiée par l'utilisateur. Vite copie `public/` tel quel, donc `dist/coach.md` le porte aussi.
+- **Garde-fous** :
+  - test (`coachGuide.test.ts`) : `public/coach.md` commence par le BOM, une seule fois. Détecteur `hasUtf8Bom` (`src/coach/coachGuideFile.ts`) testé ;
+  - **vérification au build**, puisque Vitest ne lance pas le build : le petit plugin `verifyCoachGuideBom` de `vite.config.ts` fait **échouer `npm run build`** si `dist/coach.md` n'a pas de BOM. Un test vérifie que ce plugin est branché.
+  - Les tests T1 et T2 lisent le fichier sans le BOM ; aucune attente modifiée.
+- **Contre-épreuve** : `public/coach.md` sans BOM → le test échoue (« commence par EF BB BF ») et le build s'arrête (« BOM UTF-8 manquant en tête du guide du coach »). Avec le BOM : 17/17 et build vert.
