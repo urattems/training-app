@@ -51,6 +51,9 @@ Backend, API externe, cloud/sync, compte/login, IA intégrée, analytics/trackin
 - **Garde-fous anti-perte** : jamais de sauvegarde d'une base vide, refus de régression côté script, activation après test et confirmation, secret et URL propres à l'appareil (jamais exportés ni restaurés).
 - **Nouveaux types JSON** `weight_entry` et `weight_log` (V1.3b, §11).
 
+### Ajouts V1.8 — Training App pour tout le monde (addendum)
+- Cahier des charges : [`V1.8-SPEC.md`](V1.8-SPEC.md), addendum à ce document (même principe que `V1.3-SPEC.md`). Il fait foi pour la V1.8, avec ce document et `CLAUDE.md`.
+
 ---
 
 ## 3. Stack (recommandée)
